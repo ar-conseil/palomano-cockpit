@@ -26,10 +26,11 @@ DEST = Path(os.environ.get("PALOMANO_SUIVI_DIR", Path(__file__).resolve().parent
 
 
 def token():
-    try:
-        tenant, cid, secret = (os.environ[k] for k in ("AZ_TENANT_ID", "AZ_CLIENT_ID", "AZ_CLIENT_SECRET"))
-    except KeyError as e:
-        sys.exit(f"Variable d'environnement manquante : {e}")
+    names = ("AZ_TENANT_ID", "AZ_CLIENT_ID", "AZ_CLIENT_SECRET")
+    missing = [k for k in names if not os.environ.get(k)]
+    if missing:
+        sys.exit(f"Secrets manquants : {', '.join(missing)} (à définir avec « gh secret set »)")
+    tenant, cid, secret = (os.environ[k] for k in names)
     body = urllib.parse.urlencode({
         "client_id": cid, "client_secret": secret, "grant_type": "client_credentials",
         "scope": "https://graph.microsoft.com/.default",
