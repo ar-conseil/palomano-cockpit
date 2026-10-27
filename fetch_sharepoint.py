@@ -1,65 +1,65 @@
 #!/usr/bin/env python3
 """
-Télécharge les 3 fichiers du dossier SharePoint « PARC/SUIVI PARC » via Microsoft Graph
-(application Entra ID, accès en lecture seule).
+Télécharge les 3 fichiers du dossier SharePoint « PARC/SUIVI PARC » à partir de leurs liens
+de partage « Tout le monde disposant du lien » (affichage seul).
 
-Variables d'environnement :
-  AZ_TENANT_ID, AZ_CLIENT_ID, AZ_CLIENT_SECRET   identifiants de l'application Entra ID
-  SP_DRIVE_ID      bibliothèque « Documents » du site PALOMANO LA MAILLERIE (valeur par défaut ci-dessous)
-  SP_FOLDER        dossier dans la bibliothèque (défaut : PARC/SUIVI PARC)
+Variables d'environnement (secrets GitHub) :
+  SP_LINK_SUIVI     lien de « Objectifs Palomano Lille.xlsx »
+  SP_LINK_YANNIKA   lien de « PALOMANO_Objectifs_Yannika.xlsx »
+  SP_LINK_COLOR     lien de « Colorhisto_PALOMANO_Lille.xlsx »
   PALOMANO_SUIVI_DIR  dossier de destination (défaut : ./sources)
 
 Usage :  python3 fetch_sharepoint.py
 """
-import datetime as dt
-import json
+import email.utils
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
-FILES = ["Objectifs Palomano Lille.xlsx", "PALOMANO_Objectifs_Yannika.xlsx", "Colorhisto_PALOMANO_Lille.xlsx"]
-DRIVE_ID = os.environ.get("SP_DRIVE_ID", "b!bSAxO8uBfEadDgDaxczJN3YHKcBl_Z5DpNXmbSfpraw3VfTDsgUSQbsRyhS9FVHu")
-FOLDER = os.environ.get("SP_FOLDER", "PARC/SUIVI PARC")
+FILES = {
+    "SP_LINK_SUIVI": "Objectifs Palomano Lille.xlsx",
+    "SP_LINK_YANNIKA": "PALOMANO_Objectifs_Yannika.xlsx",
+    "SP_LINK_COLOR": "Colorhisto_PALOMANO_Lille.xlsx",
+}
 DEST = Path(os.environ.get("PALOMANO_SUIVI_DIR", Path(__file__).resolve().parent / "sources"))
 
 
-def token():
-    names = ("AZ_TENANT_ID", "AZ_CLIENT_ID", "AZ_CLIENT_SECRET")
-    missing = [k for k in names if not os.environ.get(k)]
-    if missing:
-        sys.exit(f"Secrets manquants : {', '.join(missing)} (à définir avec « gh secret set »)")
-    tenant, cid, secret = (os.environ[k] for k in names)
-    body = urllib.parse.urlencode({
-        "client_id": cid, "client_secret": secret, "grant_type": "client_credentials",
-        "scope": "https://graph.microsoft.com/.default",
-    }).encode()
-    req = urllib.request.Request(f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token", data=body)
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.load(r)["access_token"]
+def download_url(link):
+    """Un lien de partage SharePoint s'ouvre dans Excel en ligne ; download=1 renvoie le fichier brut."""
+    parts = urllib.parse.urlsplit(link.strip())
+    query = urllib.parse.parse_qsl(parts.query)
+    query = [(k, v) for k, v in query if k != "download"] + [("download", "1")]
+    return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query)))
 
 
 def main():
+    missing = [k for k in FILES if not os.environ.get(k)]
+    if missing:
+        sys.exit(f"Secrets manquants : {', '.join(missing)} (à ajouter dans GitHub › Settings › Secrets › Actions)")
     DEST.mkdir(parents=True, exist_ok=True)
-    tok = token()
-    for name in FILES:
-        path = urllib.parse.quote(f"{FOLDER}/{name}")
-        url = f"https://graph.microsoft.com/v1.0/drives/{DRIVE_ID}/root:/{path}:/content"
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}"})
+    errors = []
+    for var, name in FILES.items():
+        req = urllib.request.Request(download_url(os.environ[var]), headers={"User-Agent": "palomano-cockpit"})
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
-                data = r.read()
+                data, modified = r.read(), r.headers.get("Last-Modified")
         except urllib.error.HTTPError as e:
-            sys.exit(f"Échec du téléchargement de « {name} » : HTTP {e.code} {e.read()[:300]!r}")
+            errors.append(f"« {name} » : HTTP {e.code} — lien supprimé ou expiré ? Recréez-le et mettez à jour {var}.")
+            continue
+        if not data.startswith(b"PK"):  # un .xlsx est une archive zip ; sinon c'est une page de connexion
+            errors.append(f"« {name} » : le lien ne renvoie pas le fichier (page de connexion) — "
+                          f"vérifiez qu'il est bien en « Tout le monde disposant du lien » ({var}).")
+            continue
         (DEST / name).write_bytes(data)
-        # Date de dernière modification SharePoint, affichée en pied de page du dashboard
-        meta_req = urllib.request.Request(url[: -len(":/content")], headers={"Authorization": f"Bearer {tok}"})
-        with urllib.request.urlopen(meta_req, timeout=30) as r:
-            modified = json.load(r)["lastModifiedDateTime"]
-        ts = dt.datetime.fromisoformat(modified.replace("Z", "+00:00")).timestamp()
-        os.utime(DEST / name, (ts, ts))
-        print(f"↓ {name} ({len(data):,} octets, modifié {modified})")
+        if modified:  # date de dernière modification SharePoint, affichée en pied de page du dashboard
+            ts = email.utils.parsedate_to_datetime(modified).timestamp()
+            os.utime(DEST / name, (ts, ts))
+        print(f"↓ {name} ({len(data):,} octets, modifié {modified or 'date inconnue'})")
+    if errors:
+        sys.exit("\n".join(errors))
 
 
 if __name__ == "__main__":

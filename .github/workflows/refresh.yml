@@ -37,9 +37,9 @@ jobs:
 
       - name: Télécharger les fichiers SharePoint
         env:
-          AZ_TENANT_ID: ${{ secrets.AZ_TENANT_ID }}
-          AZ_CLIENT_ID: ${{ secrets.AZ_CLIENT_ID }}
-          AZ_CLIENT_SECRET: ${{ secrets.AZ_CLIENT_SECRET }}
+          SP_LINK_SUIVI: ${{ secrets.SP_LINK_SUIVI }}
+          SP_LINK_YANNIKA: ${{ secrets.SP_LINK_YANNIKA }}
+          SP_LINK_COLOR: ${{ secrets.SP_LINK_COLOR }}
           PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
         run: python fetch_sharepoint.py
 
