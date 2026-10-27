@@ -14,6 +14,7 @@ Usage :  python3 fetch_sharepoint.py
 import email.utils
 import http.cookiejar
 import os
+import re
 import sys
 import urllib.error
 import urllib.parse
@@ -56,12 +57,16 @@ def main():
         try:
             with opener.open(download_url(os.environ[var]), timeout=60) as r:
                 data, modified = r.read(), r.headers.get("Last-Modified")
+                final = urllib.parse.urlsplit(r.geturl())
         except urllib.error.HTTPError as e:
             errors.append(f"« {name} » : HTTP {e.code} après {' '.join(hops) or 'aucune redirection'} — "
                           f"lien en « Tout le monde » et téléchargement autorisé ? ({var})")
             continue
         if not data.startswith(b"PK"):  # un .xlsx est une archive zip ; sinon c'est une page de connexion
-            errors.append(f"« {name} » : le lien ne renvoie pas le fichier (page de connexion) — "
+            title = re.search(rb"<title>(.*?)</title>", data, re.S | re.I)
+            errors.append(f"« {name} » : le lien ne renvoie pas le fichier mais la page "
+                          f"« {title.group(1).decode(errors='replace').strip()[:60] if title else '?'} » "
+                          f"({final.netloc}{final.path[:24]}…, redirections : {' '.join(hops) or 'aucune'}) — "
                           f"vérifiez qu'il est bien en « Tout le monde disposant du lien » ({var}).")
             continue
         (DEST / name).write_bytes(data)
