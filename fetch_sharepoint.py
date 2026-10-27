@@ -1,81 +1,126 @@
 #!/usr/bin/env python3
 """
-Télécharge les 3 fichiers du dossier SharePoint « PARC/SUIVI PARC » à partir de leurs liens
-de partage « Tout le monde disposant du lien » (affichage seul).
+Télécharge les 3 fichiers du dossier SharePoint « PARC/SUIVI PARC » avec le compte Microsoft
+de la direction (connexion déléguée, lecture seule : Files.Read.All).
 
-Variables d'environnement (secrets GitHub) :
-  SP_LINK_SUIVI     lien de « Objectifs Palomano Lille.xlsx »
-  SP_LINK_YANNIKA   lien de « PALOMANO_Objectifs_Yannika.xlsx »
-  SP_LINK_COLOR     lien de « Colorhisto_PALOMANO_Lille.xlsx »
+La connexion initiale se fait une fois avec `connect_microsoft.py`, qui enregistre un jeton de
+session (refresh token) dans le secret GitHub MS_REFRESH_TOKEN. À chaque passage, Microsoft
+renvoie un nouveau jeton : il est conservé chiffré dans le cache GitHub Actions (MS_TOKEN_DIR)
+pour que la session ne s'éteigne pas.
+
+Variables d'environnement :
+  MS_REFRESH_TOKEN    jeton de session initial (secret GitHub)
+  DASH_PASSWORD       sert aussi à chiffrer le jeton renouvelé dans le cache
+  MS_TOKEN_DIR        dossier du jeton renouvelé (défaut : ./.ms_token)
   PALOMANO_SUIVI_DIR  dossier de destination (défaut : ./sources)
 
 Usage :  python3 fetch_sharepoint.py
 """
-import email.utils
-import http.cookiejar
+import base64
+import datetime as dt
+import json
 import os
-import re
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
-FILES = {
-    "SP_LINK_SUIVI": "Objectifs Palomano Lille.xlsx",
-    "SP_LINK_YANNIKA": "PALOMANO_Objectifs_Yannika.xlsx",
-    "SP_LINK_COLOR": "Colorhisto_PALOMANO_Lille.xlsx",
-}
-DEST = Path(os.environ.get("PALOMANO_SUIVI_DIR", Path(__file__).resolve().parent / "sources"))
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+HERE = Path(__file__).resolve().parent
+TENANT_ID = os.environ.get("MS_TENANT_ID", "bf94cc2f-302e-4f51-be78-91587215f19f")
+CLIENT_ID = os.environ.get("MS_CLIENT_ID", "a2d397f3-628b-4b0e-b17f-fb9b5c1f2d99")  # appli « Palomano Cockpit »
+SCOPE = "https://graph.microsoft.com/Files.Read.All offline_access"
+DRIVE_ID = os.environ.get("SP_DRIVE_ID", "b!bSAxO8uBfEadDgDaxczJN3YHKcBl_Z5DpNXmbSfpraw3VfTDsgUSQbsRyhS9FVHu")
+FOLDER = os.environ.get("SP_FOLDER", "PARC/SUIVI PARC")
+FILES = ["Objectifs Palomano Lille.xlsx", "PALOMANO_Objectifs_Yannika.xlsx", "Colorhisto_PALOMANO_Lille.xlsx"]
+DEST = Path(os.environ.get("PALOMANO_SUIVI_DIR", HERE / "sources"))
+TOKEN_FILE = Path(os.environ.get("MS_TOKEN_DIR", HERE / ".ms_token")) / "refresh_token.enc"
+TOKEN_URL = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
 
 
-def download_url(link):
-    """Un lien de partage SharePoint s'ouvre dans Excel en ligne ; download=1 renvoie le fichier brut."""
-    parts = urllib.parse.urlsplit(link.strip())
-    query = urllib.parse.parse_qsl(parts.query)
-    query = [(k, v) for k, v in query if k != "download"] + [("download", "1")]
-    return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query)))
+def _key():
+    pw = os.environ.get("DASH_PASSWORD")
+    if not pw:
+        return None
+    return PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=b"palomano-ms-refresh-token",
+                      iterations=200_000).derive(pw.encode())
+
+
+def load_cached():
+    key = _key()
+    if not key or not TOKEN_FILE.exists():
+        return None
+    try:
+        raw = base64.b64decode(TOKEN_FILE.read_text())
+        return AESGCM(key).decrypt(raw[:12], raw[12:], None).decode()
+    except Exception:
+        return None
+
+
+def save_cached(token):
+    key = _key()
+    if not key:
+        return
+    iv = os.urandom(12)
+    TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+    TOKEN_FILE.write_text(base64.b64encode(iv + AESGCM(key).encrypt(iv, token.encode(), None)).decode())
+
+
+def redeem(refresh_token):
+    body = urllib.parse.urlencode({"client_id": CLIENT_ID, "grant_type": "refresh_token",
+                                   "refresh_token": refresh_token, "scope": SCOPE}).encode()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(TOKEN_URL, data=body), timeout=30) as r:
+            return json.load(r), None
+    except urllib.error.HTTPError as e:
+        try:
+            err = json.load(e)
+            return None, f"{err.get('error')} — {err.get('error_description', '').splitlines()[0][:160]}"
+        except Exception:
+            return None, f"HTTP {e.code}"
+
+
+def access_token():
+    candidates = [("cache", load_cached()), ("secret", os.environ.get("MS_REFRESH_TOKEN"))]
+    problems = []
+    for origin, rt in candidates:
+        if not rt:
+            continue
+        tok, err = redeem(rt)
+        if tok:
+            if tok.get("refresh_token"):
+                save_cached(tok["refresh_token"])
+            print(f"Connexion Microsoft OK (jeton du {origin})")
+            return tok["access_token"]
+        problems.append(f"{origin} : {err}")
+    sys.exit("Connexion Microsoft impossible — relancez « python3 connect_microsoft.py » sur le Mac.\n"
+             + ("\n".join(problems) or "Aucun jeton (secret MS_REFRESH_TOKEN manquant)."))
+
+
+def graph(url, tok):
+    return urllib.request.urlopen(urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}"}), timeout=60)
 
 
 def main():
-    missing = [k for k in FILES if not os.environ.get(k)]
-    if missing:
-        sys.exit(f"Secrets manquants : {', '.join(missing)} (à ajouter dans GitHub › Settings › Secrets › Actions)")
     DEST.mkdir(parents=True, exist_ok=True)
-    errors = []
-    for var, name in FILES.items():
-        # Les liens anonymes SharePoint posent un cookie pendant la redirection : il faut le conserver.
-        hops = []
-
-        class Trace(urllib.request.HTTPRedirectHandler):
-            def redirect_request(self, req, fp, code, msg, headers, newurl):
-                hops.append(f"{code}→{urllib.parse.urlsplit(newurl).path[:28]}…")
-                return super().redirect_request(req, fp, code, msg, headers, newurl)
-
-        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), Trace())
-        opener.addheaders = [("User-Agent", "Mozilla/5.0 (palomano-cockpit)")]
+    tok = access_token()
+    for name in FILES:
+        item = f"https://graph.microsoft.com/v1.0/drives/{DRIVE_ID}/root:/{urllib.parse.quote(f'{FOLDER}/{name}')}"
         try:
-            with opener.open(download_url(os.environ[var]), timeout=60) as r:
-                data, modified = r.read(), r.headers.get("Last-Modified")
-                final = urllib.parse.urlsplit(r.geturl())
+            with graph(item + ":/content", tok) as r:
+                data = r.read()
+            with graph(item, tok) as r:
+                modified = json.load(r)["lastModifiedDateTime"]
         except urllib.error.HTTPError as e:
-            errors.append(f"« {name} » : HTTP {e.code} après {' '.join(hops) or 'aucune redirection'} — "
-                          f"lien en « Tout le monde » et téléchargement autorisé ? ({var})")
-            continue
-        if not data.startswith(b"PK"):  # un .xlsx est une archive zip ; sinon c'est une page de connexion
-            title = re.search(rb"<title>(.*?)</title>", data, re.S | re.I)
-            errors.append(f"« {name} » : le lien ne renvoie pas le fichier mais la page "
-                          f"« {title.group(1).decode(errors='replace').strip()[:60] if title else '?'} » "
-                          f"({final.netloc}{final.path[:24]}…, redirections : {' '.join(hops) or 'aucune'}) — "
-                          f"vérifiez qu'il est bien en « Tout le monde disposant du lien » ({var}).")
-            continue
+            sys.exit(f"Échec du téléchargement de « {name} » : HTTP {e.code} {e.read()[:200]!r}")
         (DEST / name).write_bytes(data)
-        if modified:  # date de dernière modification SharePoint, affichée en pied de page du dashboard
-            ts = email.utils.parsedate_to_datetime(modified).timestamp()
-            os.utime(DEST / name, (ts, ts))
-        print(f"↓ {name} ({len(data):,} octets, modifié {modified or 'date inconnue'})")
-    if errors:
-        sys.exit("\n".join(errors))
+        ts = dt.datetime.fromisoformat(modified.replace("Z", "+00:00")).timestamp()
+        os.utime(DEST / name, (ts, ts))  # date SharePoint, affichée en pied de page du dashboard
+        print(f"↓ {name} ({len(data):,} octets, modifié {modified})")
 
 
 if __name__ == "__main__":

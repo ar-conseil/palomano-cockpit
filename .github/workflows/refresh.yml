@@ -35,13 +35,28 @@ jobs:
       - name: Dépendances
         run: pip install openpyxl==3.1.5 cryptography==44.0.2
 
+      # Jeton de session Microsoft renouvelé à chaque passage (chiffré)
+      - name: Récupérer la session Microsoft
+        uses: actions/cache/restore@v4
+        with:
+          path: .ms_token
+          key: ms-token-${{ github.run_id }}
+          restore-keys: ms-token-
+
       - name: Télécharger les fichiers SharePoint
         env:
-          SP_LINK_SUIVI: ${{ secrets.SP_LINK_SUIVI }}
-          SP_LINK_YANNIKA: ${{ secrets.SP_LINK_YANNIKA }}
-          SP_LINK_COLOR: ${{ secrets.SP_LINK_COLOR }}
+          MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          MS_TOKEN_DIR: .ms_token
           PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
         run: python fetch_sharepoint.py
+
+      - name: Conserver la session Microsoft
+        if: always() && hashFiles('.ms_token/refresh_token.enc') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .ms_token
+          key: ms-token-${{ github.run_id }}
 
       - name: Générer le dashboard
         env:

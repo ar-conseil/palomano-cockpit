@@ -6,3 +6,4 @@ palomano-cockpit.html
 __pycache__/
 .DS_Store
 *.xlsx
+.ms_token/
