@@ -12,6 +12,7 @@ Variables d'environnement (secrets GitHub) :
 Usage :  python3 fetch_sharepoint.py
 """
 import email.utils
+import http.cookiejar
 import os
 import sys
 import urllib.error
@@ -42,12 +43,22 @@ def main():
     DEST.mkdir(parents=True, exist_ok=True)
     errors = []
     for var, name in FILES.items():
-        req = urllib.request.Request(download_url(os.environ[var]), headers={"User-Agent": "palomano-cockpit"})
+        # Les liens anonymes SharePoint posent un cookie pendant la redirection : il faut le conserver.
+        hops = []
+
+        class Trace(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                hops.append(f"{code}→{urllib.parse.urlsplit(newurl).path[:28]}…")
+                return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), Trace())
+        opener.addheaders = [("User-Agent", "Mozilla/5.0 (palomano-cockpit)")]
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with opener.open(download_url(os.environ[var]), timeout=60) as r:
                 data, modified = r.read(), r.headers.get("Last-Modified")
         except urllib.error.HTTPError as e:
-            errors.append(f"« {name} » : HTTP {e.code} — lien supprimé ou expiré ? Recréez-le et mettez à jour {var}.")
+            errors.append(f"« {name} » : HTTP {e.code} après {' '.join(hops) or 'aucune redirection'} — "
+                          f"lien en « Tout le monde » et téléchargement autorisé ? ({var})")
             continue
         if not data.startswith(b"PK"):  # un .xlsx est une archive zip ; sinon c'est une page de connexion
             errors.append(f"« {name} » : le lien ne renvoie pas le fichier (page de connexion) — "
