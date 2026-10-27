@@ -1,0 +1,8 @@
+# Données et pages générées : jamais dans le dépôt
+sources/
+site/
+Palomano_Dashboard.html
+palomano-cockpit.html
+__pycache__/
+.DS_Store
+*.xlsx

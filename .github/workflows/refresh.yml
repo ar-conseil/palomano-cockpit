@@ -1,0 +1,70 @@
+name: Actualisation du dashboard
+
+on:
+  schedule:
+    # Toutes les 30 min de 7h à 23h (heure de Paris ≈ UTC+1/+2), plus une passe de nuit
+    - cron: "*/30 5-22 * * *"
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dépendances
+        run: pip install openpyxl==3.1.5 cryptography==44.0.2
+
+      - name: Télécharger les fichiers SharePoint
+        env:
+          AZ_TENANT_ID: ${{ secrets.AZ_TENANT_ID }}
+          AZ_CLIENT_ID: ${{ secrets.AZ_CLIENT_ID }}
+          AZ_CLIENT_SECRET: ${{ secrets.AZ_CLIENT_SECRET }}
+          PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
+        run: python fetch_sharepoint.py
+
+      - name: Générer le dashboard
+        env:
+          PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
+          TZ: Europe/Paris
+        run: python build_dashboard.py
+
+      - name: Chiffrer la page
+        env:
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+        run: python encrypt_page.py
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      # GitHub désactive les tâches planifiées d'un dépôt sans activité pendant 60 jours :
+      # on réactive le workflow à chaque passage pour remettre le compteur à zéro.
+      - name: Garder la planification active
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/refresh.yml/enable" || true

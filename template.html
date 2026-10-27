@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palomano Cockpit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f6f5f1; --surface:#fcfcfb; --surface-2:#f1f0eb;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --ring:rgba(11,11,11,.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6;
+  --s1-soft:#cde2fb;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --good-ink:#006300; --crit-ink:#b42323;
+  --div-neg:#d03b3b; --div-mid:#f0efec; --div-pos:#2a78d6;
+  --brand:#2a78d6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232321;
+    --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9;
+    --s1-soft:#184f95;
+    --good-ink:#0ca30c; --crit-ink:#e66767;
+    --div-mid:#383835; --div-pos:#3987e5;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --surface-2:#232321;
+  --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --ring:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9;
+  --s1-soft:#184f95;
+  --good-ink:#0ca30c; --crit-ink:#e66767;
+  --div-mid:#383835; --div-pos:#3987e5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1440px;margin:0 auto;padding-block:0 64px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--page)}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--page) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--ring)}
+.top-in{max-width:1440px;margin:0 auto;padding-block:14px 0;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+.brandrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{width:38px;height:38px;border-radius:10px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;letter-spacing:.5px}
+.brandrow h1{font-size:18px;margin:0;font-weight:650}
+.brandrow .sub{color:var(--ink-2);font-size:12.5px}
+.fresh{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--ink-2)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);display:inline-block}
+.dot.stale{background:var(--warn)}
+button,select,input{font:inherit;color:inherit}
+.btn{border:1px solid var(--ring);background:var(--surface);border-radius:8px;padding:6px 10px;cursor:pointer}
+.btn:hover{background:var(--surface-2)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--ring);background:var(--surface);border-radius:999px;padding:5px 12px;cursor:pointer;font-size:13px;white-space:nowrap}
+.chip:hover{background:var(--surface-2)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--page);border-color:var(--ink)}
+.custom{display:none;gap:6px;align-items:center;font-size:13px}
+.custom.on{display:flex}
+.custom input{border:1px solid var(--ring);background:var(--surface);border-radius:8px;padding:4px 8px}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs button{border:0;background:none;padding:10px 14px;cursor:pointer;color:var(--ink-2);border-bottom:2px solid transparent;white-space:nowrap;font-weight:550}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brand)}
+.periodline{font-size:13px;color:var(--ink-2);margin:18px 0 12px}
+.periodline b{color:var(--ink)}
+section.tab{display:none}
+section.tab.on{display:block}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g21{grid-template-columns:2fr 1fr}
+.g12{grid-template-columns:1fr 2fr}
+@media (max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3,.g21,.g12{grid-template-columns:1fr}}
+@media (max-width:640px){.g4,.g2{grid-template-columns:1fr}.wrap,.top-in{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}.fresh{margin-left:0}header.top{position:static}}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:14px;padding:16px 18px;min-width:0}
+.card h3{margin:0 0 2px;font-size:14px;font-weight:620}
+.card .hint{color:var(--muted);font-size:12px;margin:0 0 12px}
+.sectitle{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px;font-weight:600}
+.kpi .lab{font-size:12.5px;color:var(--ink-2);display:flex;justify-content:space-between;gap:8px}
+.kpi .val{font-size:28px;font-weight:650;letter-spacing:-.01em;margin:6px 0 4px}
+.kpi .meta{font-size:12px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px}
+.bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin:8px 0 6px;position:relative}
+.bar>i{display:block;height:100%;border-radius:3px;background:var(--s1)}
+.bar>b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+.st{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink);white-space:nowrap}
+.st::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.st.good{--c:var(--good)} .st.warn{--c:var(--warn)} .st.crit{--c:var(--crit)} .st.na{--c:var(--muted)}
+.delta{font-weight:600}
+.delta.up{color:var(--good-ink)} .delta.down{color:var(--crit-ink)}
+.chart{position:relative;height:300px}
+.chart.sm{height:220px}
+.chart.lg{height:360px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap}
+th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+th:first-child,td:first-child{text-align:left}
+td{font-variant-numeric:tabular-nums}
+tr.tot td{font-weight:650;border-top:1px solid var(--axis)}
+tr.future td{color:var(--muted)}
+.tablewrap{overflow-x:auto}
+.alerts{display:flex;flex-direction:column;gap:8px}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;background:var(--surface-2);font-size:13px}
+.alert .ic{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;color:#fff;background:var(--c)}
+.alert.crit{--c:var(--crit)} .alert.warn{--c:var(--warn)} .alert.good{--c:var(--good)} .alert.info{--c:var(--s1)}
+.alert.warn .ic{color:#000}
+.alert b{font-weight:620}
+.land{display:flex;flex-direction:column;gap:12px}
+.land .row{display:grid;grid-template-columns:150px 1fr 90px;gap:10px;align-items:center;font-size:13px}
+.land .track{height:22px;background:var(--surface-2);border-radius:6px;position:relative;overflow:hidden}
+.land .fill{position:absolute;inset:0 auto 0 0;border-radius:6px}
+.land .tgt{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink)}
+.land .v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.hero{font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:-4px 0 10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.legend i.line{height:2px;width:14px;border-radius:1px}
+.legend i.dash{height:0;width:14px;border-top:2px dashed var(--muted);border-radius:0;background:none!important}
+.heat{display:grid;gap:2px;font-size:11px}
+.heat .c{height:22px;border-radius:4px;display:grid;place-items:center;font-variant-numeric:tabular-nums;color:var(--ink);cursor:default}
+.heat .h{color:var(--muted);font-size:10.5px;display:flex;align-items:center}
+.cal{display:flex;flex-direction:column;gap:3px;overflow-x:auto}
+.cal .r{display:grid;grid-template-columns:70px repeat(31,minmax(16px,1fr));gap:2px;align-items:center;min-width:640px}
+.cal .r>span:first-child{font-size:11px;color:var(--ink-2)}
+.cal .d{height:18px;border-radius:3px;background:var(--surface-2)}
+.okr{display:flex;flex-direction:column;gap:12px}
+.okr .q{border:1px solid var(--ring);border-radius:12px;padding:12px 14px}
+.okr .qh{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.okr .qh b{font-size:13.5px}
+.okr .it{display:grid;grid-template-columns:minmax(150px,1.4fr) 2fr 70px 92px;gap:10px;align-items:center;font-size:12.5px;padding:5px 0;border-top:1px dashed var(--grid)}
+@media (max-width:640px){.okr .it{grid-template-columns:1fr 70px 92px}.okr .it .bar{grid-column:1/-1;order:5}}
+.okr .it .bar{margin:0}
+.muted{color:var(--muted)}
+.tip{position:fixed;pointer-events:none;z-index:50;background:var(--ink);color:var(--page);padding:6px 9px;border-radius:7px;font-size:12px;opacity:0;transition:opacity .08s;max-width:260px}
+footer{margin-top:36px;color:var(--muted);font-size:12px}
+.stars{display:flex;flex-direction:column;gap:6px}
+.stars .r{display:grid;grid-template-columns:34px 1fr 60px;gap:8px;align-items:center;font-size:12.5px}
+.stars .t{height:12px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.stars .t i{display:block;height:100%;background:var(--s4);border-radius:3px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="brandrow">
+      <div class="logo">PL</div>
+      <div>
+        <h1>Palomano · La Maillerie — Cockpit de pilotage</h1>
+        <div class="sub">Toutes les valeurs en € HT · source : dossier SUIVI PARC (OneDrive)</div>
+      </div>
+      <div class="fresh"><span class="dot" id="freshDot"></span><span id="freshTxt"></span>
+        <button class="btn" id="themeBtn" title="Thème clair / sombre">◐</button>
+      </div>
+    </div>
+    <div class="controls" id="periods">
+      <button class="chip" data-p="last">Dernier jour</button>
+      <button class="chip" data-p="7d">7 derniers jours</button>
+      <button class="chip" data-p="wtd">Semaine en cours</button>
+      <button class="chip" data-p="mtd">Mois en cours</button>
+      <button class="chip" data-p="pm">Mois précédent</button>
+      <button class="chip" data-p="qtd">Trimestre</button>
+      <button class="chip" data-p="ytd">Année civile</button>
+      <button class="chip" data-p="bp">Exercice BP (mai→avr)</button>
+      <button class="chip" data-p="all">Depuis l'ouverture</button>
+      <button class="chip" data-p="custom">Personnalisé…</button>
+      <span class="custom" id="customBox"><input type="date" id="dFrom"> → <input type="date" id="dTo"></span>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-t="synth" aria-selected="true">Synthèse</button>
+      <button role="tab" data-t="activ">Activité</button>
+      <button role="tab" data-t="n1">Comparatif N-1</button>
+      <button role="tab" data-t="obj">Objectifs & OKR</button>
+      <button role="tab" data-t="qual">Qualité & équipe</button>
+      <button role="tab" data-t="cost">Charges & rentabilité</button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="periodline" id="periodLine"></div>
+
+  <!-- ═════════ SYNTHÈSE ═════════ -->
+  <section class="tab on" id="t-synth">
+    <div class="grid g4" id="kpis"></div>
+
+    <div class="grid g21" style="margin-top:14px">
+      <div class="card">
+        <h3>Points d'attention</h3>
+        <p class="hint">Générés automatiquement à partir des écarts aux objectifs, au N-1, aux OKR et au Colorhisto.</p>
+        <div class="alerts" id="alerts"></div>
+      </div>
+      <div class="card">
+        <h3>Atterrissage CA 2026</h3>
+        <p class="hint" id="landHint"></p>
+        <div class="hero" id="landHero"></div>
+        <div class="muted" id="landSub" style="margin:4px 0 14px;font-size:12.5px"></div>
+        <div class="land" id="land"></div>
+        <div style="margin-top:14px;font-size:12.5px" id="landNeed"></div>
+      </div>
+    </div>
+
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card">
+        <h3>CA mensuel — réalisé vs objectif</h3>
+        <p class="hint">Barres : réalisé 2026 · tirets : objectif mensuel · ligne : réalisé N-1</p>
+        <div class="legend"><span><i style="background:var(--s1)"></i>Réalisé 2026</span><span><i class="dash"></i>Objectif 2026</span><span><i class="line" style="background:var(--s2)"></i>Réalisé 2025</span></div>
+        <div class="chart"><canvas id="cMonthly"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>CA cumulé 2026 — trajectoire</h3>
+        <p class="hint">Cumul journalier vs objectif 650 k€ (pondéré jour par jour) et vs 2025</p>
+        <div class="legend"><span><i class="line" style="background:var(--s1)"></i>Réalisé 2026</span><span><i class="dash"></i>Objectif cumulé</span><span><i class="line" style="background:var(--s2)"></i>Réalisé 2025</span></div>
+        <div class="chart"><canvas id="cCumul"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid g12" style="margin-top:14px">
+      <div class="card">
+        <h3>Mix du CA — période</h3>
+        <p class="hint">Répartition du CA HT par activité</p>
+        <div class="chart sm"><canvas id="cMix"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Mois en cours — projection</h3>
+        <p class="hint" id="mtdHint"></p>
+        <div class="grid g3" id="mtd"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ ACTIVITÉ ═════════ -->
+  <section class="tab" id="t-activ">
+    <div class="card">
+      <h3>CA journalier par activité</h3>
+      <p class="hint">Barres empilées par activité · tirets : objectif du jour (pondéré selon le type de jour)</p>
+      <div class="legend" id="segLegend"></div>
+      <div class="chart lg"><canvas id="cDaily"></canvas></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card">
+        <h3>Profil par jour de semaine</h3>
+        <p class="hint">CA HT moyen par jour d'ouverture · période vs même période N-1</p>
+        <div class="legend"><span><i style="background:var(--s1)"></i>Période</span><span><i style="background:var(--s2)"></i>N-1</span></div>
+        <div class="chart sm"><canvas id="cDow"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Fréquentation journalière</h3>
+        <p class="hint">Entrées totales par jour · tirets : objectif visiteurs du jour</p>
+        <div class="chart sm"><canvas id="cVis"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Calendrier de performance</h3>
+      <p class="hint">Chaque case = un jour · couleur = CA réalisé ÷ objectif du jour (rouge sous l'objectif, bleu au-dessus) · gris = fermé / pas d'objectif</p>
+      <div class="cal" id="cal"></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Journal des derniers jours</h3>
+      <p class="hint">15 derniers jours saisis</p>
+      <div class="tablewrap"><table id="tLast"></table></div>
+    </div>
+  </section>
+
+  <!-- ═════════ N-1 ═════════ -->
+  <section class="tab" id="t-n1">
+    <div class="grid g4" id="n1kpis"></div>
+    <div class="card" style="margin-top:14px">
+      <h3>Comparatif hebdomadaire 2026 vs 2025</h3>
+      <p class="hint">Semaines ISO (lundi → dimanche), CA HT · semaine en cours partielle</p>
+      <div class="legend"><span><i style="background:var(--s2)"></i>2025</span><span><i style="background:var(--s1)"></i>2026</span></div>
+      <div class="chart lg"><canvas id="cWeeks"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Comparatif mensuel</h3>
+      <p class="hint">À jour comparable : le mois en cours est comparé jour pour jour (J-364, même jour de semaine)</p>
+      <div class="tablewrap"><table id="tMonthN1"></table></div>
+    </div>
+  </section>
+
+  <!-- ═════════ OBJECTIFS ═════════ -->
+  <section class="tab" id="t-obj">
+    <div class="grid g12">
+      <div class="card">
+        <h3>OKR trimestriels</h3>
+        <p class="hint">% d'atteinte vs % du temps écoulé (repère noir) · source : Colorhisto › OKR</p>
+        <div class="okr" id="okr"></div>
+      </div>
+      <div class="card">
+        <h3>Plan 12 mois (BP Yannika) — réalisé vs objectif</h3>
+        <p class="hint">Mai 2026 → avril 2027 · objectif annuel <span id="bpAnnual"></span></p>
+        <div class="tablewrap"><table id="tBP"></table></div>
+        <div class="chart sm" style="margin-top:14px"><canvas id="cBP"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ QUALITÉ ═════════ -->
+  <section class="tab" id="t-qual">
+    <div class="card">
+      <h3>Colorhistomètre hebdomadaire</h3>
+      <p class="hint">Note 1 (vraiment nul) → 6 (parfait) par KPI et par semaine · rempli chaque lundi par la directrice</p>
+      <div class="tablewrap"><div class="heat" id="heat"></div></div>
+    </div>
+    <div class="grid g3" style="margin-top:14px">
+      <div class="card">
+        <h3>Note Google globale</h3>
+        <p class="hint" id="gHint"></p>
+        <div class="hero" id="gHero"></div>
+        <div class="muted" id="gSub" style="margin:4px 0 14px;font-size:12.5px"></div>
+        <div class="stars" id="gStars"></div>
+      </div>
+      <div class="card" style="grid-column:span 2">
+        <h3>Note Google moyenne par mois</h3>
+        <p class="hint">Estimation mensuelle (répartition au prorata) · tirets : cible 4,8</p>
+        <div class="chart"><canvas id="cGoogle"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Synthèse Colorhisto par semaine</h3>
+      <p class="hint">Moyenne des KPI notés · sous 4 pendant un mois = plan d'action</p>
+      <div class="chart sm"><canvas id="cSynth"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ═════════ CHARGES ═════════ -->
+  <section class="tab" id="t-cost">
+    <div class="grid g4" id="costKpis"></div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card">
+        <h3>Charges pilotables vs CA — par mois</h3>
+        <p class="hint" id="costHint"></p>
+        <div class="legend"><span><i style="background:var(--s1)"></i>Masse salariale</span><span><i style="background:var(--s2)"></i>Achats</span><span><i style="background:var(--s3)"></i>Autres</span><span><i class="line" style="background:var(--ink)"></i>CA réalisé</span></div>
+        <div class="chart"><canvas id="cCost"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>Ratio masse salariale / CA</h3>
+        <p class="hint">Masse salariale chargée ÷ CA HT réalisé du mois (cible BP ≈ 19 %)</p>
+        <div class="chart"><canvas id="cMsRatio"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Détail mensuel — marge sur charges pilotables</h3>
+      <p class="hint">CA réalisé − charges pilotables (réel si saisi dans « Suivi Charges », sinon objectif BP)</p>
+      <div class="tablewrap"><table id="tCost"></table></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Effectifs planifiés</h3>
+      <p class="hint">Onglet « Contrats salariés » · nombre de personnes par mois</p>
+      <div class="tablewrap"><table id="tContrats"></table></div>
+    </div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>const DATA=/*__DATA__*/null;</script>
+<script>
+"use strict";
+/* ───────────── helpers ───────────── */
+const DAY=864e5;
+const toD=s=>{const[y,m,d]=s.split("-").map(Number);return Date.UTC(y,m-1,d)};
+const toS=t=>new Date(t).toISOString().slice(0,10);
+const addD=(s,n)=>toS(toD(s)+n*DAY);
+const dow=s=>(new Date(toD(s)).getUTCDay()+6)%7; // 0=lundi
+const fmtE=(v,d=0)=>isFinite(v)?new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:d,minimumFractionDigits:d}).format(v):"—";
+const fmtK=v=>Math.abs(v)>=1e4?(v/1e3).toLocaleString("fr-FR",{maximumFractionDigits:1})+" k€":fmtE(v);
+const fmtN=(v,d=0)=>isFinite(v)?v.toLocaleString("fr-FR",{maximumFractionDigits:d,minimumFractionDigits:d}):"—";
+const fmtP=(v,d=1)=>isFinite(v)?(v*100).toLocaleString("fr-FR",{maximumFractionDigits:d,minimumFractionDigits:d})+" %":"—";
+const sgn=(v,f)=>isFinite(v)?(v>=0?"+":"−")+f(Math.abs(v)):"—";
+const fmtDate=s=>{const d=new Date(toD(s));return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric",timeZone:"UTC"})};
+const fmtDay=s=>new Date(toD(s)).toLocaleDateString("fr-FR",{weekday:"short",day:"2-digit",month:"2-digit",timeZone:"UTC"});
+const MOIS=["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+const MOISL=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const JOURS=["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"];
+const mLabel=k=>MOIS[+k.slice(5,7)-1]+" "+k.slice(2,4);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ───────────── data model ───────────── */
+// daily row: [date, parc, anniv, scol, grp, snack, bout, event, tot, entrees, cap, nbAnniv, parcN, totTTC]
+const SEG=[{k:"parc",i:1,lab:"Entrées parc",c:"--s1"},{k:"anniv",i:2,lab:"Anniversaires",c:"--s2"},
+  {k:"b2b",i:[3,4],lab:"B2B (écoles, centres, CSE)",c:"--s3"},{k:"snack",i:5,lab:"Snacking",c:"--s4"},
+  {k:"bout",i:6,lab:"Boutique",c:"--s5"},{k:"event",i:7,lab:"Évènements",c:"--s6"}];
+const BY=new Map(DATA.daily.map(r=>[r[0],r]));
+const FIRST=DATA.daily.find(r=>r[8]>0)[0];
+const LAST=DATA.lastDate;
+const segVal=(r,s)=>Array.isArray(s.i)?s.i.reduce((a,i)=>a+r[i],0):r[s.i];
+
+// monthly targets
+const BPM=["2026-05","2026-06","2026-07","2026-08","2026-09","2026-10","2026-11","2026-12","2027-01","2027-02","2027-03","2027-04"];
+function monthTarget(k){
+  const y=k.slice(0,4),m=+k.slice(5,7)-1;
+  if(DATA.objCal[y])return DATA.objCal[y][m]||0;
+  const i=BPM.indexOf(k);return i>=0?DATA.bp.rows.ca[i]:0;
+}
+function monthSeg(k,f){ // vis / anniv / b2b
+  const i=BPM.indexOf(k);
+  if(i>=0){const R=DATA.bp.rows;return f==="vis"?R.vis[i]:f==="anniv"?R.anniv[i]:R.ecole[i]+R.adl[i]}
+  const o=DATA.objSeg[k];return o?o[f]:NaN;
+}
+const rawSum={};
+for(const[d,v]of Object.entries(DATA.dayObj)){const k=d.slice(0,7);rawSum[k]=(rawSum[k]||0)+v}
+const dim=k=>new Date(Date.UTC(+k.slice(0,4),+k.slice(5,7),0)).getUTCDate();
+function dayWeight(d){const k=d.slice(0,7);const s=rawSum[k];return s?(DATA.dayObj[d]||0)/s:1/dim(k)}
+const dayObj=d=>monthTarget(d.slice(0,7))*dayWeight(d);
+const dayObjF=(d,f)=>{const v=monthSeg(d.slice(0,7),f);return isFinite(v)?v*dayWeight(d):NaN};
+
+function range(a,b){const out=[];for(let t=toD(a);t<=toD(b);t+=DAY)out.push(toS(t));return out}
+function agg(a,b,shift=0){
+  const o={tot:0,parc:0,anniv:0,b2b:0,snack:0,bout:0,event:0,ent:0,cap:0,nbAnniv:0,parcN:0,open:0,obj:0,objVis:0,objAnn:0,objB2B:0,slots:0,days:0,hasObjVis:true,ttc:0};
+  for(const d0 of range(a,b)){
+    const d=shift?addD(d0,shift):d0;const r=BY.get(d);
+    o.days++;
+    const w=dow(d);if(w===2||w===5||w===6)o.slots+=6;
+    if(!shift){o.obj+=dayObj(d);const v=dayObjF(d,"vis");if(isFinite(v))o.objVis+=v;else o.hasObjVis=false;
+      const an=dayObjF(d,"anniv");if(isFinite(an))o.objAnn+=an;const bb=dayObjF(d,"b2b");if(isFinite(bb))o.objB2B+=bb}
+    if(!r)continue;
+    o.tot+=r[8];o.parc+=r[1];o.anniv+=r[2];o.b2b+=r[3]+r[4];o.snack+=r[5];o.bout+=r[6];o.event+=r[7];
+    o.ent+=r[9];o.cap+=r[10];o.nbAnniv+=r[11];o.parcN+=r[12];o.ttc+=r[13];if(r[8]>0)o.open++;
+  }
+  return o;
+}
+const hasN1=a=>toD(addD(a,-364))>=toD(FIRST);
+
+/* ───────────── period state ───────────── */
+let P={key:"mtd",a:null,b:null};
+function setPeriod(key){
+  const L=LAST,y=+L.slice(0,4),m=+L.slice(5,7);
+  let a,b=L;
+  if(key==="last")a=L;
+  else if(key==="7d")a=addD(L,-6);
+  else if(key==="wtd")a=addD(L,-dow(L));
+  else if(key==="mtd")a=L.slice(0,8)+"01";
+  else if(key==="pm"){const pm=m===1?`${y-1}-12`:`${y}-${String(m-1).padStart(2,"0")}`;a=pm+"-01";b=pm+"-"+dim(pm)}
+  else if(key==="qtd"){const q=Math.floor((m-1)/3)*3+1;a=`${y}-${String(q).padStart(2,"0")}-01`}
+  else if(key==="ytd")a=`${y}-01-01`;
+  else if(key==="bp"){a="2026-05-01";if(toD(L)>toD("2027-04-30"))b="2027-04-30"}
+  else if(key==="all")a=FIRST;
+  else if(key==="custom"){a=$("dFrom").value||L.slice(0,8)+"01";b=$("dTo").value||L}
+  if(toD(a)<toD(FIRST))a=FIRST;
+  if(toD(b)>toD(L))b=L;
+  if(toD(a)>toD(b))a=b;
+  P={key,a,b};
+  document.querySelectorAll("#periods .chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.p===key));
+  $("customBox").classList.toggle("on",key==="custom");
+  if(key!=="custom"){$("dFrom").value=a;$("dTo").value=b}
+  try{localStorage.setItem("palo.period",key)}catch(e){}
+  renderAll();
+}
+
+/* ───────────── status ───────────── */
+function status(r){if(!isFinite(r))return["na","n/d"];if(r>=1)return["good","Objectif atteint"];if(r>=.9)return["warn","Proche"];return["crit","Sous l'objectif"]}
+const stHtml=r=>{const[c,l]=status(r);return`<span class="st ${c}">${l}</span>`};
+const deltaHtml=(v,f=fmtP)=>!isFinite(v)?'<span class="muted">N-1 n/d</span>':`<span class="delta ${v>=0?"up":"down"}">${v>=0?"▲":"▼"} ${sgn(v,f)}</span> vs N-1`;
+
+/* ───────────── charts infra ───────────── */
+const CH={};
+function chart(id,cfg){if(CH[id])CH[id].destroy();CH[id]=new Chart($(id),cfg);return CH[id]}
+function baseOpts(extra={}){
+  const ink2=css("--ink-2"),muted=css("--muted"),grid=css("--grid");
+  return Object.assign({responsive:true,maintainAspectRatio:false,animation:{duration:250},
+    interaction:{mode:"index",intersect:false},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),titleColor:css("--page"),bodyColor:css("--page"),
+      padding:9,cornerRadius:7,boxPadding:4,usePointStyle:true,
+      callbacks:{label:c=>` ${c.dataset.label} : ${c.dataset.fmt?c.dataset.fmt(c.parsed.y??c.parsed.x):fmtE(c.parsed.y)}`}}},
+    scales:{x:{grid:{display:false},border:{color:css("--axis")},ticks:{color:muted,font:{size:11},maxRotation:0,autoSkipPadding:12}},
+      y:{grid:{color:grid},border:{display:false},ticks:{color:muted,font:{size:11},callback:v=>fmtK(v)},beginAtZero:true}}},extra);
+}
+Chart.defaults.font.family='system-ui,-apple-system,"Segoe UI",sans-serif';
+
+/* ───────────── SYNTHÈSE ───────────── */
+function kpiCard(o){
+  const pct=isFinite(o.ratio)?Math.min(o.ratio,1.5)/1.5*100:0;
+  return`<div class="card kpi"><div class="lab"><span>${o.lab}</span>${o.st===false?"":stHtml(o.ratio)}</div>
+  <div class="val">${o.val}</div>
+  ${isFinite(o.ratio)?`<div class="bar" title="Atteinte ${fmtP(o.ratio,0)}"><i style="width:${pct}%;background:var(${o.ratio>=1?"--good":o.ratio>=.9?"--warn":"--crit"})"></i><b style="left:${100/1.5}%"></b></div>`:""}
+  <div class="meta">${o.meta.map(x=>`<span>${x}</span>`).join("")}</div></div>`;
+}
+function renderKpis(){
+  const{a,b}=P,c=agg(a,b),n1=hasN1(a)?agg(a,b,-364):null;
+  const yo=(x,y)=>n1&&y?x/y-1:NaN;
+  const occ=c.cap?c.ent/c.cap:NaN,occObj=c.cap&&c.hasObjVis?c.objVis/c.cap:NaN;
+  const pm=c.ent?c.tot/c.ent:NaN,pmObj=c.objVis?c.obj/c.objVis:NaN;
+  const snackV=c.parcN?c.snack/c.parcN:NaN;
+  const fill=c.slots?c.nbAnniv/c.slots:NaN;
+  const cards=[
+    {lab:"CA HT",val:fmtE(c.tot),ratio:c.obj?c.tot/c.obj:NaN,meta:[`Objectif ${fmtE(c.obj)} · ${fmtP(c.tot/c.obj,0)}`,deltaHtml(n1?yo(c.tot,n1.tot):NaN)]},
+    {lab:"Entrées",val:fmtN(c.ent),ratio:c.hasObjVis&&c.objVis?c.ent/c.objVis:NaN,meta:[c.hasObjVis?`Objectif ${fmtN(c.objVis)} · ${fmtP(c.ent/c.objVis,0)}`:"Pas d'objectif visiteurs sur la période",deltaHtml(n1?yo(c.ent,n1.ent):NaN)]},
+    {lab:"Taux d'occupation",val:fmtP(occ),ratio:occ/occObj,meta:[`Objectif ${fmtP(occObj)} · capacité ${fmtN(c.cap)}`,n1&&n1.cap?`<span class="muted">N-1 : ${fmtP(n1.ent/n1.cap)}</span>`:'<span class="muted">N-1 n/d</span>']},
+    {lab:"Panier moyen / visiteur",val:fmtE(pm,2),ratio:pm/pmObj,meta:[`Objectif BP ${fmtE(pmObj,2)}`,deltaHtml(n1&&n1.ent?pm/(n1.tot/n1.ent)-1:NaN)]},
+    {lab:"CA anniversaires",val:fmtE(c.anniv),ratio:c.objAnn?c.anniv/c.objAnn:NaN,meta:[`Objectif ${fmtE(c.objAnn)} · ${fmtN(c.nbAnniv)} anniv`,`Remplissage ${fmtP(fill,0)} (${fmtN(c.nbAnniv)}/${fmtN(c.slots)} créneaux)`]},
+    {lab:"CA B2B (écoles, centres, CSE)",val:fmtE(c.b2b),ratio:c.objB2B?c.b2b/c.objB2B:NaN,meta:[`Objectif ${fmtE(c.objB2B)} · ${fmtP(c.b2b/c.objB2B,0)}`,deltaHtml(n1?yo(c.b2b,n1.b2b):NaN)]},
+    {lab:"Snack / visiteur parc",val:fmtE(snackV,2),ratio:snackV/1.05,meta:[`Cible ≥ 1,05 € · snack ${fmtE(c.snack)} (${fmtP(c.snack/c.tot)} du CA)`,deltaHtml(n1&&n1.parcN?snackV/(n1.snack/n1.parcN)-1:NaN)]},
+    {lab:"CA moyen / jour ouvert",val:fmtE(c.open?c.tot/c.open:NaN),st:false,ratio:NaN,meta:[`${c.open} jours ouverts sur ${c.days}`,`Boutique ${fmtE(c.bout)} · Évènements ${fmtE(c.event)}`]},
+  ];
+  $("kpis").innerHTML=cards.map(kpiCard).join("");
+  const lab=P.a===P.b?fmtDate(P.a):`du ${fmtDate(P.a)} au ${fmtDate(P.b)}`;
+  $("periodLine").innerHTML=`Période : <b>${lab}</b> · ${c.days} jour${c.days>1?"s":""}${n1?` · comparée à N-1 du ${fmtDate(addD(P.a,-364))} au ${fmtDate(addD(P.b,-364))} (même jour de semaine)`:" · pas de N-1 (parc ouvert le 18/06/2025)"}`;
+  return{c,n1};
+}
+
+function landing(){
+  const y=LAST.slice(0,4),end=`${y}-12-31`;
+  const ytd=agg(`${y}-01-01`,LAST);
+  const remObj=range(addD(LAST,1),end).reduce((s,d)=>s+dayObj(d),0);
+  const a90=addD(LAST,-89),p90=agg(a90,LAST);const perf=p90.tot/p90.obj;
+  const a56=addD(LAST,-55),c56=agg(a56,LAST),n56=agg(a56,LAST,-364);const yoy=n56.tot?c56.tot/n56.tot:NaN;
+  let remN1=0;for(const d of range(addD(LAST,1),end)){const r=BY.get(addD(d,-364));if(r)remN1+=r[8]}
+  const target=DATA.annual[y]||650000;
+  const sc=[
+    {lab:"Objectif tenu",v:ytd.tot+remObj,info:"réalisé + objectifs restants"},
+    {lab:"Tendance 90 j",v:ytd.tot+remObj*perf,info:`objectifs restants × ${fmtP(perf,0)} (perf. 90 derniers jours)`},
+    {lab:"Rythme N-1",v:isFinite(yoy)?ytd.tot+remN1*yoy:NaN,info:`CA 2025 des mêmes jours × ${fmtP(yoy,0)} (tendance 8 sem.)`},
+  ];
+  const mx=Math.max(target,...sc.map(s=>s.v||0))*1.08;
+  $("landHint").textContent=`Au ${fmtDate(LAST)} · objectif ${fmtE(target)}`;
+  $("landHero").textContent=fmtE(ytd.tot);
+  $("landSub").innerHTML=`réalisé ${y} · ${fmtP(ytd.tot/target)} de l'objectif annuel · ${fmtP(ytd.tot/ytd.obj,0)} de l'objectif à date`;
+  $("land").innerHTML=sc.map(s=>{const r=s.v/target;const col=r>=1?"--good":r>=.9?"--warn":"--crit";
+    return`<div class="row" title="${esc(s.info)}"><span>${s.lab}<br><span class="muted" style="font-size:11px">${esc(s.info)}</span></span>
+    <div class="track"><div class="fill" style="width:${(s.v/mx*100)||0}%;background:var(${col})"></div><div class="tgt" style="left:${target/mx*100}%"></div></div>
+    <span class="v">${fmtK(s.v)}<br><span class="muted" style="font-size:11px;font-weight:400">${sgn(s.v-target,fmtK)}</span></span></div>`}).join("");
+  const openLeft=range(addD(LAST,1),end).filter(d=>dayObj(d)>0).length;
+  const need=(target-ytd.tot)/openLeft;
+  const avgOpen=p90.open?p90.tot/p90.open:NaN;
+  $("landNeed").innerHTML=`Reste à faire : <b>${fmtE(target-ytd.tot)}</b> sur ${openLeft} jours d'ouverture, soit <b>${fmtE(need)}/jour</b> — contre ${fmtE(avgOpen)}/jour ouvert sur les 90 derniers jours (${sgn(need/avgOpen-1,v=>fmtP(v,0))} d'effort).`;
+  return{ytd,target,sc,perf,yoy};
+}
+
+function renderMtd(){
+  const k=LAST.slice(0,7),a=k+"-01",e=k+"-"+dim(k);
+  const c=agg(a,LAST),full=monthTarget(k),rem=range(addD(LAST,1),e).reduce((s,d)=>s+dayObj(d),0);
+  const perf=c.obj?c.tot/c.obj:NaN,proj=c.tot+rem*perf;
+  let n1m=NaN;if(hasN1(a)){n1m=agg(a,e,-364).tot}
+  $("mtdHint").textContent=`${MOISL[+k.slice(5,7)-1]} ${k.slice(0,4)} · ${c.days} jours écoulés sur ${dim(k)} · reste ${fmtE(rem)} d'objectif pondéré`;
+  const t=[
+    {lab:"Réalisé à date",val:fmtE(c.tot),meta:[`Objectif à date ${fmtE(c.obj)} · ${fmtP(perf,0)}`]},
+    {lab:"Projection fin de mois",val:fmtE(proj),meta:[`Objectif mois ${fmtE(full)} · ${fmtP(proj/full,0)}`,`Écart projeté ${sgn(proj-full,fmtE)}`]},
+    {lab:"Mois N-1 complet",val:fmtE(n1m),meta:[isFinite(n1m)?`Projection vs N-1 : ${sgn(proj/n1m-1,v=>fmtP(v,0))}`:"N-1 non disponible"]},
+  ];
+  $("mtd").innerHTML=t.map(x=>`<div class="kpi"><div class="lab">${x.lab}</div><div class="val" style="font-size:22px">${x.val}</div><div class="meta">${x.meta.map(m=>`<span>${m}</span>`).join("")}</div></div>`).join("");
+}
+
+function monthlyTotals(){
+  const M={};for(const r of DATA.daily){const k=r[0].slice(0,7);(M[k]=M[k]||{tot:0,ent:0,cap:0,anniv:0,b2b:0,snack:0,bout:0,parc:0,event:0,nb:0,days:0});const o=M[k];
+    o.tot+=r[8];o.ent+=r[9];o.cap+=r[10];o.anniv+=r[2];o.b2b+=r[3]+r[4];o.snack+=r[5];o.bout+=r[6];o.parc+=r[1];o.event+=r[7];o.nb+=r[11];o.days++}
+  return M;
+}
+
+function renderMonthly(M){
+  const y=+LAST.slice(0,4);const ks=[...Array(12)].map((_,i)=>`${y}-${String(i+1).padStart(2,"0")}`);
+  chart("cMonthly",{type:"bar",data:{labels:ks.map(k=>MOIS[+k.slice(5)-1]),datasets:[
+    {type:"line",label:"Objectif",data:ks.map(monthTarget),borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,order:0,stepped:"middle"},
+    {type:"line",label:`Réalisé ${y-1}`,data:ks.map(k=>{const p=`${y-1}${k.slice(4)}`;return M[p]?M[p].tot:null}),borderColor:css("--s2"),backgroundColor:css("--s2"),borderWidth:2,pointRadius:3,order:1,spanGaps:false},
+    {label:`Réalisé ${y}`,data:ks.map(k=>M[k]?M[k].tot:null),backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:34,order:2},
+  ]},options:baseOpts()});
+}
+
+function renderCumul(){
+  const y=LAST.slice(0,4),days=range(`${y}-01-01`,`${y}-12-31`);
+  let cr=0,co=0,cn=0;const R=[],O=[],N=[];
+  for(const d of days){co+=dayObj(d);O.push(co);
+    const r=BY.get(d);if(toD(d)<=toD(LAST)){cr+=r?r[8]:0;R.push(cr)}else R.push(null);
+    const p=BY.get(`${+y-1}${d.slice(4)}`);cn+=p?p[8]:0;N.push(toD(`${+y-1}${d.slice(4)}`)>=toD(FIRST)||cn>0?cn:null)}
+  chart("cCumul",{type:"line",data:{labels:days,datasets:[
+    {label:"Objectif cumulé",data:O,borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0},
+    {label:`Réalisé ${+y-1} (même date)`,data:N,borderColor:css("--s2"),borderWidth:2,pointRadius:0},
+    {label:`Réalisé ${y}`,data:R,borderColor:css("--s1"),backgroundColor:"transparent",borderWidth:2.5,pointRadius:0},
+  ]},options:baseOpts({scales:{x:{grid:{display:false},border:{color:css("--axis")},ticks:{color:css("--muted"),font:{size:11},maxRotation:0,callback:function(v){const s=this.getLabelForValue(v);return s.slice(8)==="01"?MOIS[+s.slice(5,7)-1]:null},autoSkip:false}},
+    y:{grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtK(v)},beginAtZero:true}},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),titleColor:css("--page"),bodyColor:css("--page"),callbacks:{title:i=>fmtDate(i[0].label),label:c=>` ${c.dataset.label} : ${fmtE(c.parsed.y)}`}}}})});
+}
+
+function renderMix(c){
+  const vals=SEG.map(s=>c[s.k]);
+  chart("cMix",{type:"bar",data:{labels:SEG.map(s=>s.lab),datasets:[{label:"CA HT",data:vals,backgroundColor:SEG.map(s=>css(s.c)),borderRadius:4,maxBarThickness:22}]},
+    options:baseOpts({indexAxis:"y",interaction:{mode:"nearest",intersect:true},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),callbacks:{label:x=>` ${fmtE(x.parsed.x)} · ${fmtP(x.parsed.x/c.tot)}`}}},
+      scales:{x:{grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtK(v)}},y:{grid:{display:false},ticks:{color:css("--ink-2"),font:{size:11.5}}}}})});
+}
+
+function renderAlerts(c,n1,L){
+  const A=[];
+  const push=(lvl,html)=>A.push({lvl,html});
+  const ageDays=Math.round((Date.now()-toD(LAST))/DAY);
+  if(ageDays>2)push("warn",`<b>Saisie en retard</b> : dernière journée saisie le ${fmtDate(LAST)} (il y a ${ageDays} jours).`);
+  const r=c.tot/c.obj;
+  if(isFinite(r))push(r>=1?"good":r>=.9?"warn":"crit",`<b>CA de la période ${fmtP(r,0)} de l'objectif</b> (${sgn(c.tot-c.obj,fmtE)}).${n1?` Vs N-1 : ${sgn(c.tot/n1.tot-1,v=>fmtP(v,0))}.`:""}`);
+  if(c.objAnn&&c.anniv/c.objAnn<.9)push("crit",`<b>Anniversaires à ${fmtP(c.anniv/c.objAnn,0)} de l'objectif</b> : ${fmtN(c.nbAnniv)} anniv pour ${fmtN(c.slots)} créneaux (${fmtP(c.nbAnniv/c.slots,0)} de remplissage).`);
+  if(c.objB2B&&c.b2b/c.objB2B>=1.1)push("good",`<b>B2B au-dessus de l'objectif</b> : ${fmtE(c.b2b)} (${fmtP(c.b2b/c.objB2B,0)}).`);
+  const sv=c.parcN?c.snack/c.parcN:NaN;if(sv<1)push("warn",`<b>Snack / visiteur à ${fmtE(sv,2)}</b>, sous le seuil de 1 €.`);
+  const t=L.target,best=Math.max(...L.sc.map(s=>s.v||0)),trend=L.sc[1].v;
+  if(trend<t)push(trend/t<.9?"crit":"warn",`<b>Atterrissage tendanciel ${fmtK(trend)}</b> vs objectif ${fmtK(t)} (${sgn(trend-t,fmtK)}).`);
+  // OKR trimestre en cours
+  const q=DATA.okr.find(q=>q.debut&&toD(q.debut)<=toD(LAST)&&toD(LAST)<=toD(q.fin));
+  if(q){const bad=q.rows.filter(x=>x.statut==="🔴");if(bad.length)push("crit",`<b>OKR ${esc(q.titre.split("—")[0].trim())} en alerte</b> : ${bad.map(x=>esc(x.obj)).join(", ")}.`)}
+  // Colorhisto dernière semaine
+  const W=DATA.color.weeks.length-1;const low=DATA.color.kpis.filter(k=>k.scores[W]!=null&&k.scores[W]<=2);
+  if(low.length)push("warn",`<b>Colorhisto ${esc(DATA.color.weeks[W])}</b> : note ≤ 2 sur ${low.map(k=>esc(k.kpi)).join(", ")} — décision d'action sous 7 jours.`);
+  const lastFilled=DATA.color.weeks[W];
+  // Google
+  const g=googleGlobal();if(g.avg<4.8)push("warn",`<b>Note Google ${fmtN(g.avg,2)}</b> sur ${fmtN(g.n)} avis, sous la cible 4,8 (relevé du ${DATA.avis.releve}).`);
+  if(DATA.bp.chargesEntries===0)push("info",`<b>Suivi des charges non renseigné</b> : 0 ligne saisie dans « Suivi Charges » — la rentabilité est calculée sur les charges objectif du BP.`);
+  const order={crit:0,warn:1,info:2,good:3};
+  A.sort((x,y)=>order[x.lvl]-order[y.lvl]);
+  const ic={crit:"!",warn:"!",good:"✓",info:"i"};
+  $("alerts").innerHTML=A.map(x=>`<div class="alert ${x.lvl}"><span class="ic">${ic[x.lvl]}</span><span>${x.html}</span></div>`).join("")||'<div class="muted">Rien à signaler.</div>';
+}
+
+/* ───────────── ACTIVITÉ ───────────── */
+function renderDaily(){
+  const days=range(P.a,P.b);
+  const long=days.length>120;
+  let labels=days,rows=days.map(d=>BY.get(d)),objs=days.map(dayObj);
+  if(long){ // agrégation hebdomadaire
+    const W=new Map();days.forEach((d,i)=>{const k=addD(d,-dow(d));const w=W.get(k)||{r:Array(14).fill(0),o:0};const r=rows[i];if(r)for(let j=1;j<14;j++)w.r[j]+=r[j];w.o+=objs[i];W.set(k,w)});
+    labels=[...W.keys()];rows=[...W.values()].map(w=>w.r);objs=[...W.values()].map(w=>w.o);
+  }
+  $("segLegend").innerHTML=SEG.map(s=>`<span><i style="background:var(${s.c})"></i>${s.lab}</span>`).join("")+`<span><i class="dash"></i>Objectif${long?" (semaine)":""}</span>`;
+  chart("cDaily",{type:"bar",data:{labels,datasets:[
+    {type:"line",label:"Objectif",data:objs,borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,stepped:"middle",order:0},
+    ...SEG.map((s,i)=>({label:s.lab,data:rows.map(r=>r?segVal(r,s):0),backgroundColor:css(s.c),borderColor:css("--surface"),borderWidth:{top:1},stack:"s",order:1,maxBarThickness:28,borderRadius:i===SEG.length-1?3:0}))
+  ]},options:baseOpts({scales:{x:{stacked:true,grid:{display:false},border:{color:css("--axis")},ticks:{color:css("--muted"),font:{size:11},maxRotation:0,autoSkipPadding:10,callback:function(v){const s=this.getLabelForValue(v);return long?"sem. "+s.slice(8)+"/"+s.slice(5,7):fmtDay(s)}}},
+    y:{stacked:true,grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtK(v)}}},
+    plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),filter:i=>i.parsed.y!==0,callbacks:{title:i=>long?"Semaine du "+fmtDate(i[0].label):fmtDay(i[0].label),
+      footer:i=>{const t=i.filter(x=>x.dataset.stack).reduce((s,x)=>s+x.parsed.y,0);const o=i.find(x=>!x.dataset.stack);return`Total ${fmtE(t)}${o&&o.parsed.y?` · ${fmtP(t/o.parsed.y,0)} de l'objectif`:""}`},
+      label:c=>` ${c.dataset.label} : ${fmtE(c.parsed.y)}`}}}})});
+  // visiteurs
+  const vis=days.map(d=>{const r=BY.get(d);return r?r[9]:0}),vo=days.map(d=>dayObjF(d,"vis"));
+  chart("cVis",{type:"bar",data:{labels:days,datasets:[
+    {type:"line",label:"Objectif visiteurs",data:vo.map(v=>isFinite(v)?v:null),borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,stepped:"middle",fmt:v=>fmtN(v)},
+    {label:"Entrées",data:vis,backgroundColor:css("--s1"),borderRadius:3,maxBarThickness:20,fmt:v=>fmtN(v)}]},
+    options:baseOpts({scales:{x:{grid:{display:false},border:{color:css("--axis")},ticks:{color:css("--muted"),font:{size:11},maxRotation:0,autoSkipPadding:12,callback:function(v){return fmtDay(this.getLabelForValue(v))}}},
+      y:{grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtN(v)},beginAtZero:true}},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),callbacks:{title:i=>fmtDay(i[0].label),label:c=>` ${c.dataset.label} : ${fmtN(c.parsed.y)}`}}}})});
+  // profil jour de semaine
+  const prof=(shift)=>{const s=Array(7).fill(0),n=Array(7).fill(0);for(const d0 of days){const d=shift?addD(d0,shift):d0;const r=BY.get(d);if(r&&r[8]>0){s[dow(d)]+=r[8];n[dow(d)]++}}return s.map((v,i)=>n[i]?v/n[i]:0)};
+  const n1ok=hasN1(P.a);
+  chart("cDow",{type:"bar",data:{labels:JOURS,datasets:[
+    {label:"Période",data:prof(0),backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:26},
+    ...(n1ok?[{label:"N-1",data:prof(-364),backgroundColor:css("--s2"),borderRadius:4,maxBarThickness:26}]:[])]},options:baseOpts()});
+}
+
+function renderCalendar(){
+  const ms=[];let k=FIRST.slice(0,7);while(k<=LAST.slice(0,7)){ms.push(k);const y=+k.slice(0,4),m=+k.slice(5,7);k=m===12?`${y+1}-01`:`${y}-${String(m+1).padStart(2,"0")}`}
+  const neg=css("--div-neg"),pos=css("--div-pos"),mid=css("--div-mid");
+  const mix=(c1,c2,t)=>{const h=x=>[1,3,5].map(i=>parseInt(x.slice(i,i+2),16));const A=h(c1),B=h(c2);return`rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(",")})`};
+  const col=r=>{if(!isFinite(r))return"";const t=Math.max(-1,Math.min(1,(r-1)/.5));return t<0?mix(mid,neg,-t):mix(mid,pos,t)};
+  let h=`<div class="r"><span></span>${[...Array(31)].map((_,i)=>`<span class="muted" style="font-size:9.5px;text-align:center">${i+1}</span>`).join("")}</div>`;
+  for(const m of ms.reverse()){
+    h+=`<div class="r"><span>${mLabel(m)}</span>`;
+    for(let d=1;d<=31;d++){
+      if(d>dim(m)){h+="<span></span>";continue}
+      const s=`${m}-${String(d).padStart(2,"0")}`,r=BY.get(s),o=dayObj(s);
+      if(toD(s)>toD(LAST)||toD(s)<toD(FIRST)){h+=`<span class="d" style="opacity:.35"></span>`;continue}
+      const v=r?r[8]:0,ratio=o>0?v/o:NaN;
+      const tip=`${fmtDay(s)} · CA ${fmtE(v)}${o>0?` · obj ${fmtE(o)} (${fmtP(ratio,0)})`:" · fermé/sans objectif"} · ${r?fmtN(r[9]):0} entrées`;
+      h+=`<span class="d" data-tip="${esc(tip)}" style="${isFinite(ratio)?`background:${col(ratio)}`:""};${P.a<=s&&s<=P.b?"outline:1.5px solid var(--ink);outline-offset:-1px":""}"></span>`;
+    }
+    h+="</div>";
+  }
+  $("cal").innerHTML=h+`<div class="legend" style="margin-top:8px"><span><i style="background:${neg}"></i>≤ 50 % de l'objectif</span><span><i style="background:${mid};border:1px solid var(--ring)"></i>100 %</span><span><i style="background:${pos}"></i>≥ 150 %</span><span><i style="border:1.5px solid var(--ink)"></i>période sélectionnée</span></div>`;
+}
+
+function renderLastTable(){
+  const rows=DATA.daily.filter(r=>toD(r[0])<=toD(LAST)).slice(-15).reverse();
+  $("tLast").innerHTML=`<thead><tr><th>Jour</th><th>CA HT</th><th>Obj.</th><th>%</th><th>Entrées</th><th>Occup.</th><th>Parc</th><th>Anniv</th><th>B2B</th><th>Snack</th><th>Boutique</th><th>Panier/vis.</th></tr></thead><tbody>`+
+    rows.map(r=>{const o=dayObj(r[0]);return`<tr><td>${fmtDay(r[0])}</td><td><b>${fmtE(r[8])}</b></td><td class="muted">${o?fmtE(o):"—"}</td><td>${o?stDot(r[8]/o):"—"}</td><td>${fmtN(r[9])}</td><td>${r[10]?fmtP(r[9]/r[10],0):"—"}</td><td>${fmtE(r[1])}</td><td>${fmtE(r[2])}</td><td>${fmtE(r[3]+r[4])}</td><td>${fmtE(r[5])}</td><td>${fmtE(r[6])}</td><td>${r[9]?fmtE(r[8]/r[9],2):"—"}</td></tr>`}).join("")+"</tbody>";
+}
+const stDot=r=>{const[c]=status(r);return`<span class="st ${c}">${fmtP(r,0)}</span>`};
+
+/* ───────────── N-1 ───────────── */
+function isoWeek(s){const d=new Date(toD(s));const t=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()+3-(d.getUTCDay()+6)%7));const y=t.getUTCFullYear();const w=1+Math.round((t-Date.UTC(y,0,4))/DAY/7-((new Date(Date.UTC(y,0,4)).getUTCDay()+6)%7-3)/7);return[y,w]}
+function renderN1(M){
+  // KPIs: YTD comparable, 8 semaines, mois en cours comparable, depuis ouverture N-1
+  const y=+LAST.slice(0,4);
+  const comp=(a,b)=>{const c=agg(a,b),n=agg(a,b,-364);return{c,n,r:n.tot?c.tot/n.tot-1:NaN,re:n.ent?c.ent/n.ent-1:NaN}};
+  const a0=toD(addD(`${y}-01-01`,-364))<toD(FIRST)?addD(FIRST,364):`${y}-01-01`;
+  const blocks=[
+    {lab:"Période sélectionnée",x:hasN1(P.a)?comp(P.a,P.b):null},
+    {lab:"Mois en cours (à date)",x:comp(LAST.slice(0,8)+"01",LAST)},
+    {lab:"8 dernières semaines",x:comp(addD(LAST,-55),LAST)},
+    {lab:`Depuis le ${fmtDate(a0)} (comparable)`,x:comp(a0,LAST)},
+  ];
+  $("n1kpis").innerHTML=blocks.map(b=>{if(!b.x)return`<div class="card kpi"><div class="lab">${b.lab}</div><div class="val">—</div><div class="meta"><span>Pas de N-1 sur cette période</span></div></div>`;
+    const{c,n,r,re}=b.x;return`<div class="card kpi"><div class="lab">${b.lab}</div><div class="val"><span class="delta ${r>=0?"up":"down"}">${r>=0?"▲":"▼"} ${sgn(r,v=>fmtP(v,1))}</span></div>
+    <div class="meta"><span>${fmtE(c.tot)} vs ${fmtE(n.tot)} (${sgn(c.tot-n.tot,fmtE)})</span><span>Entrées ${sgn(re,v=>fmtP(v,0))} · ${fmtN(c.ent)} vs ${fmtN(n.ent)}</span></div></div>`}).join("");
+  // semaines
+  const W={};for(const r of DATA.daily){const[wy,w]=isoWeek(r[0]);const k=wy+"-"+w;(W[k]=W[k]||{tot:0,ent:0,days:0,start:r[0]});W[k].tot+=r[8];W[k].ent+=r[9];W[k].days++}
+  const weeks=[];for(let w=1;w<=53;w++){const a=W[(y-1)+"-"+w],b=W[y+"-"+w];if((a&&a.tot)||(b&&b.tot))weeks.push({w,a:a?a.tot:0,b:b?b.tot:null,partial:b&&b.days<7,start:b?b.start:a.start,ea:a?a.ent:0,eb:b?b.ent:0})}
+  chart("cWeeks",{type:"bar",data:{labels:weeks.map(x=>"S"+x.w),datasets:[
+    {label:String(y-1),data:weeks.map(x=>x.a||null),backgroundColor:css("--s2"),borderRadius:3,maxBarThickness:14},
+    {label:String(y),data:weeks.map(x=>x.b),backgroundColor:weeks.map(x=>x.partial?css("--s1-soft"):css("--s1")),borderRadius:3,maxBarThickness:14}]},
+    options:baseOpts({plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),callbacks:{
+      title:i=>{const x=weeks[i[0].dataIndex];return`Semaine ${x.w}${x.partial?" (en cours)":""}`},
+      footer:i=>{const x=weeks[i[0].dataIndex];return x.a&&x.b!=null?`Écart ${sgn(x.b-x.a,fmtE)} (${sgn(x.b/x.a-1,v=>fmtP(v,0))}) · entrées ${sgn(x.eb/x.ea-1,v=>fmtP(v,0))}`:""}}}}})});
+  // mensuel
+  const rows=[];
+  for(let m=1;m<=12;m++){const k=`${y}-${String(m).padStart(2,"0")}`,kp=`${y-1}-${String(m).padStart(2,"0")}`;
+    const cur=M[k],prev=M[kp];if(!cur&&!prev)continue;
+    let curT=cur?cur.tot:null,prevT=prev?prev.tot:null,note="";
+    if(k===LAST.slice(0,7)){const x=agg(k+"-01",LAST),n=agg(k+"-01",LAST,-364);curT=x.tot;prevT=n.tot;note=" (à date)"}
+    if(toD(k+"-01")>toD(LAST))curT=null;
+    rows.push(`<tr class="${curT==null?"future":""}"><td>${MOISL[m-1]}${note}</td><td>${prevT!=null?fmtE(prevT):"—"}</td><td>${curT!=null?fmtE(curT):"—"}</td><td>${curT!=null&&prevT?sgn(curT-prevT,fmtE):"—"}</td><td>${curT!=null&&prevT?`<span class="delta ${curT>=prevT?"up":"down"}">${sgn(curT/prevT-1,v=>fmtP(v,0))}</span>`:"—"}</td><td>${fmtE(monthTarget(k))}</td><td>${curT!=null?stDot(curT/monthTarget(k)):"—"}</td></tr>`)}
+  $("tMonthN1").innerHTML=`<thead><tr><th>Mois</th><th>${y-1}</th><th>${y}</th><th>Écart €</th><th>Écart %</th><th>Objectif ${y}</th><th>Atteinte</th></tr></thead><tbody>${rows.join("")}</tbody>`;
+}
+
+/* ───────────── OBJECTIFS ───────────── */
+function renderOKR(){
+  const fmtCell=(o,v)=>/taux/i.test(o)?fmtP(v):/note/i.test(o)?fmtN(v,2):/nb/i.test(o)?fmtN(v):fmtE(v);
+  const stOf=s=>s==="🟢"?"good":s==="🟡"?"warn":s==="🔴"?"crit":"na";
+  const stLab={good:"Sur la trajectoire",warn:"Retard léger",crit:"Alerte",na:"Pas démarré"};
+  $("okr").innerHTML=DATA.okr.map(q=>{
+    const cur=q.debut&&toD(q.debut)<=toD(LAST)&&toD(LAST)<=toD(q.fin);
+    return`<div class="q" style="${cur?"border-color:var(--brand)":""}"><div class="qh"><b>${esc(q.titre)}</b><span class="muted" style="font-size:12px">${cur?"● en cours · ":""}temps écoulé ${fmtP(q.temps,0)}</span></div>`+
+    q.rows.map(r=>{const s=stOf(r.statut);const inv=/charges/i.test(r.obj);const w=Math.min(r.pct,1.5)/1.5*100;
+      return`<div class="it"><span>${esc(r.obj)}<br><span class="muted" style="font-size:11px">${fmtCell(r.obj,r.reel)} / ${fmtCell(r.obj,r.cible)}${inv?" (plafond)":""}</span></span>
+      <div class="bar"><i style="width:${w}%;background:var(${s==="good"?"--good":s==="warn"?"--warn":s==="crit"?"--crit":"--muted"})"></i><b style="left:${Math.min(q.temps,1.5)/1.5*100}%"></b></div>
+      <span style="text-align:right;font-weight:600">${fmtP(r.pct,0)}</span><span class="st ${s}">${stLab[s]}</span></div>`}).join("")+"</div>"}).join("");
+}
+function renderBP(M){
+  const R=DATA.bp.rows;$("bpAnnual").textContent=fmtE(DATA.bp.annual);
+  let T={o:0,r:0,ov:0,rv:0,oa:0,ra:0,ob:0,rb:0};
+  const rows=BPM.map((k,i)=>{
+    const m=M[k],past=toD(k+"-01")<=toD(LAST),cur=k===LAST.slice(0,7);
+    const r=past&&m?m:null;const o=R.ca[i];
+    if(r){T.o+=o;T.r+=r.tot;T.ov+=R.vis[i];T.rv+=r.ent;T.oa+=R.anniv[i];T.ra+=r.anniv;T.ob+=R.ecole[i]+R.adl[i];T.rb+=r.b2b}
+    return`<tr class="${r?"":"future"}"><td>${mLabel(k)}${cur?" ●":""}</td><td>${fmtE(o)}</td><td>${r?`<b>${fmtE(r.tot)}</b>`:"—"}</td><td>${r?stDot(r.tot/o):"—"}</td>
+    <td>${fmtN(R.vis[i])}</td><td>${r?fmtN(r.ent):"—"}</td><td>${fmtP(R.vis[i]/R.cap[i],0)}</td><td>${r&&r.cap?fmtP(r.ent/r.cap,0):"—"}</td>
+    <td>${fmtE(R.anniv[i])}</td><td>${r?fmtE(r.anniv):"—"}</td><td>${fmtE(R.ecole[i]+R.adl[i])}</td><td>${r?fmtE(r.b2b):"—"}</td></tr>`});
+  $("tBP").innerHTML=`<thead><tr><th>Mois</th><th>Obj. CA</th><th>Réalisé</th><th>Atteinte</th><th>Obj. vis.</th><th>Visiteurs</th><th>Occ. obj.</th><th>Occ. réelle</th><th>Obj. anniv</th><th>Anniv</th><th>Obj. B2B</th><th>B2B</th></tr></thead><tbody>${rows.join("")}
+  <tr class="tot"><td>Cumul à date</td><td>${fmtE(T.o)}</td><td>${fmtE(T.r)}</td><td>${stDot(T.r/T.o)}</td><td>${fmtN(T.ov)}</td><td>${fmtN(T.rv)}</td><td></td><td></td><td>${fmtE(T.oa)}</td><td>${fmtE(T.ra)}</td><td>${fmtE(T.ob)}</td><td>${fmtE(T.rb)}</td></tr></tbody>`;
+  chart("cBP",{type:"bar",data:{labels:BPM.map(mLabel),datasets:[
+    {type:"line",label:"Objectif",data:R.ca,borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,stepped:"middle"},
+    {label:"Réalisé",data:BPM.map(k=>M[k]&&toD(k+"-01")<=toD(LAST)?M[k].tot:null),backgroundColor:css("--s1"),borderRadius:4,maxBarThickness:30}]},options:baseOpts()});
+}
+
+/* ───────────── QUALITÉ ───────────── */
+function googleGlobal(){const d=DATA.avis.dist;const n=d.reduce((s,x)=>s+x.n,0);return{n,avg:d.reduce((s,x)=>s+x.n*x.etoiles,0)/n}}
+function renderQual(){
+  const C=DATA.color,ncol=C.weeks.length;
+  const scale=["","#d03b3b","#ec835a","#f2c66d","#c7dca0","#6cc070","#0ca30c"];
+  let h=`<div class="h"></div>`+C.weeks.map(w=>`<div class="h" style="justify-content:center;text-align:center">${esc(w)}</div>`).join("");
+  let theme=null;
+  for(const k of C.kpis){
+    if(k.scores.every(v=>v==null))continue;
+    if(k.theme!==theme){theme=k.theme;h+=`<div class="h" style="grid-column:1/-1;margin-top:6px;font-weight:600;color:var(--ink-2);text-transform:uppercase;font-size:10.5px;letter-spacing:.05em">${esc(theme)}</div>`}
+    h+=`<div class="h" style="color:var(--ink)">${esc(k.kpi)}</div>`+k.scores.map((v,i)=>v==null?`<div class="c" style="background:var(--surface-2)"></div>`:`<div class="c" data-tip="${esc(k.kpi)} · ${esc(C.weeks[i])} : ${v}/6" style="background:${scale[v]};color:${v<=1||v>=6?"#fff":"#0b0b0b"}">${v}</div>`).join("");
+  }
+  h+=`<div class="h" style="color:var(--ink);font-weight:650;margin-top:6px">Synthèse</div>`+C.synth.map(v=>`<div class="c" style="margin-top:6px;font-weight:650;background:var(--surface-2);${v!=null&&v<4?"color:var(--crit-ink)":""}">${v==null?"":fmtN(v,1)}</div>`).join("");
+  $("heat").style.gridTemplateColumns=`minmax(190px,1.6fr) repeat(${ncol},minmax(54px,1fr))`;
+  $("heat").innerHTML=h;
+  chart("cSynth",{type:"line",data:{labels:C.weeks,datasets:[
+    {label:"Seuil plan d'action",data:C.weeks.map(()=>4),borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,fmt:v=>fmtN(v,1)},
+    {label:"Synthèse",data:C.synth,borderColor:css("--s1"),backgroundColor:css("--s1"),borderWidth:2,pointRadius:4,fmt:v=>fmtN(v,2)}]},
+    options:baseOpts({scales:{x:{grid:{display:false},ticks:{color:css("--muted"),font:{size:11}}},y:{min:1,max:6,grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),stepSize:1}}}})});
+  const g=googleGlobal();
+  $("gHint").textContent=`Relevé du ${DATA.avis.releve} · chiffres exacts publiés par Google`;
+  $("gHero").innerHTML=`${fmtN(g.avg,2)} <span style="font-size:18px;color:var(--muted)">/ 5</span>`;
+  $("gSub").innerHTML=`${fmtN(g.n)} avis · cible 4,8 ${stHtml(g.avg/4.8)}`;
+  const mx=Math.max(...DATA.avis.dist.map(x=>x.n));
+  $("gStars").innerHTML=DATA.avis.dist.map(x=>`<div class="r"><span>${x.etoiles} ★</span><div class="t"><i style="width:${x.n/mx*100}%"></i></div><span style="text-align:right">${fmtN(x.n)} · ${fmtP(x.n/g.n,0)}</span></div>`).join("");
+  const Mo=DATA.avis.mois;
+  chart("cGoogle",{type:"line",data:{labels:Mo.map(x=>x.mois.slice(0,7)),datasets:[
+    {label:"Cible",data:Mo.map(()=>4.8),borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,fmt:v=>fmtN(v,1)},
+    {label:"Note moyenne",data:Mo.map(x=>x.note),borderColor:css("--s4"),backgroundColor:css("--s4"),borderWidth:2,pointRadius:4,fmt:v=>fmtN(v,2)}]},
+    options:baseOpts({scales:{x:{grid:{display:false},ticks:{color:css("--muted"),font:{size:11}}},y:{min:3.5,max:5,grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtN(v,1)}}},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),callbacks:{label:c=>` ${c.dataset.label} : ${fmtN(c.parsed.y,2)}`,footer:i=>`${fmtN(Mo[i[0].dataIndex].n)} avis (estimation)`}}}})});
+}
+
+/* ───────────── CHARGES ───────────── */
+function renderCost(M){
+  const R=DATA.bp.rows,real=DATA.bp.chargesReal;
+  const has=k=>{const x=real.find(r=>r.mois===k);return x&&x.total>0?x:null};
+  let T={ca:0,ch:0,ms:0,obj:0};
+  const lines=BPM.map((k,i)=>{const m=M[k],past=m&&toD(k+"-01")<=toD(LAST);const rr=has(k);
+    const ms=rr?rr.ms:R.ms[i],ach=rr?rr.achats:R.achats[i],aut=rr?rr.autres:R.autres[i],ch=ms+ach+aut;
+    const ca=past?m.tot:null;
+    if(past){T.ca+=ca;T.ch+=ch;T.ms+=ms;T.obj+=R.ca[i]}
+    return{k,i,ms,ach,aut,ch,ca,rr,past}});
+  const costTxt=DATA.bp.chargesEntries?`${DATA.bp.chargesEntries} lignes saisies dans « Suivi Charges »`:"Aucune charge saisie dans « Suivi Charges » : valeurs = objectifs BP";
+  $("costHint").textContent=costTxt;
+  const marge=T.ca-T.ch;
+  $("costKpis").innerHTML=[
+    {lab:"CA réalisé (mai → à date)",val:fmtE(T.ca),meta:[`Objectif ${fmtE(T.obj)} · ${fmtP(T.ca/T.obj,0)}`]},
+    {lab:"Charges pilotables",val:fmtE(T.ch),meta:[`${fmtP(T.ch/T.ca)} du CA · ${DATA.bp.chargesEntries?"réel":"objectif BP"}`]},
+    {lab:"Marge sur charges pilotables",val:fmtE(marge),meta:[`${fmtP(marge/T.ca)} du CA réalisé`]},
+    {lab:"Masse salariale / CA",val:fmtP(T.ms/T.ca),meta:[`Cible BP ${fmtP(R.ms.reduce((a,b)=>a+b)/R.ca.reduce((a,b)=>a+b))}`]},
+  ].map(o=>kpiCard(Object.assign({st:false,ratio:NaN},o))).join("");
+  chart("cCost",{type:"bar",data:{labels:BPM.map(mLabel),datasets:[
+    {type:"line",label:"CA réalisé",data:lines.map(l=>l.ca),borderColor:css("--ink"),backgroundColor:css("--ink"),borderWidth:2,pointRadius:3,order:0},
+    {label:"Masse salariale",data:lines.map(l=>l.ms),backgroundColor:css("--s1"),stack:"c",order:1,maxBarThickness:30},
+    {label:"Achats",data:lines.map(l=>l.ach),backgroundColor:css("--s2"),stack:"c",order:1,maxBarThickness:30},
+    {label:"Autres",data:lines.map(l=>l.aut),backgroundColor:css("--s3"),stack:"c",order:1,maxBarThickness:30,borderRadius:{topLeft:4,topRight:4}}]},
+    options:baseOpts({scales:{x:{stacked:true,grid:{display:false},ticks:{color:css("--muted"),font:{size:11}}},y:{stacked:true,grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtK(v)}}}})});
+  chart("cMsRatio",{type:"bar",data:{labels:BPM.map(mLabel),datasets:[
+    {type:"line",label:"Cible BP",data:lines.map(l=>R.ms[l.i]/R.ca[l.i]),borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,stepped:"middle",fmt:v=>fmtP(v)},
+    {label:"Masse salariale / CA réalisé",data:lines.map(l=>l.past?l.ms/l.ca:null),backgroundColor:lines.map(l=>l.past&&l.ms/l.ca>R.ms[l.i]/R.ca[l.i]*1.1?css("--crit"):css("--s1")),borderRadius:4,maxBarThickness:30,fmt:v=>fmtP(v)}]},
+    options:baseOpts({scales:{x:{grid:{display:false},ticks:{color:css("--muted"),font:{size:11}}},y:{grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtP(v,0)},beginAtZero:true}}})});
+  $("tCost").innerHTML=`<thead><tr><th>Mois</th><th>CA réalisé</th><th>Obj. CA</th><th>Masse sal.</th><th>Achats</th><th>Autres</th><th>Total charges</th><th>Source</th><th>Marge</th><th>Marge %</th></tr></thead><tbody>`+
+    lines.map(l=>`<tr class="${l.past?"":"future"}"><td>${mLabel(l.k)}</td><td>${l.ca!=null?fmtE(l.ca):"—"}</td><td>${fmtE(R.ca[l.i])}</td><td>${fmtE(l.ms)}</td><td>${fmtE(l.ach)}</td><td>${fmtE(l.aut)}</td><td>${fmtE(l.ch)}</td><td class="muted">${l.rr?"réel":"objectif"}</td><td>${l.ca!=null?`<b>${fmtE(l.ca-l.ch)}</b>`:"—"}</td><td>${l.ca!=null?fmtP((l.ca-l.ch)/l.ca,0):"—"}</td></tr>`).join("")+
+    `<tr class="tot"><td>Cumul à date</td><td>${fmtE(T.ca)}</td><td>${fmtE(T.obj)}</td><td>${fmtE(T.ms)}</td><td></td><td></td><td>${fmtE(T.ch)}</td><td></td><td>${fmtE(marge)}</td><td>${fmtP(marge/T.ca,0)}</td></tr></tbody>`;
+  $("tContrats").innerHTML=`<thead><tr><th>Contrat</th><th>Brut/mois</th><th>Chargé/mois</th>${BPM.map(k=>`<th>${mLabel(k)}</th>`).join("")}</tr></thead><tbody>`+
+    DATA.bp.contrats.filter(c=>c.planning.some(v=>v)).map(c=>`<tr><td>${esc(c.nom)}</td><td>${fmtE(c.brut)}</td><td>${fmtE(c.charge)}</td>${c.planning.map(v=>`<td>${v||'<span class="muted">·</span>'}</td>`).join("")}</tr>`).join("")+"</tbody>";
+}
+
+/* ───────────── orchestration ───────────── */
+let MT=null;
+function renderAll(){
+  MT=MT||monthlyTotals();
+  const{c,n1}=renderKpis();
+  const L=landing();
+  renderMtd();renderMix(c);renderAlerts(c,n1,L);
+  renderMonthly(MT);renderCumul();
+  renderDaily();renderCalendar();renderLastTable();
+  renderN1(MT);renderOKR();renderBP(MT);renderQual();renderCost(MT);
+}
+function renderFresh(){
+  const age=Math.round((Date.now()-toD(LAST))/DAY);
+  $("freshDot").classList.toggle("stale",age>2);
+  const g=new Date(DATA.generatedAt);
+  $("freshTxt").innerHTML=`Dernière saisie <b>${fmtDate(LAST)}</b> · actualisé ${g.toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
+  $("foot").innerHTML=`Sources : ${Object.entries(DATA.sources).map(([f,t])=>`${esc(f)} (modifié le ${new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})})`).join(" · ")}.<br>
+  Méthode : objectifs journaliers = objectif mensuel réparti selon les coefficients jour/vacances des onglets mensuels · N-1 = même jour de semaine un an avant (J-364) · panier moyen = CA HT total ÷ entrées · snack/visiteur = CA snack ÷ entrées parc payantes · remplissage anniversaires = anniv ÷ (6 × mercredis, samedis, dimanches).`;
+}
+
+// theme
+const root=document.documentElement;
+try{const t=localStorage.getItem("palo.theme");if(t)root.dataset.theme=t}catch(e){}
+$("themeBtn").onclick=()=>{const dark=root.dataset.theme?root.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;root.dataset.theme=dark?"light":"dark";try{localStorage.setItem("palo.theme",root.dataset.theme)}catch(e){}renderAll()};
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(!root.dataset.theme)renderAll()});
+// tabs
+$("tabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("#tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
+  document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("on",s.id==="t-"+b.dataset.t));try{localStorage.setItem("palo.tab",b.dataset.t)}catch(e){}
+  Object.values(CH).forEach(c=>c.resize())};
+$("periods").onclick=e=>{const b=e.target.closest(".chip");if(b)setPeriod(b.dataset.p)};
+$("dFrom").onchange=$("dTo").onchange=()=>setPeriod("custom");
+$("dFrom").min=$("dTo").min=FIRST;$("dFrom").max=$("dTo").max=LAST;
+// tooltip for heat cells / calendar
+const tip=$("tip");
+document.addEventListener("mousemove",e=>{const t=e.target.closest("[data-tip]");if(!t){tip.style.opacity=0;return}tip.textContent=t.dataset.tip;tip.style.opacity=1;
+  const x=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8);tip.style.left=x+"px";tip.style.top=(e.clientY+14)+"px"});
+
+renderFresh();
+let startTab="synth";try{startTab=localStorage.getItem("palo.tab")||"synth"}catch(e){}
+let startP="mtd";try{startP=localStorage.getItem("palo.period")||"mtd"}catch(e){}
+if(startP==="custom")startP="mtd";
+setPeriod(startP);
+const tb=document.querySelector(`#tabs button[data-t="${startTab}"]`);if(tb)tb.click();
+
+// Version en ligne : recharge la page quand de nouvelles données sont publiées
+// (seulement si l'appareil est resté connecté, sinon on reviendrait à l'écran de mot de passe)
+if(location.protocol.startsWith("http")){
+  const remembered=()=>{try{return Object.keys(localStorage).some(k=>k.startsWith("palo.key."))}catch(e){return false}};
+  setInterval(async()=>{
+    try{const v=await (await fetch("version.json",{cache:"no-store"})).json();
+      if(v.generatedAt&&v.generatedAt!==DATA.generatedAt&&remembered())location.reload()}catch(e){}
+  },5*60*1000);
+}
+</script>
+</body>
+</html>
