@@ -1092,9 +1092,10 @@ function renderVentes(){
       <div class="nm"><b>${esc(CP_NOM[cp]||"Code postal "+cp)}</b><span class="sub">${cp}</span><div class="bar"><i style="width:${n/cmax*100}%;background:var(--s1)"></i></div></div>
       <span class="q">${fmtN(n)} ventes</span><span class="v">${fmtP(n/nv,0)}</span></div>`).join(""):'<p class="muted">Aucun code postal renseigné sur la période.</p>';
 
-  const vl=V.days[V.days.length-1],late=toD(LAST)-toD(vl)>2*DAY;
-  $("vNote").innerHTML=`Source : export caisse <b>${esc(V.file)}</b> (ventes du ${fmtDate(V.days[0])} au ${fmtDate(vl)}) · montants HT, ventes annulées exclues · heure = heure d'encaissement ; une réservation en ligne compte à la date de commande.`+
-    (late?` <b style="color:var(--crit-ink)">L'export s'arrête au ${fmtDate(vl)} : déposez un export plus récent dans SUIVI PARC pour couvrir les derniers jours.</b>`:"")+
+  // Export déposé à la main chaque mois : on signale seulement les jours non couverts, et en rouge au-delà d'un mois
+  const vl=V.days[V.days.length-1],late=toD(LAST)-toD(vl)>35*DAY,partial=toD(b)>toD(vl);
+  $("vNote").innerHTML=`Source : export caisse mensuel <b>${esc(V.file)}</b> (ventes du ${fmtDate(V.days[0])} au ${fmtDate(vl)}) · montants HT, ventes annulées exclues · heure = heure d'encaissement ; une réservation en ligne compte à la date de commande.`+
+    (partial?` <b style="color:var(${late?"--crit-ink":"--ink"})">Les ventes après le ${fmtDate(vl)} arriveront avec le prochain export${late?" (dernier export de plus d'un mois)":""}.</b>`:"")+
     (!hasV1?" Comparaison N-1 disponible pour les périodes couvertes par l'export un an plus tôt.":"");
 }
 function range2(a,b){const o=[];for(let i=a;i<=b;i++)o.push(i);return o}
