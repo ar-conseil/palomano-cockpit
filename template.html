@@ -6,6 +6,8 @@
 <title>Palomano Cockpit</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{
   color-scheme: light;
@@ -185,6 +187,20 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--page)}
 .cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
 .vnote{font-size:12px;color:var(--muted);margin-top:22px}
+/* ── Clientèle ── */
+#cliMap .leaflet-tile-pane{filter:grayscale(.6) opacity(.85)}
+#cliMap.dark .leaflet-tile-pane{filter:grayscale(1) invert(1) brightness(.8) contrast(.9)}
+#cliMap{height:560px;border-radius:12px;overflow:hidden;background:var(--surface-2);z-index:0}
+@media (max-width:640px){#cliMap{height:420px}}
+.leaflet-container{font:inherit}
+.leaflet-tooltip.cli{background:var(--ink);color:var(--page);border:0;border-radius:7px;padding:6px 9px;font-size:12px;box-shadow:none}
+.leaflet-tooltip.cli::before{display:none}
+.palo-pin{display:grid;place-items:center}
+.dist{display:flex;flex-direction:column;gap:8px}
+.dist .r{display:grid;grid-template-columns:120px 1fr 64px;gap:10px;align-items:center;font-size:12.5px}
+.dist .t{height:14px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.dist .t i{display:block;height:100%;border-radius:4px;background:var(--s1)}
+.dist .v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 </style>
 </head>
 <body>
@@ -217,6 +233,7 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
       <button role="tab" data-t="synth" aria-selected="true">Synthèse</button>
       <button role="tab" data-t="activ">Activité</button>
       <button role="tab" data-t="ventes" id="tabVentes">Ventes & produits</button>
+      <button role="tab" data-t="clients" id="tabClients">Clientèle</button>
       <button role="tab" data-t="n1">Comparatif N-1</button>
       <button role="tab" data-t="obj">Objectifs & OKR</button>
       <button role="tab" data-t="qual">Qualité & équipe</button>
@@ -415,19 +432,40 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
     </div>
 
     <div class="vhead"><span id="vhTix"></span><div><h2>Billetterie, anniversaires & groupes</h2><p>Les formules qui font le chiffre</p></div></div>
-    <div class="grid g2">
+    <div class="grid">
       <div class="card">
         <h3>Top formules</h3>
         <p class="hint">Entrées, anniversaires, B2B et évènements · CA HT sur la période</p>
         <div class="rank" id="vTixTop"></div>
       </div>
-      <div class="card">
-        <h3>D'où viennent nos clients ?</h3>
-        <p class="hint" id="vCpHint"></p>
-        <div class="rank" id="vCp"></div>
-      </div>
     </div>
     <p class="vnote" id="vNote"></p>
+  </section>
+
+  <!-- ═════════ CLIENTÈLE ═════════ -->
+  <section class="tab" id="t-clients">
+    <div class="vhead"><span id="vhCli"></span><div><h2>D'où viennent nos clients ?</h2><p id="cliSub"></p></div></div>
+    <div class="grid g4" id="cliKpis"></div>
+    <div class="grid g21" style="margin-top:14px">
+      <div class="card">
+        <h3>Carte de la clientèle</h3>
+        <p class="hint">Une bulle par code postal, taille = nombre de ventes · cercles : 10 et 20 km autour du parc · survolez une bulle pour le détail</p>
+        <div id="cliMap"></div>
+      </div>
+      <div class="grid" style="align-content:start">
+        <div class="card">
+          <h3>Distance au parc</h3>
+          <p class="hint">Part des ventes localisées, à vol d'oiseau</p>
+          <div class="dist" id="cliDist"></div>
+        </div>
+        <div class="card">
+          <h3>Top communes</h3>
+          <p class="hint" id="vCpHint"></p>
+          <div class="rank" id="vCp"></div>
+        </div>
+      </div>
+    </div>
+    <p class="vnote" id="cliNote"></p>
   </section>
 
   <!-- ═════════ CHARGES ═════════ -->
@@ -1082,16 +1120,6 @@ function renderVentes(){
   $("vTixTop").innerHTML=rankHtml(topOf(c.prods,isTix,"ht",10),tixTot);
   VSORT=prevSort;
 
-  // Origine clients (codes postaux renseignés, mois couverts par la période)
-  const m0=a.slice(0,7),m1=b.slice(0,7),C=new Map();let nv=0;
-  for(const[m,cp,n]of V.cp){if(m<m0||m>m1)continue;C.set(cp,(C.get(cp)||0)+n);nv+=n}
-  const cps=[...C].sort((x,y)=>y[1]-x[1]).slice(0,10),cmax=cps.length?cps[0][1]:1;
-  $("vCpHint").textContent=`Code postal des ventes où il est renseigné (réservations en ligne, anniversaires, groupes) · ${fmtN(nv)} ventes · mois de ${mLabel(m0)}${m0!==m1?" à "+mLabel(m1):""}`;
-  $("vCp").innerHTML=cps.length?cps.map(([cp,n],i)=>`<div class="it" data-tip="${cp} · ${fmtN(n)} ventes · ${fmtP(n/nv)} des ventes localisées">
-      <span class="n">${i+1}</span>${sk("pin",i<3?"--s1":"--s7",34)}
-      <div class="nm"><b>${esc(CP_NOM[cp]||"Code postal "+cp)}</b><span class="sub">${cp}</span><div class="bar"><i style="width:${n/cmax*100}%;background:var(--s1)"></i></div></div>
-      <span class="q">${fmtN(n)} ventes</span><span class="v">${fmtP(n/nv,0)}</span></div>`).join(""):'<p class="muted">Aucun code postal renseigné sur la période.</p>';
-
   // Export déposé à la main chaque mois : on signale seulement les jours non couverts, et en rouge au-delà d'un mois
   const vl=V.days[V.days.length-1],late=toD(LAST)-toD(vl)>35*DAY,partial=toD(b)>toD(vl);
   $("vNote").innerHTML=`Source : export caisse mensuel <b>${esc(V.file)}</b> (ventes du ${fmtDate(V.days[0])} au ${fmtDate(vl)}) · montants HT, ventes annulées exclues · heure = heure d'encaissement ; une réservation en ligne compte à la date de commande.`+
@@ -1102,6 +1130,71 @@ function range2(a,b){const o=[];for(let i=a;i<=b;i++)o.push(i);return o}
 if(V)$("vSort").onclick=e=>{const btn=e.target.closest("button");if(!btn)return;VSORT=btn.dataset.s;
   $("vSort").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===btn));renderVentes()};
 
+/* ───────────── CLIENTÈLE (codes postaux de l'export caisse) ───────────── */
+const PALO=[50.6640,3.1355]; // Palomano · La Maillerie (Croix / Villeneuve-d'Ascq)
+const GEO=V&&V.geo?V.geo:null;
+const kmTo=(lat,lon)=>{const R=6371,r=Math.PI/180,dl=(lat-PALO[0])*r,dn=(lon-PALO[1])*r;
+  const h=Math.sin(dl/2)**2+Math.cos(PALO[0]*r)*Math.cos(lat*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+const cpName=cp=>GEO&&GEO[cp]?GEO[cp][0].replace(/ \+\d+$/,""):(CP_NOM[cp]||"Code postal "+cp);
+const cpLabel=cp=>cp.startsWith("BE")?cp.slice(2)+" (Belgique)":cp;
+let MAP=null,MAPTILES=null,MAPDOTS=null,MAPTHEME=null,CLI=null;
+function cliData(a,b){
+  const m0=a.slice(0,7),m1=b.slice(0,7),C=new Map();let nv=0,ht=0;
+  for(const[m,cp,n,h]of V.cp){if(m<m0||m>m1)continue;const e=C.get(cp)||[0,0];e[0]+=n;e[1]+=h;C.set(cp,e);nv+=n;ht+=h}
+  return{m0,m1,C,nv,ht};
+}
+function renderClients(){
+  if(!GEO)return;
+  const{a,b}=P,D=cliData(a,b);CLI=D;
+  $("vhCli").innerHTML=sk("pin","--s1",56);
+  const B=[[0,5,"Moins de 5 km"],[5,10,"5 à 10 km"],[10,20,"10 à 20 km"],[20,40,"20 à 40 km"],[40,1e9,"Plus de 40 km"]];
+  const cnt=B.map(()=>0),kms=[];let loc=0,be=0,nUn=0;
+  for(const[cp,[n]]of D.C){const g=GEO[cp];if(!g){nUn+=n;continue}const km=kmTo(g[1],g[2]);loc+=n;kms.push([km,n]);if(cp.startsWith("BE"))be+=n;
+    cnt[B.findIndex(x=>km>=x[0]&&km<x[1])]+=n}
+  kms.sort((x,y)=>x[0]-y[0]);let acc=0,med=NaN;for(const[km,n]of kms){acc+=n;if(acc>=loc/2){med=km;break}}
+  const pct=x=>loc?x/loc:NaN,in10=pct(cnt[0]+cnt[1]),in20=pct(cnt[0]+cnt[1]+cnt[2]);
+  const per=`${mLabel(D.m0)}${D.m0!==D.m1?" → "+mLabel(D.m1):""}`;
+  $("cliSub").textContent=`${fmtN(D.nv)} ventes avec un code postal (réservations en ligne, anniversaires, groupes) · ${per}`;
+  $("cliKpis").innerHTML=[
+    {lab:"Ventes localisées",val:fmtN(loc),st:false,ratio:NaN,meta:[`${D.C.size} codes postaux différents`,nUn?`<span class="muted">${fmtN(nUn)} non localisées</span>`:"Toutes localisées"]},
+    {lab:"Clients à moins de 10 km",val:fmtP(in10,0),st:false,ratio:NaN,meta:["Zone de proximité immédiate",`Distance médiane ${fmtN(med,1)} km`]},
+    {lab:"Clients à moins de 20 km",val:fmtP(in20,0),st:false,ratio:NaN,meta:["Métropole lilloise élargie",`${fmtP(1-in20,0)} viennent de plus loin`]},
+    {lab:"Clients belges",val:fmtP(pct(be),0),st:false,ratio:NaN,meta:[`${fmtN(be)} ventes`,"Mouscron, Tournai, Comines…"]},
+  ].map(kpiCard).join("");
+  const mx=Math.max(...cnt,1);
+  $("cliDist").innerHTML=B.map((x,i)=>`<div class="r" data-tip="${x[2]} · ${fmtN(cnt[i])} ventes"><span>${x[2]}</span><span class="t"><i style="width:${cnt[i]/mx*100}%"></i></span><span class="v">${fmtP(pct(cnt[i]),0)}</span></div>`).join("");
+  const cps=[...D.C].sort((x,y)=>y[1][0]-x[1][0]).slice(0,10),cmax=cps.length?cps[0][1][0]:1;
+  $("vCpHint").textContent=`Nombre de ventes par code postal · ${per}`;
+  $("vCp").innerHTML=cps.length?cps.map(([cp,[n,h]],i)=>{const g=GEO[cp],km=g?kmTo(g[1],g[2]):NaN;
+    return`<div class="it" data-tip="${esc(cpName(cp))} · ${cpLabel(cp)} · ${fmtN(n)} ventes · ${fmtE(h)} HT${isFinite(km)?" · "+fmtN(km,1)+" km":""}">
+      <span class="n">${i+1}</span>${sk("pin",i<3?"--s1":"--s7",34)}
+      <div class="nm"><b>${esc(cpName(cp))}</b><span class="sub">${cpLabel(cp)}${isFinite(km)?" · "+fmtN(km,0)+" km":""}</span><div class="bar"><i style="width:${n/cmax*100}%;background:var(--s1)"></i></div></div>
+      <span class="q">${fmtN(n)} ventes</span><span class="v">${fmtP(n/D.nv,0)}</span></div>`}).join(""):'<p class="muted">Aucun code postal renseigné sur la période.</p>';
+  $("cliNote").innerHTML=`Source : codes postaux saisis dans la caisse (export <b>${esc(V.file)}</b>), géolocalisés au centre de la commune (geo.api.gouv.fr ; communes belges frontalières approximées) · une vente = une commande, quel que soit le nombre de visiteurs · fond de carte © OpenStreetMap.`;
+  drawMap();
+}
+function drawMap(){
+  if(!CLI||!$("t-clients").classList.contains("on"))return;
+  if(typeof L==="undefined"){$("cliMap").innerHTML='<p class="muted" style="padding:16px">La carte n\'a pas pu se charger (connexion).</p>';return}
+  const dark=getComputedStyle(root).colorScheme==="dark";
+  if(!MAP){MAP=L.map("cliMap",{scrollWheelZoom:false,zoomSnap:.5});MAP.setView(PALO,10)}
+  if(!MAPTILES)MAPTILES=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      {maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(MAP);
+  $("cliMap").classList.toggle("dark",dark);MAPTHEME=dark;
+  MAP.invalidateSize();
+  if(MAPDOTS)MAPDOTS.remove();
+  MAPDOTS=L.layerGroup().addTo(MAP);
+  const s1=css("--s1"),ink=css("--ink"),pts=[...CLI.C].filter(([cp])=>GEO[cp]).sort((x,y)=>y[1][0]-x[1][0]),mx=pts.length?pts[0][1][0]:1;
+  [10,20].forEach(km=>L.circle(PALO,{radius:km*1000,color:ink,weight:1,opacity:.45,dashArray:"4 6",fill:false,interactive:false}).addTo(MAPDOTS));
+  for(const[cp,[n,h]]of pts.slice().reverse()){const g=GEO[cp],km=kmTo(g[1],g[2]);
+    L.circleMarker([g[1],g[2]],{radius:2.5+Math.sqrt(n/mx)*17,color:css("--surface"),weight:1.5,fillColor:s1,fillOpacity:.6})
+      .bindTooltip(`<b>${esc(cpName(cp))}</b> · ${cpLabel(cp)}<br>${fmtN(n)} ventes · ${fmtP(n/CLI.nv,1)}<br>${fmtE(h)} HT · ${fmtN(km,1)} km`,{className:"cli",direction:"top",offset:[0,-4]})
+      .addTo(MAPDOTS)}
+  L.marker(PALO,{icon:L.divIcon({className:"palo-pin",html:sk("pin","--s5",40),iconSize:[40,40],iconAnchor:[20,36]}),zIndexOffset:1000})
+    .bindTooltip("<b>Palomano · La Maillerie</b>",{className:"cli",direction:"top",offset:[0,-30]}).addTo(MAPDOTS);
+  if(!MAP._fitted){MAP.fitBounds(L.latLng(PALO).toBounds(60000));MAP._fitted=true} // parc au centre, ~30 km de rayon
+}
+
 /* ───────────── orchestration ───────────── */
 let MT=null;
 function renderAll(){
@@ -1111,7 +1204,7 @@ function renderAll(){
   renderMtd();renderMix(c);renderAlerts(c,n1,L);
   renderMonthly(MT);renderCumul();
   renderDaily();renderCalendar();renderLastTable();
-  renderN1(MT);renderOKR();renderBP(MT);renderQual();renderCost(MT);renderVentes();
+  renderN1(MT);renderOKR();renderBP(MT);renderQual();renderCost(MT);renderVentes();renderClients();
 }
 function renderFresh(){
   const age=Math.round((Date.now()-toD(LAST))/DAY);
@@ -1130,7 +1223,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(!ro
 // tabs
 $("tabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("#tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
   document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("on",s.id==="t-"+b.dataset.t));try{localStorage.setItem("palo.tab",b.dataset.t)}catch(e){}
-  Object.values(CH).forEach(c=>c.resize())};
+  Object.values(CH).forEach(c=>c.resize());if(b.dataset.t==="clients")drawMap()};
 $("periods").onclick=e=>{const b=e.target.closest(".chip");if(b)setPeriod(b.dataset.p)};
 $("dFrom").onchange=$("dTo").onchange=()=>setPeriod("custom");
 $("dFrom").min=$("dTo").min=FIRST;$("dFrom").max=$("dTo").max=LAST;
@@ -1140,6 +1233,7 @@ document.addEventListener("mousemove",e=>{const t=e.target.closest("[data-tip]")
   const x=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8);tip.style.left=x+"px";tip.style.top=(e.clientY+14)+"px"});
 
 if(!V)$("tabVentes").hidden=true;
+if(!GEO)$("tabClients").hidden=true;
 renderFresh();
 let startTab="synth";try{startTab=localStorage.getItem("palo.tab")||"synth"}catch(e){}
 let startP="mtd";try{startP=localStorage.getItem("palo.period")||"mtd"}catch(e){}

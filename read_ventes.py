@@ -122,8 +122,8 @@ def read_ventes(path):
         code = g(r, "Code postal")
         if code and sale:
             code = str(code).split(".")[0].strip()
-            if code.isdigit():
-                c = cp[(d[:7], code.zfill(5))]
+            if code.isdigit() and len(code) in (4, 5):
+                c = cp[(d[:7], code)]  # brut : 4 chiffres = belge ou français sans le 0, tranché dans build_dashboard
                 c[0].add(sale)
                 c[1] += ht
 

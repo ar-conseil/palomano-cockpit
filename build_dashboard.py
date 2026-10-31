@@ -29,6 +29,7 @@ F_COLOR = SRC / "Colorhisto_PALOMANO_Lille.xlsx"
 # Export caisse (facultatif) : le plus récent « palomano-la-maillerie__*.xlsx » du dossier SUIVI PARC,
 # ou le fichier désigné par PALOMANO_VENTES
 VENTES_GLOB = "palomano-la-maillerie__*.xlsx"
+GEO = HERE / "cp_geo.json"  # code postal → [commune, lat, lon] (geo.api.gouv.fr + Belgique frontalière)
 TEMPLATE = HERE / "template.html"
 OUT = HERE / "Palomano_Dashboard.html"
 OUT_ARTIFACT = HERE / "palomano-cockpit.html"
@@ -247,6 +248,21 @@ def read_colorhisto():
         {"releve": releve, "mois": mois, "dist": dist, "semaines": semaines}
 
 
+def locate_cp(ventes):
+    """Normalise les codes postaux (7700 → Mouscron, 2100 → 02100) et joint leurs coordonnées."""
+    geo = json.loads(GEO.read_text(encoding="utf-8"))
+    merged = {}
+    for m, code, n, ht in ventes["cp"]:
+        if len(code) == 4:
+            code = "BE" + code if "BE" + code in geo else code.zfill(5)
+        k = (m, code)
+        e = merged.setdefault(k, [m, code, 0, 0.0])
+        e[2] += n
+        e[3] = round(e[3] + ht, 2)
+    ventes["cp"] = sorted(merged.values())
+    ventes["geo"] = {c: geo[c] for c in {r[1] for r in ventes["cp"]} if c in geo}
+
+
 def find_ventes():
     env = os.environ.get("PALOMANO_VENTES")
     if env:
@@ -267,6 +283,7 @@ def main():
     if f_ventes:
         ventes = read_ventes(f_ventes)
         ventes["file"] = f_ventes.name
+        locate_cp(ventes)
 
     data = {
         "generatedAt": dt.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
