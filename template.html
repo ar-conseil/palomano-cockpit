@@ -197,7 +197,7 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
         <div class="alerts" id="alerts"></div>
       </div>
       <div class="card">
-        <h3>Atterrissage CA 2026</h3>
+        <h3>Atterrissage CA HT 2026</h3>
         <p class="hint" id="landHint"></p>
         <div class="hero" id="landHero"></div>
         <div class="muted" id="landSub" style="margin:4px 0 14px;font-size:12.5px"></div>
@@ -208,14 +208,14 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
 
     <div class="grid g2" style="margin-top:14px">
       <div class="card">
-        <h3>CA mensuel — réalisé vs objectif</h3>
+        <h3>CA HT mensuel — réalisé vs objectif</h3>
         <p class="hint">Barres : réalisé 2026 · tirets : objectif mensuel · ligne : réalisé N-1</p>
         <div class="legend"><span><i style="background:var(--s1)"></i>Réalisé 2026</span><span><i class="dash"></i>Objectif 2026</span><span><i class="line" style="background:var(--s2)"></i>Réalisé 2025</span></div>
         <div class="chart"><canvas id="cMonthly"></canvas></div>
       </div>
       <div class="card">
-        <h3>CA cumulé 2026 — trajectoire</h3>
-        <p class="hint">Cumul journalier vs objectif 650 k€ (pondéré jour par jour) et vs 2025</p>
+        <h3>CA HT cumulé 2026 — trajectoire</h3>
+        <p class="hint">Cumul journalier vs objectif 650 k€ HT (pondéré jour par jour) et vs 2025</p>
         <div class="legend"><span><i class="line" style="background:var(--s1)"></i>Réalisé 2026</span><span><i class="dash"></i>Objectif cumulé</span><span><i class="line" style="background:var(--s2)"></i>Réalisé 2025</span></div>
         <div class="chart"><canvas id="cCumul"></canvas></div>
       </div>
@@ -223,7 +223,7 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
 
     <div class="grid g12" style="margin-top:14px">
       <div class="card">
-        <h3>Mix du CA — période</h3>
+        <h3>Mix du CA HT — période</h3>
         <p class="hint">Répartition du CA HT par activité</p>
         <div class="chart sm"><canvas id="cMix"></canvas></div>
       </div>
@@ -238,7 +238,7 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
   <!-- ═════════ ACTIVITÉ ═════════ -->
   <section class="tab" id="t-activ">
     <div class="card">
-      <h3>CA journalier par activité</h3>
+      <h3>CA HT journalier par activité</h3>
       <p class="hint">Barres empilées par activité · tirets : objectif du jour (pondéré selon le type de jour)</p>
       <div class="legend" id="segLegend"></div>
       <div class="chart lg"><canvas id="cDaily"></canvas></div>
@@ -258,7 +258,7 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
     </div>
     <div class="card" style="margin-top:14px">
       <h3>Calendrier de performance</h3>
-      <p class="hint">Chaque case = un jour · couleur = CA réalisé ÷ objectif du jour (rouge sous l'objectif, bleu au-dessus) · gris = fermé / pas d'objectif</p>
+      <p class="hint">Chaque case = un jour · couleur = CA HT réalisé ÷ objectif du jour (rouge sous l'objectif, bleu au-dessus) · gris = fermé / pas d'objectif</p>
       <div class="cal" id="cal"></div>
     </div>
     <div class="card" style="margin-top:14px">
@@ -334,20 +334,20 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
     <div class="grid g4" id="costKpis"></div>
     <div class="grid g2" style="margin-top:14px">
       <div class="card">
-        <h3>Charges pilotables vs CA — par mois</h3>
+        <h3>Charges pilotables HT vs CA HT — par mois</h3>
         <p class="hint" id="costHint"></p>
         <div class="legend"><span><i style="background:var(--s1)"></i>Masse salariale</span><span><i style="background:var(--s2)"></i>Achats</span><span><i style="background:var(--s3)"></i>Autres</span><span><i class="line" style="background:var(--ink)"></i>CA réalisé</span></div>
         <div class="chart"><canvas id="cCost"></canvas></div>
       </div>
       <div class="card">
-        <h3>Ratio masse salariale / CA</h3>
+        <h3>Ratio masse salariale / CA HT</h3>
         <p class="hint">Masse salariale chargée ÷ CA HT réalisé du mois (cible BP ≈ 19 %)</p>
         <div class="chart"><canvas id="cMsRatio"></canvas></div>
       </div>
     </div>
     <div class="card" style="margin-top:14px">
       <h3>Détail mensuel — marge sur charges pilotables</h3>
-      <p class="hint">CA réalisé − charges pilotables (réel si saisi dans « Suivi Charges », sinon objectif BP)</p>
+      <p class="hint">CA HT réalisé − charges pilotables HT (réel si saisi dans « Suivi Charges », sinon objectif BP)</p>
       <div class="tablewrap"><table id="tCost"></table></div>
     </div>
     <div class="card" style="margin-top:14px">
@@ -386,7 +386,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ───────────── data model ───────────── */
-// daily row: [date, parc, anniv, scol, grp, snack, bout, event, tot, entrees, cap, nbAnniv, parcN, totTTC]
+// daily row: [date, parc, anniv, scol, grp, snack, bout, event, tot, entrees, cap, nbAnniv, parcN]
 const SEG=[{k:"parc",i:1,lab:"Entrées parc",c:"--s1"},{k:"anniv",i:2,lab:"Anniversaires",c:"--s2"},
   {k:"b2b",i:[3,4],lab:"B2B (écoles, centres, CSE)",c:"--s3"},{k:"snack",i:5,lab:"Snacking",c:"--s4"},
   {k:"bout",i:6,lab:"Boutique",c:"--s5"},{k:"event",i:7,lab:"Évènements",c:"--s6"}];
@@ -416,7 +416,7 @@ const dayObjF=(d,f)=>{const v=monthSeg(d.slice(0,7),f);return isFinite(v)?v*dayW
 
 function range(a,b){const out=[];for(let t=toD(a);t<=toD(b);t+=DAY)out.push(toS(t));return out}
 function agg(a,b,shift=0){
-  const o={tot:0,parc:0,anniv:0,b2b:0,snack:0,bout:0,event:0,ent:0,cap:0,nbAnniv:0,parcN:0,open:0,obj:0,objVis:0,objAnn:0,objB2B:0,slots:0,days:0,hasObjVis:true,ttc:0};
+  const o={tot:0,parc:0,anniv:0,b2b:0,snack:0,bout:0,event:0,ent:0,cap:0,nbAnniv:0,parcN:0,open:0,obj:0,objVis:0,objAnn:0,objB2B:0,slots:0,days:0,hasObjVis:true};
   for(const d0 of range(a,b)){
     const d=shift?addD(d0,shift):d0;const r=BY.get(d);
     o.days++;
@@ -425,7 +425,7 @@ function agg(a,b,shift=0){
       const an=dayObjF(d,"anniv");if(isFinite(an))o.objAnn+=an;const bb=dayObjF(d,"b2b");if(isFinite(bb))o.objB2B+=bb}
     if(!r)continue;
     o.tot+=r[8];o.parc+=r[1];o.anniv+=r[2];o.b2b+=r[3]+r[4];o.snack+=r[5];o.bout+=r[6];o.event+=r[7];
-    o.ent+=r[9];o.cap+=r[10];o.nbAnniv+=r[11];o.parcN+=r[12];o.ttc+=r[13];if(r[8]>0)o.open++;
+    o.ent+=r[9];o.cap+=r[10];o.nbAnniv+=r[11];o.parcN+=r[12];if(r[8]>0)o.open++;
   }
   return o;
 }
@@ -496,11 +496,11 @@ function renderKpis(){
     {lab:"CA HT",val:fmtE(c.tot),ratio:c.obj?c.tot/c.obj:NaN,meta:[`Objectif ${fmtE(c.obj)} · ${fmtP(c.tot/c.obj,0)}`,deltaHtml(n1?yo(c.tot,n1.tot):NaN)]},
     {lab:"Entrées",val:fmtN(c.ent),ratio:c.hasObjVis&&c.objVis?c.ent/c.objVis:NaN,meta:[c.hasObjVis?`Objectif ${fmtN(c.objVis)} · ${fmtP(c.ent/c.objVis,0)}`:"Pas d'objectif visiteurs sur la période",deltaHtml(n1?yo(c.ent,n1.ent):NaN)]},
     {lab:"Taux d'occupation",val:fmtP(occ),ratio:occ/occObj,meta:[`Objectif ${fmtP(occObj)} · capacité ${fmtN(c.cap)}`,n1&&n1.cap?`<span class="muted">N-1 : ${fmtP(n1.ent/n1.cap)}</span>`:'<span class="muted">N-1 n/d</span>']},
-    {lab:"Panier moyen / visiteur",val:fmtE(pm,2),ratio:pm/pmObj,meta:[`Objectif BP ${fmtE(pmObj,2)}`,deltaHtml(n1&&n1.ent?pm/(n1.tot/n1.ent)-1:NaN)]},
-    {lab:"CA anniversaires",val:fmtE(c.anniv),ratio:c.objAnn?c.anniv/c.objAnn:NaN,meta:[`Objectif ${fmtE(c.objAnn)} · ${fmtN(c.nbAnniv)} anniv`,`Remplissage ${fmtP(fill,0)} (${fmtN(c.nbAnniv)}/${fmtN(c.slots)} créneaux)`]},
-    {lab:"CA B2B (écoles, centres, CSE)",val:fmtE(c.b2b),ratio:c.objB2B?c.b2b/c.objB2B:NaN,meta:[`Objectif ${fmtE(c.objB2B)} · ${fmtP(c.b2b/c.objB2B,0)}`,deltaHtml(n1?yo(c.b2b,n1.b2b):NaN)]},
-    {lab:"Snack / visiteur parc",val:fmtE(snackV,2),ratio:snackV/1.05,meta:[`Cible ≥ 1,05 € · snack ${fmtE(c.snack)} (${fmtP(c.snack/c.tot)} du CA)`,deltaHtml(n1&&n1.parcN?snackV/(n1.snack/n1.parcN)-1:NaN)]},
-    {lab:"CA moyen / jour ouvert",val:fmtE(c.open?c.tot/c.open:NaN),st:false,ratio:NaN,meta:[`${c.open} jours ouverts sur ${c.days}`,`Boutique ${fmtE(c.bout)} · Évènements ${fmtE(c.event)}`]},
+    {lab:"Panier moyen HT / visiteur",val:fmtE(pm,2),ratio:pm/pmObj,meta:[`Objectif BP ${fmtE(pmObj,2)}`,deltaHtml(n1&&n1.ent?pm/(n1.tot/n1.ent)-1:NaN)]},
+    {lab:"CA HT anniversaires",val:fmtE(c.anniv),ratio:c.objAnn?c.anniv/c.objAnn:NaN,meta:[`Objectif ${fmtE(c.objAnn)} · ${fmtN(c.nbAnniv)} anniv`,`Remplissage ${fmtP(fill,0)} (${fmtN(c.nbAnniv)}/${fmtN(c.slots)} créneaux)`]},
+    {lab:"CA HT B2B (écoles, centres, CSE)",val:fmtE(c.b2b),ratio:c.objB2B?c.b2b/c.objB2B:NaN,meta:[`Objectif ${fmtE(c.objB2B)} · ${fmtP(c.b2b/c.objB2B,0)}`,deltaHtml(n1?yo(c.b2b,n1.b2b):NaN)]},
+    {lab:"Snack HT / visiteur parc",val:fmtE(snackV,2),ratio:snackV/1.05,meta:[`Cible ≥ 1,05 € · snack ${fmtE(c.snack)} (${fmtP(c.snack/c.tot)} du CA)`,deltaHtml(n1&&n1.parcN?snackV/(n1.snack/n1.parcN)-1:NaN)]},
+    {lab:"CA HT moyen / jour ouvert",val:fmtE(c.open?c.tot/c.open:NaN),st:false,ratio:NaN,meta:[`${c.open} jours ouverts sur ${c.days}`,`Boutique ${fmtE(c.bout)} · Évènements ${fmtE(c.event)}`]},
   ];
   $("kpis").innerHTML=cards.map(kpiCard).join("");
   const lab=P.a===P.b?fmtDate(P.a):`du ${fmtDate(P.a)} au ${fmtDate(P.b)}`;
@@ -519,7 +519,7 @@ function landing(){
   const sc=[
     {lab:"Objectif tenu",v:ytd.tot+remObj,info:"réalisé + objectifs restants"},
     {lab:"Tendance 90 j",v:ytd.tot+remObj*perf,info:`objectifs restants × ${fmtP(perf,0)} (perf. 90 derniers jours)`},
-    {lab:"Rythme N-1",v:isFinite(yoy)?ytd.tot+remN1*yoy:NaN,info:`CA 2025 des mêmes jours × ${fmtP(yoy,0)} (tendance 8 sem.)`},
+    {lab:"Rythme N-1",v:isFinite(yoy)?ytd.tot+remN1*yoy:NaN,info:`CA HT 2025 des mêmes jours × ${fmtP(yoy,0)} (tendance 8 sem.)`},
   ];
   const mx=Math.max(target,...sc.map(s=>s.v||0))*1.08;
   $("landHint").textContent=`Au ${fmtDate(LAST)} · objectif ${fmtE(target)}`;
@@ -594,7 +594,7 @@ function renderAlerts(c,n1,L){
   const ageDays=Math.round((Date.now()-toD(LAST))/DAY);
   if(ageDays>2)push("warn",`<b>Saisie en retard</b> : dernière journée saisie le ${fmtDate(LAST)} (il y a ${ageDays} jours).`);
   const r=c.tot/c.obj;
-  if(isFinite(r))push(r>=1?"good":r>=.9?"warn":"crit",`<b>CA de la période ${fmtP(r,0)} de l'objectif</b> (${sgn(c.tot-c.obj,fmtE)}).${n1?` Vs N-1 : ${sgn(c.tot/n1.tot-1,v=>fmtP(v,0))}.`:""}`);
+  if(isFinite(r))push(r>=1?"good":r>=.9?"warn":"crit",`<b>CA HT de la période ${fmtP(r,0)} de l'objectif</b> (${sgn(c.tot-c.obj,fmtE)}).${n1?` Vs N-1 : ${sgn(c.tot/n1.tot-1,v=>fmtP(v,0))}.`:""}`);
   if(c.objAnn&&c.anniv/c.objAnn<.9)push("crit",`<b>Anniversaires à ${fmtP(c.anniv/c.objAnn,0)} de l'objectif</b> : ${fmtN(c.nbAnniv)} anniv pour ${fmtN(c.slots)} créneaux (${fmtP(c.nbAnniv/c.slots,0)} de remplissage).`);
   if(c.objB2B&&c.b2b/c.objB2B>=1.1)push("good",`<b>B2B au-dessus de l'objectif</b> : ${fmtE(c.b2b)} (${fmtP(c.b2b/c.objB2B,0)}).`);
   const sv=c.parcN?c.snack/c.parcN:NaN;if(sv<1)push("warn",`<b>Snack / visiteur à ${fmtE(sv,2)}</b>, sous le seuil de 1 €.`);
@@ -663,7 +663,7 @@ function renderCalendar(){
       const s=`${m}-${String(d).padStart(2,"0")}`,r=BY.get(s),o=dayObj(s);
       if(toD(s)>toD(LAST)||toD(s)<toD(FIRST)){h+=`<span class="d" style="opacity:.35"></span>`;continue}
       const v=r?r[8]:0,ratio=o>0?v/o:NaN;
-      const tip=`${fmtDay(s)} · CA ${fmtE(v)}${o>0?` · obj ${fmtE(o)} (${fmtP(ratio,0)})`:" · fermé/sans objectif"} · ${r?fmtN(r[9]):0} entrées`;
+      const tip=`${fmtDay(s)} · CA HT ${fmtE(v)}${o>0?` · obj ${fmtE(o)} (${fmtP(ratio,0)})`:" · fermé/sans objectif"} · ${r?fmtN(r[9]):0} entrées`;
       h+=`<span class="d" data-tip="${esc(tip)}" style="${isFinite(ratio)?`background:${col(ratio)}`:""};${P.a<=s&&s<=P.b?"outline:1.5px solid var(--ink);outline-offset:-1px":""}"></span>`;
     }
     h+="</div>";
@@ -673,7 +673,7 @@ function renderCalendar(){
 
 function renderLastTable(){
   const rows=DATA.daily.filter(r=>toD(r[0])<=toD(LAST)).slice(-15).reverse();
-  $("tLast").innerHTML=`<thead><tr><th>Jour</th><th>CA HT</th><th>Obj.</th><th>%</th><th>Entrées</th><th>Occup.</th><th>Parc</th><th>Anniv</th><th>B2B</th><th>Snack</th><th>Boutique</th><th>Panier/vis.</th></tr></thead><tbody>`+
+  $("tLast").innerHTML=`<thead><tr><th>Jour</th><th>CA HT</th><th>Obj. HT</th><th>%</th><th>Entrées</th><th>Occup.</th><th>Parc</th><th>Anniv</th><th>B2B</th><th>Snack</th><th>Boutique</th><th>Panier HT/vis.</th></tr></thead><tbody>`+
     rows.map(r=>{const o=dayObj(r[0]);return`<tr><td>${fmtDay(r[0])}</td><td><b>${fmtE(r[8])}</b></td><td class="muted">${o?fmtE(o):"—"}</td><td>${o?stDot(r[8]/o):"—"}</td><td>${fmtN(r[9])}</td><td>${r[10]?fmtP(r[9]/r[10],0):"—"}</td><td>${fmtE(r[1])}</td><td>${fmtE(r[2])}</td><td>${fmtE(r[3]+r[4])}</td><td>${fmtE(r[5])}</td><td>${fmtE(r[6])}</td><td>${r[9]?fmtE(r[8]/r[9],2):"—"}</td></tr>`}).join("")+"</tbody>";
 }
 const stDot=r=>{const[c]=status(r);return`<span class="st ${c}">${fmtP(r,0)}</span>`};
@@ -711,7 +711,7 @@ function renderN1(M){
     if(k===LAST.slice(0,7)){const x=agg(k+"-01",LAST),n=agg(k+"-01",LAST,-364);curT=x.tot;prevT=n.tot;note=" (à date)"}
     if(toD(k+"-01")>toD(LAST))curT=null;
     rows.push(`<tr class="${curT==null?"future":""}"><td>${MOISL[m-1]}${note}</td><td>${prevT!=null?fmtE(prevT):"—"}</td><td>${curT!=null?fmtE(curT):"—"}</td><td>${curT!=null&&prevT?sgn(curT-prevT,fmtE):"—"}</td><td>${curT!=null&&prevT?`<span class="delta ${curT>=prevT?"up":"down"}">${sgn(curT/prevT-1,v=>fmtP(v,0))}</span>`:"—"}</td><td>${fmtE(monthTarget(k))}</td><td>${curT!=null?stDot(curT/monthTarget(k)):"—"}</td></tr>`)}
-  $("tMonthN1").innerHTML=`<thead><tr><th>Mois</th><th>${y-1}</th><th>${y}</th><th>Écart €</th><th>Écart %</th><th>Objectif ${y}</th><th>Atteinte</th></tr></thead><tbody>${rows.join("")}</tbody>`;
+  $("tMonthN1").innerHTML=`<thead><tr><th>Mois</th><th>${y-1}</th><th>${y}</th><th>Écart € HT</th><th>Écart %</th><th>Objectif HT ${y}</th><th>Atteinte</th></tr></thead><tbody>${rows.join("")}</tbody>`;
 }
 
 /* ───────────── OBJECTIFS ───────────── */
@@ -728,7 +728,7 @@ function renderOKR(){
       <span style="text-align:right;font-weight:600">${fmtP(r.pct,0)}</span><span class="st ${s}">${stLab[s]}</span></div>`}).join("")+"</div>"}).join("");
 }
 function renderBP(M){
-  const R=DATA.bp.rows;$("bpAnnual").textContent=fmtE(DATA.bp.annual);
+  const R=DATA.bp.rows;$("bpAnnual").textContent=fmtE(DATA.bp.annual)+" HT";
   let T={o:0,r:0,ov:0,rv:0,oa:0,ra:0,ob:0,rb:0};
   const rows=BPM.map((k,i)=>{
     const m=M[k],past=toD(k+"-01")<=toD(LAST),cur=k===LAST.slice(0,7);
@@ -737,7 +737,7 @@ function renderBP(M){
     return`<tr class="${r?"":"future"}"><td>${mLabel(k)}${cur?" ●":""}</td><td>${fmtE(o)}</td><td>${r?`<b>${fmtE(r.tot)}</b>`:"—"}</td><td>${r?stDot(r.tot/o):"—"}</td>
     <td>${fmtN(R.vis[i])}</td><td>${r?fmtN(r.ent):"—"}</td><td>${fmtP(R.vis[i]/R.cap[i],0)}</td><td>${r&&r.cap?fmtP(r.ent/r.cap,0):"—"}</td>
     <td>${fmtE(R.anniv[i])}</td><td>${r?fmtE(r.anniv):"—"}</td><td>${fmtE(R.ecole[i]+R.adl[i])}</td><td>${r?fmtE(r.b2b):"—"}</td></tr>`});
-  $("tBP").innerHTML=`<thead><tr><th>Mois</th><th>Obj. CA</th><th>Réalisé</th><th>Atteinte</th><th>Obj. vis.</th><th>Visiteurs</th><th>Occ. obj.</th><th>Occ. réelle</th><th>Obj. anniv</th><th>Anniv</th><th>Obj. B2B</th><th>B2B</th></tr></thead><tbody>${rows.join("")}
+  $("tBP").innerHTML=`<thead><tr><th>Mois</th><th>Obj. CA HT</th><th>CA HT réalisé</th><th>Atteinte</th><th>Obj. vis.</th><th>Visiteurs</th><th>Occ. obj.</th><th>Occ. réelle</th><th>Obj. anniv</th><th>Anniv</th><th>Obj. B2B</th><th>B2B</th></tr></thead><tbody>${rows.join("")}
   <tr class="tot"><td>Cumul à date</td><td>${fmtE(T.o)}</td><td>${fmtE(T.r)}</td><td>${stDot(T.r/T.o)}</td><td>${fmtN(T.ov)}</td><td>${fmtN(T.rv)}</td><td></td><td></td><td>${fmtE(T.oa)}</td><td>${fmtE(T.ra)}</td><td>${fmtE(T.ob)}</td><td>${fmtE(T.rb)}</td></tr></tbody>`;
   chart("cBP",{type:"bar",data:{labels:BPM.map(mLabel),datasets:[
     {type:"line",label:"Objectif",data:R.ca,borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,stepped:"middle"},
@@ -791,22 +791,22 @@ function renderCost(M){
   $("costHint").textContent=costTxt;
   const marge=T.ca-T.ch;
   $("costKpis").innerHTML=[
-    {lab:"CA réalisé (mai → à date)",val:fmtE(T.ca),meta:[`Objectif ${fmtE(T.obj)} · ${fmtP(T.ca/T.obj,0)}`]},
-    {lab:"Charges pilotables",val:fmtE(T.ch),meta:[`${fmtP(T.ch/T.ca)} du CA · ${DATA.bp.chargesEntries?"réel":"objectif BP"}`]},
-    {lab:"Marge sur charges pilotables",val:fmtE(marge),meta:[`${fmtP(marge/T.ca)} du CA réalisé`]},
-    {lab:"Masse salariale / CA",val:fmtP(T.ms/T.ca),meta:[`Cible BP ${fmtP(R.ms.reduce((a,b)=>a+b)/R.ca.reduce((a,b)=>a+b))}`]},
+    {lab:"CA HT réalisé (mai → à date)",val:fmtE(T.ca),meta:[`Objectif ${fmtE(T.obj)} · ${fmtP(T.ca/T.obj,0)}`]},
+    {lab:"Charges pilotables HT",val:fmtE(T.ch),meta:[`${fmtP(T.ch/T.ca)} du CA · ${DATA.bp.chargesEntries?"réel":"objectif BP"}`]},
+    {lab:"Marge HT sur charges pilotables",val:fmtE(marge),meta:[`${fmtP(marge/T.ca)} du CA réalisé`]},
+    {lab:"Masse salariale / CA HT",val:fmtP(T.ms/T.ca),meta:[`Cible BP ${fmtP(R.ms.reduce((a,b)=>a+b)/R.ca.reduce((a,b)=>a+b))}`]},
   ].map(o=>kpiCard(Object.assign({st:false,ratio:NaN},o))).join("");
   chart("cCost",{type:"bar",data:{labels:BPM.map(mLabel),datasets:[
-    {type:"line",label:"CA réalisé",data:lines.map(l=>l.ca),borderColor:css("--ink"),backgroundColor:css("--ink"),borderWidth:2,pointRadius:3,order:0},
+    {type:"line",label:"CA HT réalisé",data:lines.map(l=>l.ca),borderColor:css("--ink"),backgroundColor:css("--ink"),borderWidth:2,pointRadius:3,order:0},
     {label:"Masse salariale",data:lines.map(l=>l.ms),backgroundColor:css("--s1"),stack:"c",order:1,maxBarThickness:30},
     {label:"Achats",data:lines.map(l=>l.ach),backgroundColor:css("--s2"),stack:"c",order:1,maxBarThickness:30},
     {label:"Autres",data:lines.map(l=>l.aut),backgroundColor:css("--s3"),stack:"c",order:1,maxBarThickness:30,borderRadius:{topLeft:4,topRight:4}}]},
     options:baseOpts({scales:{x:{stacked:true,grid:{display:false},ticks:{color:css("--muted"),font:{size:11}}},y:{stacked:true,grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtK(v)}}}})});
   chart("cMsRatio",{type:"bar",data:{labels:BPM.map(mLabel),datasets:[
     {type:"line",label:"Cible BP",data:lines.map(l=>R.ms[l.i]/R.ca[l.i]),borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,stepped:"middle",fmt:v=>fmtP(v)},
-    {label:"Masse salariale / CA réalisé",data:lines.map(l=>l.past?l.ms/l.ca:null),backgroundColor:lines.map(l=>l.past&&l.ms/l.ca>R.ms[l.i]/R.ca[l.i]*1.1?css("--crit"):css("--s1")),borderRadius:4,maxBarThickness:30,fmt:v=>fmtP(v)}]},
+    {label:"Masse salariale / CA HT réalisé",data:lines.map(l=>l.past?l.ms/l.ca:null),backgroundColor:lines.map(l=>l.past&&l.ms/l.ca>R.ms[l.i]/R.ca[l.i]*1.1?css("--crit"):css("--s1")),borderRadius:4,maxBarThickness:30,fmt:v=>fmtP(v)}]},
     options:baseOpts({scales:{x:{grid:{display:false},ticks:{color:css("--muted"),font:{size:11}}},y:{grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtP(v,0)},beginAtZero:true}}})});
-  $("tCost").innerHTML=`<thead><tr><th>Mois</th><th>CA réalisé</th><th>Obj. CA</th><th>Masse sal.</th><th>Achats</th><th>Autres</th><th>Total charges</th><th>Source</th><th>Marge</th><th>Marge %</th></tr></thead><tbody>`+
+  $("tCost").innerHTML=`<thead><tr><th>Mois</th><th>CA HT réalisé</th><th>Obj. CA HT</th><th>Masse sal.</th><th>Achats</th><th>Autres</th><th>Total charges HT</th><th>Source</th><th>Marge HT</th><th>Marge %</th></tr></thead><tbody>`+
     lines.map(l=>`<tr class="${l.past?"":"future"}"><td>${mLabel(l.k)}</td><td>${l.ca!=null?fmtE(l.ca):"—"}</td><td>${fmtE(R.ca[l.i])}</td><td>${fmtE(l.ms)}</td><td>${fmtE(l.ach)}</td><td>${fmtE(l.aut)}</td><td>${fmtE(l.ch)}</td><td class="muted">${l.rr?"réel":"objectif"}</td><td>${l.ca!=null?`<b>${fmtE(l.ca-l.ch)}</b>`:"—"}</td><td>${l.ca!=null?fmtP((l.ca-l.ch)/l.ca,0):"—"}</td></tr>`).join("")+
     `<tr class="tot"><td>Cumul à date</td><td>${fmtE(T.ca)}</td><td>${fmtE(T.obj)}</td><td>${fmtE(T.ms)}</td><td></td><td></td><td>${fmtE(T.ch)}</td><td></td><td>${fmtE(marge)}</td><td>${fmtP(marge/T.ca,0)}</td></tr></tbody>`;
   $("tContrats").innerHTML=`<thead><tr><th>Contrat</th><th>Brut/mois</th><th>Chargé/mois</th>${BPM.map(k=>`<th>${mLabel(k)}</th>`).join("")}</tr></thead><tbody>`+
