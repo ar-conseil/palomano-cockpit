@@ -144,6 +144,47 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
 .stars .r{display:grid;grid-template-columns:34px 1fr 60px;gap:8px;align-items:center;font-size:12.5px}
 .stars .t{height:12px;background:var(--surface-2);border-radius:3px;overflow:hidden}
 .stars .t i{display:block;height:100%;background:var(--s4);border-radius:3px}
+/* ── Ventes & produits ── */
+.sk{display:block;flex:none;overflow:visible}
+.sk .wash{opacity:.22}
+.sk g{fill:none;stroke:var(--ink);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.sk g .f{fill:var(--c);stroke:none;opacity:.55}
+.vhead{display:flex;align-items:center;gap:14px;margin:26px 0 12px}
+.vhead h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em}
+.vhead p{margin:2px 0 0;color:var(--ink-2);font-size:12.5px}
+.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:end}
+.pod{position:relative;background:var(--surface);border:1px solid var(--ring);border-radius:16px;padding:16px 14px 14px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;min-width:0}
+.pod.r1{padding-top:26px;border-color:color-mix(in srgb,var(--s4) 55%,var(--ring))}
+.pod .rk{position:absolute;top:10px;left:12px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:750;font-size:13px;background:var(--surface-2)}
+.pod.r1 .rk{background:var(--s4);color:#000}
+.pod .nm{font-weight:650;font-size:14px;line-height:1.25;margin-top:6px;overflow-wrap:anywhere}
+.pod .gp{font-size:11.5px;color:var(--muted)}
+.pod .am{font-size:22px;font-weight:700;letter-spacing:-.01em;margin-top:4px}
+.pod .qt{font-size:12px;color:var(--ink-2)}
+@media (max-width:640px){.podium{grid-template-columns:1fr}.pod{flex-direction:row;text-align:left;align-items:center;gap:12px}.pod .rk{position:static}.pod .tx{display:flex;flex-direction:column;gap:2px;min-width:0}}
+.rank{display:flex;flex-direction:column}
+.rank .it{display:grid;grid-template-columns:22px 40px minmax(0,1fr) 72px 82px;gap:10px;align-items:center;padding:6px 0;border-top:1px dashed var(--grid);font-size:13px}
+.rank .it:first-child{border-top:0}
+.rank .n{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right;font-size:12px}
+.rank .nm{min-width:0}
+.rank .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank .nm .bar{margin:5px 0 0;height:5px}
+.rank .q,.rank .v{text-align:right;font-variant-numeric:tabular-nums}
+.rank .q{color:var(--ink-2);font-size:12px}
+.rank .v{font-weight:650}
+.rank .sub{color:var(--muted);font-size:11.5px}
+@media (max-width:640px){.rank .it{grid-template-columns:18px 34px minmax(0,1fr) 74px}.rank .q{display:none}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
+.tile{border:1px solid var(--ring);border-radius:14px;padding:12px;display:flex;gap:10px;align-items:center;background:var(--surface);min-width:0}
+.tile .tx{min-width:0;display:flex;flex-direction:column;gap:1px}
+.tile b{font-size:13px;font-weight:620;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .am{font-size:17px;font-weight:700}
+.tile .sub{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seg{display:inline-flex;border:1px solid var(--ring);border-radius:999px;padding:2px;gap:2px;font-size:12px}
+.seg button{border:0;background:none;border-radius:999px;padding:3px 10px;cursor:pointer;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--page)}
+.cardhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.vnote{font-size:12px;color:var(--muted);margin-top:22px}
 </style>
 </head>
 <body>
@@ -175,6 +216,7 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
     <nav class="tabs" role="tablist" id="tabs">
       <button role="tab" data-t="synth" aria-selected="true">Synthèse</button>
       <button role="tab" data-t="activ">Activité</button>
+      <button role="tab" data-t="ventes" id="tabVentes">Ventes & produits</button>
       <button role="tab" data-t="n1">Comparatif N-1</button>
       <button role="tab" data-t="obj">Objectifs & OKR</button>
       <button role="tab" data-t="qual">Qualité & équipe</button>
@@ -329,6 +371,65 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
     </div>
   </section>
 
+  <!-- ═════════ VENTES & PRODUITS ═════════ -->
+  <section class="tab" id="t-ventes">
+    <div class="vhead"><span id="vhSnack"></span><div><h2>Le snacking</h2><p id="vSnackSub"></p></div></div>
+    <div class="grid g4" id="vSnackKpis"></div>
+    <div class="podium" id="vPodium" style="margin-top:14px"></div>
+    <div class="grid g21" style="margin-top:14px">
+      <div class="card">
+        <div class="cardhead"><div><h3>Meilleures ventes snack</h3><p class="hint">Classement sur la période · barre = part du CA HT snack</p></div>
+          <div class="seg" id="vSort"><button data-s="ht" aria-pressed="true">CA HT</button><button data-s="q" aria-pressed="false">Quantité</button></div></div>
+        <div class="rank" id="vSnackTop"></div>
+      </div>
+      <div class="card">
+        <h3>Par famille</h3>
+        <p class="hint">CA HT et produit vedette de chaque famille</p>
+        <div class="tiles" id="vSnackFam" style="grid-template-columns:1fr"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Heures de rush au snack</h3>
+      <p class="hint">CA HT snack cumulé sur la période, par jour de semaine et par heure d'encaissement · plus c'est foncé, plus ça vend</p>
+      <div class="tablewrap"><div id="vHeat"></div></div>
+    </div>
+
+    <div class="vhead"><span id="vhBout"></span><div><h2>La boutique</h2><p id="vBoutSub"></p></div></div>
+    <div class="grid g4" id="vBoutKpis"></div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="card">
+        <h3>Univers boutique</h3>
+        <p class="hint">CA HT par univers de jeu · produit vedette</p>
+        <div class="tiles" id="vUniv"></div>
+      </div>
+      <div class="card">
+        <h3>Meilleures ventes boutique</h3>
+        <p class="hint">Top 10 produits en CA HT</p>
+        <div class="rank" id="vBoutTop"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Marques</h3>
+      <p class="hint">CA HT boutique par marque</p>
+      <div class="chart sm"><canvas id="cBrands"></canvas></div>
+    </div>
+
+    <div class="vhead"><span id="vhTix"></span><div><h2>Billetterie, anniversaires & groupes</h2><p>Les formules qui font le chiffre</p></div></div>
+    <div class="grid g2">
+      <div class="card">
+        <h3>Top formules</h3>
+        <p class="hint">Entrées, anniversaires, B2B et évènements · CA HT sur la période</p>
+        <div class="rank" id="vTixTop"></div>
+      </div>
+      <div class="card">
+        <h3>D'où viennent nos clients ?</h3>
+        <p class="hint" id="vCpHint"></p>
+        <div class="rank" id="vCp"></div>
+      </div>
+    </div>
+    <p class="vnote" id="vNote"></p>
+  </section>
+
   <!-- ═════════ CHARGES ═════════ -->
   <section class="tab" id="t-cost">
     <div class="grid g4" id="costKpis"></div>
@@ -360,6 +461,7 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
   <footer id="foot"></footer>
 </div>
 <div class="tip" id="tip"></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="rough" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="2.6"/></filter></svg>
 
 <script>const DATA=/*__DATA__*/null;</script>
 <script>
@@ -813,6 +915,192 @@ function renderCost(M){
     DATA.bp.contrats.filter(c=>c.planning.some(v=>v)).map(c=>`<tr><td>${esc(c.nom)}</td><td>${fmtE(c.brut)}</td><td>${fmtE(c.charge)}</td>${c.planning.map(v=>`<td>${v||'<span class="muted">·</span>'}</td>`).join("")}</tr>`).join("")+"</tbody>";
 }
 
+
+/* ───────────── VENTES & PRODUITS (export caisse) ───────────── */
+// Croquis dessinés main : traits encre + aplat de couleur, « crayonnés » par le filtre SVG #rough
+const ICON={
+  cake:'<path class="f" d="M12 46V31c6-9 34-9 40 0v15z"/><path d="M12 46V31c6-9 34-9 40 0v15zM12 37h40M12 46h40M20 41h2M30 42h2M42 40h2M25 33h2M38 33h2"/>',
+  slice:'<path class="f" d="M10 46l44-18v18z"/><path d="M10 46l44-18v18zM10 46h44M18 42l36-14M54 28c-4 3-8 0-11 4s-8 1-11 5M51 18c1-3 3-5 6-5"/><circle cx="50" cy="22" r="4"/>',
+  bottle:'<path class="f" d="M20 30h24v18H20z"/><path d="M27 8h10v6c5 3 8 8 8 14v24c0 3-2 4-4 4H23c-2 0-4-1-4-4V28c0-6 3-11 8-14zM27 14h10M19 30h26M19 48h26"/>',
+  cookie:'<circle class="f" cx="32" cy="33" r="20"/><path d="M52 33c0 11-9 20-20 20s-20-9-20-20 9-20 20-20c1 4 4 6 8 5 0 4 3 7 7 7 3 0 5 3 5 8z"/><path d="M24 26l2 1M35 25l1 2M22 38l2 1M33 37l2-1M42 42l1 2M28 46h2M43 31l1 1" stroke-width="3.6"/>',
+  coffee:'<path class="f" d="M14 30h30v9c0 9-7 14-15 14s-15-5-15-14z"/><path d="M14 30h30v9c0 9-7 14-15 14s-15-5-15-14zM44 33c7-1 10 2 10 6s-4 7-11 7M10 57h40M23 22c-3-3 3-6 0-10M33 22c-3-3 3-6 0-10"/>',
+  cappu:'<path class="f" d="M14 30h30v9c0 9-7 14-15 14s-15-5-15-14z"/><path d="M14 30h30v9c0 9-7 14-15 14s-15-5-15-14zM44 33c7-1 10 2 10 6s-4 7-11 7M10 57h40M29 38c-3-3-7 0-3 3l3 3 3-3c4-3 0-6-3-3zM14 30c5-5 25-5 30 0"/>',
+  tea:'<path class="f" d="M12 28h32v10c0 10-7 15-16 15s-16-5-16-15z"/><path d="M12 28h32v10c0 10-7 15-16 15s-16-5-16-15zM44 31c7 0 9 3 9 6s-3 6-10 6M28 28V12h10v8H28"/>',
+  choco:'<path class="f" d="M16 22h32v28H16z"/><path d="M16 22h32v28H16zM16 31h32M16 40h32M27 22v28M37 22v28M14 22l4-10h28l4 10"/>',
+  can:'<path class="f" d="M19 22h26v24H19z"/><path d="M21 12h22l2 4v34l-2 4H21l-2-4V16zM19 22h26M19 46h26M28 30c4-4 8-2 8 2s-4 6-8 6"/>',
+  donut:'<circle class="f" cx="32" cy="34" r="20"/><circle cx="32" cy="34" r="20"/><circle cx="32" cy="34" r="6"/><path d="M14 30c4 4 8-2 12 2M38 30c4 3 8-3 12 1M22 22l3 2M40 22l-2 3M24 46l3-1M42 44l-3-2M32 17v3"/>',
+  soda:'<path class="f" d="M22 30h20v18H22z"/><path d="M28 6h8v6c0 4 6 6 6 12 0 4-3 6-3 10s3 6 3 10v8c0 2-2 4-4 4H26c-2 0-4-2-4-4v-8c0-4 3-6 3-10s-3-6-3-10c0-6 6-8 6-12zM28 10h8M22 30h20M22 46h20"/>',
+  candy:'<path class="f" d="M16 18h32l-3 36H19z"/><path d="M16 18h32l-3 36H19zM14 10l4 8M50 10l-4 8M14 10c6 3 30 3 36 0M26 36c0 6 2 10 6 10s6-4 6-10"/><circle cx="28" cy="31" r="3"/><circle cx="36" cy="31" r="3"/>',
+  lolli:'<circle class="f" cx="32" cy="24" r="16"/><circle cx="32" cy="24" r="16"/><path d="M32 24c0-3 4-3 4 0 0 5-8 5-8 0 0-7 12-7 12 0 0 9-16 9-16 0M32 40v18"/>',
+  ice:'<path class="f" d="M22 14c0-6 20-6 20 0v28H22z"/><path d="M22 14c0-6 20-6 20 0v28H22zM30 42v12h4V42M22 24c4 3 8-3 12 0s6 2 8 0"/>',
+  panini:'<path class="f" d="M10 36l22-14 22 14-22 10z"/><path d="M10 36l22-14 22 14-22 10zM10 36v5l22 10 22-10v-5M20 32l18 10M26 28l18 10"/>',
+  crepe:'<path class="f" d="M10 44c10-24 34-30 44-26-6 6-10 18-10 26z"/><path d="M10 44c10-24 34-30 44-26-6 6-10 18-10 26zM10 44h34M24 36c4-6 10-10 16-12"/>',
+  chips:'<path class="f" d="M20 16h24v36H20z"/><path d="M20 16h24v36H20zM18 12h28v4H18zM18 52h28v4H18zM26 28c4-4 8-4 12 0s-4 8-6 8-10-4-6-8z"/>',
+  juice:'<path class="f" d="M18 22h24v32H18z"/><path d="M18 22h24v32H18zM18 22l6-8h24l-6 8M42 22l6-8v32l-6 8M30 14l4-10h6M24 36h12"/>',
+  pouch:'<path class="f" d="M18 20h28l-2 34H20z"/><path d="M18 20h28l-2 34H20zM28 20v-8h8v8M26 12h12M24 36c4 4 12 4 16 0"/>',
+  glass:'<path class="f" d="M20 28h24l-2 26H22z"/><path d="M18 14h28l-4 40H22zM20 28h24M36 14l6-10h6"/>',
+  menu:'<ellipse class="f" cx="32" cy="38" rx="14" ry="7"/><ellipse cx="32" cy="38" rx="22" ry="13"/><ellipse cx="32" cy="38" rx="14" ry="7"/><path d="M6 14v12c0 3 4 3 4 0V14M8 26v28M56 14c-5 4-5 14 0 16v24"/>',
+  cup:'<path class="f" d="M20 22h24l-3 32H23z"/><path d="M18 14h28l-1 8H19zM20 22h24l-3 32H23zM24 36h16"/>',
+  fire:'<path class="f" d="M32 56c-11 0-18-7-18-17 0-12 12-16 10-28 8 4 12 10 12 16 3-2 4-5 4-8 6 6 8 12 8 20 0 10-7 17-16 17z"/><path d="M32 56c-11 0-18-7-18-17 0-12 12-16 10-28 8 4 12 10 12 16 3-2 4-5 4-8 6 6 8 12 8 20 0 10-7 17-16 17zM32 56c-5 0-8-3-8-8 0-6 6-8 6-13 5 4 10 8 10 13s-3 8-8 8z"/>',
+  badge:'<path class="f" d="M32 8l6 14 15 1-11 10 4 15-14-8-14 8 4-15-11-10 15-1z"/><path d="M32 8l6 14 15 1-11 10 4 15-14-8-14 8 4-15-11-10 15-1z"/><circle cx="32" cy="30" r="5"/>',
+  chef:'<path class="f" d="M20 38h24v14H20z"/><path d="M20 38c-8 0-12-6-10-12s10-8 13-4c1-7 7-10 12-8s7 6 6 9c4-3 11-1 12 5s-4 10-9 10M20 38h24v14H20zM20 46h24"/>',
+  house:'<path class="f" d="M14 30h36v24H14z"/><path d="M8 32L32 12l24 20M14 28v26h36V28M27 54V40h10v14"/>',
+  basket:'<path class="f" d="M12 32h40l-5 22H17z"/><path d="M8 32h48M12 32l5 22h30l5-22M22 32l8-18M42 32l-8-18M24 38v10M32 38v10M40 38v10"/>',
+  cross:'<path class="f" d="M26 12h12v14h14v12H38v14H26V38H12V26h14z"/><path d="M26 12h12v14h14v12H38v14H26V38H12V26h14z"/>',
+  hanger:'<path class="f" d="M10 48l22-16 22 16z"/><path d="M28 18c0-4 8-4 8 0s-4 4-4 8v6M10 48l22-16 22 16zM10 48h44"/>',
+  book:'<path class="f" d="M10 18c8-2 16-2 22 4 6-6 14-6 22-4v32c-8-2-16-2-22 4-6-6-14-6-22-4z"/><path d="M10 18c8-2 16-2 22 4 6-6 14-6 22-4v32c-8-2-16-2-22 4-6-6-14-6-22-4zM32 22v32"/>',
+  plane:'<path class="f" d="M8 34l48-16-12 34-10-12z"/><path d="M8 34l48-16-12 34-10-12zM34 40l22-22M34 40v12l6-6"/>',
+  gift:'<path class="f" d="M12 28h40v26H12z"/><path d="M10 20h44v8H10zM12 28h40v26H12zM32 20v34M32 20c-4-8-14-8-12-2 1 3 8 2 12 2zM32 20c4-8 14-8 12-2-1 3-8 2-12 2z"/>',
+  ticket:'<path class="f" d="M8 20h48v8c-3 0-5 2-5 4s2 4 5 4v8H8v-8c3 0 5-2 5-4s-2-4-5-4z"/><path d="M8 20h48v8c-3 0-5 2-5 4s2 4 5 4v8H8v-8c3 0 5-2 5-4s-2-4-5-4zM40 20v4M40 30v4M40 40v4M18 30h14M18 36h10"/>',
+  bday:'<path class="f" d="M12 36h40v18H12z"/><path d="M12 36h40v18H12zM12 44c5 4 9-4 13 0s9 4 14 0 9-4 13 0M22 36v-8M32 36v-8M42 36v-8M22 24c-2-2 0-5 0-6 0 1 2 4 0 6M32 24c-2-2 0-5 0-6 0 1 2 4 0 6M42 24c-2-2 0-5 0-6 0 1 2 4 0 6"/>',
+  school:'<path class="f" d="M16 26c0-8 6-12 16-12s16 4 16 12v28H16z"/><path d="M16 26c0-8 6-12 16-12s16 4 16 12v28H16zM26 14v-4h12v4M22 36h20v10H22z"/>',
+  balloon:'<ellipse class="f" cx="32" cy="24" rx="14" ry="17"/><ellipse cx="32" cy="24" rx="14" ry="17"/><path d="M29 41h6l-3 4zM32 45c-4 4 4 8 0 14M25 16c2-3 4-4 6-4"/>',
+  pin:'<path class="f" d="M32 58s18-18 18-32a18 18 0 0 0-36 0c0 14 18 32 18 32z"/><path d="M32 58s18-18 18-32a18 18 0 0 0-36 0c0 14 18 32 18 32z"/><circle cx="32" cy="26" r="6"/>',
+};
+const WASH="M32 5c15 0 28 10 27 26S48 59 31 58 4 47 6 30 17 5 32 5z";
+const sk=(k,c,s=40)=>`<svg class="sk" width="${s}" height="${s}" viewBox="0 0 64 64" style="--c:var(${c})" aria-hidden="true"><path class="wash" fill="var(${c})" d="${WASH}"/><g filter="url(#rough)">${ICON[k]||ICON.gift}</g></svg>`;
+const ICON_RULES=[[/pop-?cake|chupa|sucette/i,"lolli"],[/cake/i,"cake"],[/g[aâ]teau|brownie|muffin|sabl[ée]|madeleine|tarte/i,"slice"],[/cookie/i,"cookie"],[/donut/i,"donut"],
+  [/cap+uc+ino|latte|macchiato/i,"cappu"],[/caf[ée]|expres+o|^chocolat$|chocolat chaud/i,"coffee"],[/\bth[ée]\b|infusion/i,"tea"],
+  [/eau|pellegrino|vittel|evian|cristaline/i,"bottle"],[/coca|orangina|fanta|sprite|oasis/i,"soda"],[/ice ?tea|canette|33 ?cl/i,"can"],[/pago|tropicana|jus|caprisun|capri-sun/i,"juice"],[/sirop|limonade/i,"glass"],
+  [/haribo|bonbon|rebelle|dragibus|fraise tagada/i,"candy"],[/barre|kinder|twix|mars|snickers|chocolat|nestl/i,"choco"],[/glace|paleta|magnum|cornet|sorbet|esquimau/i,"ice"],
+  [/panini|croque|sandwich|hot-?dog|wrap/i,"panini"],[/cr[êe]pe|gaufre/i,"crepe"],[/pringles|chips/i,"chips"],[/pom.?pote|compote/i,"pouch"],[/menu/i,"menu"],[/gobelet|goodies|tasse|mug/i,"cup"]];
+const UNIV_RULES=[[/feu|pompier/i,"fire"],[/police/i,"badge"],[/resto|cuisine/i,"chef"],[/city|ville/i,"house"],[/market|march/i,"basket"],[/hosto|v[ée]to|m[ée]dec/i,"cross"],[/style|mode/i,"hanger"],[/biblio|livre/i,"book"],[/manair|avion|air/i,"plane"]];
+const FAM_ICON={entrees:"ticket",anniv:"bday",b2b:"school",event:"balloon",autre:"gift",boutique:"gift",snack:"donut"};
+const FAM_COL={snack:"--s4",boutique:"--s5",entrees:"--s1",anniv:"--s2",b2b:"--s3",event:"--s6",autre:"--s7"};
+const GRP_COL={"Snack":"--s4","Boissons fraîches":"--s1","Boissons chaudes":"--s2","Glaces":"--s5","Panini":"--s3","Palo menu":"--s7","Goodies":"--s6","Gobelets":"--s6"};
+const GRP_ICON={"Snack":"cookie","Boissons fraîches":"can","Boissons chaudes":"coffee","Glaces":"ice","Panini":"panini","Palo menu":"menu","Goodies":"cup","Gobelets":"cup"};
+const ruleIcon=(rules,s)=>{for(const[re,k]of rules)if(re.test(s))return k;return null};
+const univIcon=g=>ruleIcon(UNIV_RULES,g)||"gift";
+function prodIcon(p){const[f,g,n]=p;
+  if(f==="snack")return ruleIcon(ICON_RULES,n)||GRP_ICON[g]||"cookie";
+  if(f==="boutique")return univIcon(g);
+  if(f==="anniv")return"bday";
+  return FAM_ICON[f]||"gift";}
+const prodCol=p=>p[0]==="snack"?(GRP_COL[p[1]]||"--s4"):FAM_COL[p[0]]||"--s7";
+
+// Codes postaux les plus fréquents de la métropole (libellé indicatif)
+const CP_NOM={"59000":"Lille","59800":"Lille","59160":"Lomme","59260":"Hellemmes · Lezennes","59100":"Roubaix","59200":"Tourcoing","59170":"Croix",
+  "59290":"Wasquehal","59650":"Villeneuve-d'Ascq","59491":"Villeneuve-d'Ascq","59493":"Villeneuve-d'Ascq","59700":"Marcq-en-Barœul","59110":"La Madeleine",
+  "59130":"Lambersart","59370":"Mons-en-Barœul","59510":"Hem","59420":"Mouvaux","59150":"Wattrelos","59120":"Loos","59390":"Lys-lez-Lannoy","59250":"Halluin",
+  "59280":"Armentières","59350":"Saint-André-lez-Lille","59960":"Neuville-en-Ferrain","59910":"Bondues","59560":"Comines","59118":"Wambrechies","59320":"Haubourdin","59790":"Ronchin","59139":"Wattignies","59810":"Lesquin",
+  "59155":"Faches-Thumesnil","59223":"Roncq","59115":"Leers","59780":"Baisieux","59273":"Fretin"};
+
+const V=DATA.ventes;
+let VSORT="ht";
+const VDI=V?new Map(V.days.map((d,i)=>[d,i])):null;
+const VPD=V?V.days.map(()=>[]):null,VHR=V?V.days.map(()=>[]):null;
+if(V){for(const[d,p,q,ht]of V.pd)VPD[d].push([p,q,ht]);for(const[d,h,s,b]of V.hr)VHR[d].push([h,s,b])}
+const vCovers=(a,b)=>V&&toD(a)>=toD(V.days[0])&&toD(b)<=toD(V.days[V.days.length-1]);
+function vAgg(a,b){ // produits → [qté, HT] ; tickets par famille ; HT par famille
+  const prods=new Map(),tk={},fam={};
+  for(const d of range(a,b)){const i=VDI.get(d);if(i===undefined)continue;
+    for(const[p,q,ht]of VPD[i]){const e=prods.get(p)||[0,0];e[0]+=q;e[1]+=ht;prods.set(p,e);const f=V.products[p][0];fam[f]=(fam[f]||0)+ht}
+    const t=V.tk[d];if(t)for(const f in t)tk[f]=(tk[f]||0)+t[f]}
+  return{prods,tk,fam};
+}
+const topOf=(prods,pred,key="ht",n=10)=>[...prods].filter(([p])=>pred(V.products[p])).map(([p,[q,ht]])=>({p,P:V.products[p],q,ht}))
+  .filter(x=>x.ht>0||x.q>0).sort((x,y)=>key==="q"?y.q-x.q||y.ht-x.ht:y.ht-x.ht).slice(0,n);
+function rankHtml(rows,total,{sub=x=>x.P[1],start=1}={}){
+  if(!rows.length)return'<p class="muted">Aucune vente sur la période.</p>';
+  const max=Math.max(...rows.map(x=>VSORT==="q"?x.q:x.ht))||1;
+  return rows.map((x,i)=>{const share=total?x.ht/total:NaN,w=(VSORT==="q"?x.q:x.ht)/max*100;
+    return`<div class="it" data-tip="${esc(x.P[2])} · ${fmtN(x.q)} vendus · ${fmtE(x.ht)} HT${isFinite(share)?" · "+fmtP(share)+" du CA":""}">
+      <span class="n">${start+i}</span>${sk(prodIcon(x.P),prodCol(x.P),40)}
+      <div class="nm"><b>${esc(x.P[2])}</b><span class="sub">${esc(sub(x))}</span><div class="bar"><i style="width:${w}%;background:var(${prodCol(x.P)})"></i></div></div>
+      <span class="q">${fmtN(x.q)} u.</span><span class="v">${fmtE(x.ht)}</span></div>`}).join("");
+}
+function groupTiles(prods,pred,groupOf,iconOf,colOf,total){
+  const G=new Map();
+  for(const[p,[q,ht]]of prods){const P=V.products[p];if(!pred(P))continue;const g=groupOf(P);const e=G.get(g)||{ht:0,q:0,best:null};e.ht+=ht;e.q+=q;
+    if(!e.best||ht>e.best.ht)e.best={n:P[2],ht};G.set(g,e)}
+  const rows=[...G].filter(([,e])=>e.ht>0).sort((x,y)=>y[1].ht-x[1].ht);
+  if(!rows.length)return'<p class="muted">Aucune vente sur la période.</p>';
+  return rows.map(([g,e])=>`<div class="tile" data-tip="${esc(g)} · ${fmtN(e.q)} articles · ${fmtE(e.ht)} HT">${sk(iconOf(g),colOf(g),48)}
+    <div class="tx"><b>${esc(g)}</b><span class="am">${fmtE(e.ht)}</span><span class="sub">${fmtP(e.ht/total,0)} · vedette : ${esc(e.best.n)}</span></div></div>`).join("");
+}
+function vKpis(c,n1,fam,ent,entN1){
+  const ht=c.fam[fam]||0,t=c.tk[fam]||0,q=[...c.prods].reduce((s,[p,[qq]])=>V.products[p][0]===fam?s+qq:s,0);
+  const h1=n1?n1.fam[fam]||0:NaN,t1=n1?n1.tk[fam]||0:NaN;
+  const d=(x,y)=>n1&&y?x/y-1:NaN,pm=t?ht/t:NaN,pm1=t1?h1/t1:NaN,rate=ent?t/ent:NaN,rate1=entN1?t1/entN1:NaN;
+  return[
+    {lab:`CA HT ${fam==="snack"?"snacking":"boutique"}`,val:fmtE(ht),st:false,ratio:NaN,meta:[`${fmtN(q)} articles vendus`,deltaHtml(d(ht,h1))]},
+    {lab:"Tickets",val:fmtN(t),st:false,ratio:NaN,meta:[`${fmtN(t/(range(P.a,P.b).filter(x=>(V.tk[x]||{})[fam]).length||1),0)} tickets / jour de vente`,deltaHtml(d(t,t1))]},
+    {lab:"Panier moyen HT",val:fmtE(pm,2),st:false,ratio:NaN,meta:[`${fmtN(t?q/t:NaN,1)} articles par ticket`,deltaHtml(isFinite(pm1)&&pm1?pm/pm1-1:NaN)]},
+    {lab:fam==="snack"?"Taux de passage au snack":"Taux d'achat boutique",val:fmtP(rate,0),st:false,ratio:NaN,
+      meta:[isFinite(rate)&&rate>0?`1 visiteur sur ${fmtN(1/rate,1)} passe en caisse`:"Tickets ÷ entrées",isFinite(rate1)?`<span class="muted">N-1 : ${fmtP(rate1,0)}</span>`:'<span class="muted">N-1 n/d</span>']},
+  ];
+}
+function renderVentes(){
+  if(!V)return;
+  const{a,b}=P,c=vAgg(a,b),hasV1=vCovers(addD(a,-364),addD(b,-364)),n1=hasV1?vAgg(addD(a,-364),addD(b,-364)):null;
+  const A=agg(a,b),A1=hasV1?agg(a,b,-364):null;
+  const snackHT=c.fam.snack||0,boutHT=c.fam.boutique||0;
+  $("vhSnack").innerHTML=sk("donut","--s4",56);$("vhBout").innerHTML=sk("gift","--s5",56);$("vhTix").innerHTML=sk("ticket","--s1",56);
+  $("vSnackSub").textContent=`${fmtP(snackHT/(A.tot||1),1)} du CA HT de la période · ${fmtE(A.ent?snackHT/A.ent:NaN,2)} HT par entrée`;
+  $("vBoutSub").textContent=`${fmtP(boutHT/(A.tot||1),1)} du CA HT de la période · ${fmtE(A.ent?boutHT/A.ent:NaN,2)} HT par entrée`;
+  $("vSnackKpis").innerHTML=vKpis(c,n1,"snack",A.ent,A1&&A1.ent).map(kpiCard).join("");
+  $("vBoutKpis").innerHTML=vKpis(c,n1,"boutique",A.ent,A1&&A1.ent).map(kpiCard).join("");
+
+  // Podium + classement snack
+  const isSnack=P=>P[0]==="snack";
+  const top=topOf(c.prods,isSnack,VSORT,15);
+  $("vPodium").innerHTML=top.slice(0,3).map((x,i)=>`<div class="pod r${i+1}" style="${i===0?"order:2":i===1?"order:1":"order:3"}">
+      <span class="rk">${i+1}</span>${sk(prodIcon(x.P),prodCol(x.P),i===0?104:84)}
+      <div class="tx"><div class="nm">${esc(x.P[2])}</div><div class="gp">${esc(x.P[1])}</div>
+      <div class="am">${VSORT==="q"?fmtN(x.q)+" vendus":fmtE(x.ht)}</div><div class="qt">${VSORT==="q"?fmtE(x.ht)+" HT":fmtN(x.q)+" vendus"} · ${fmtP(x.ht/(snackHT||1),0)} du snack</div></div></div>`).join("")
+    ||'<div class="card muted">Aucune vente snack sur la période.</div>';
+  $("vSnackTop").innerHTML=rankHtml(top,snackHT);
+  $("vSnackFam").innerHTML=groupTiles(c.prods,isSnack,P=>P[1],g=>GRP_ICON[g]||"cookie",g=>GRP_COL[g]||"--s4",snackHT||1);
+
+  // Heures de rush (snack)
+  const H={};let hmin=24,hmax=0,vmax=0;
+  for(const d of range(a,b)){const i=VDI.get(d);if(i===undefined)continue;const w=dow(d);
+    for(const[h,s]of VHR[i]){if(!s)continue;const k=w+"-"+h;H[k]=(H[k]||0)+s;hmin=Math.min(hmin,h);hmax=Math.max(hmax,h)}}
+  for(const k in H)vmax=Math.max(vmax,H[k]);
+  if(vmax){hmin=Math.max(hmin,8);hmax=Math.min(hmax,21);const hs=range2(hmin,hmax);
+    let html=`<div class="heat" style="grid-template-columns:44px repeat(${hs.length},minmax(30px,1fr));min-width:${44+hs.length*32}px"><span></span>${hs.map(h=>`<span class="h" style="justify-content:center">${h}h</span>`).join("")}`;
+    JOURS.forEach((j,w)=>{html+=`<span class="h">${j}</span>`+hs.map(h=>{const v=H[w+"-"+h]||0,t=Math.sqrt(v/vmax);
+      return`<span class="c" style="background:${v?`color-mix(in srgb,var(--s4) ${Math.round(12+t*88)}%,var(--surface-2))`:"var(--surface-2)"};color:${t>.6?"#000":"var(--ink-2)"}" data-tip="${JOURS[w]} ${h}h–${h+1}h · ${fmtE(v)} HT de snack">${v>=1?fmtN(v):""}</span>`}).join("")});
+    $("vHeat").innerHTML=html+"</div>";
+  }else $("vHeat").innerHTML='<p class="muted">Pas de vente snack sur la période.</p>';
+
+  // Boutique
+  const isBout=P=>P[0]==="boutique";
+  $("vUniv").innerHTML=groupTiles(c.prods,isBout,P=>P[1],univIcon,()=>"--s5",boutHT||1);
+  const prevSort=VSORT;VSORT="ht";
+  $("vBoutTop").innerHTML=rankHtml(topOf(c.prods,isBout,"ht",10),boutHT,{sub:x=>[x.P[1],x.P[3]].filter(Boolean).join(" · ")});
+  const B=new Map();for(const[p,[,ht]]of c.prods){const P=V.products[p];if(P[0]!=="boutique")continue;const k=P[3]&&P[3]!=="Autre"?P[3]:"Autres marques";B.set(k,(B.get(k)||0)+ht)}
+  const brands=[...B].filter(x=>x[1]>0).sort((x,y)=>y[1]-x[1]).slice(0,8);
+  chart("cBrands",{type:"bar",data:{labels:brands.map(x=>x[0]),datasets:[{label:"CA HT",data:brands.map(x=>x[1]),backgroundColor:css("--s5"),borderRadius:4,maxBarThickness:20}]},
+    options:baseOpts({indexAxis:"y",interaction:{mode:"nearest",axis:"y",intersect:false},scales:{x:{grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),font:{size:11},callback:v=>fmtK(v)},beginAtZero:true},
+      y:{grid:{display:false},border:{color:css("--axis")},ticks:{color:css("--ink-2"),font:{size:12}}}},
+      plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),titleColor:css("--page"),bodyColor:css("--page"),padding:9,cornerRadius:7,callbacks:{label:x=>` ${fmtE(x.parsed.x)} HT · ${fmtP(x.parsed.x/(boutHT||1),0)} de la boutique`}}}})});
+
+  // Billetterie & formules
+  const isTix=P=>["entrees","anniv","b2b","event"].includes(P[0]);
+  const tixTot=["entrees","anniv","b2b","event"].reduce((s,f)=>s+(c.fam[f]||0),0);
+  $("vTixTop").innerHTML=rankHtml(topOf(c.prods,isTix,"ht",10),tixTot);
+  VSORT=prevSort;
+
+  // Origine clients (codes postaux renseignés, mois couverts par la période)
+  const m0=a.slice(0,7),m1=b.slice(0,7),C=new Map();let nv=0;
+  for(const[m,cp,n]of V.cp){if(m<m0||m>m1)continue;C.set(cp,(C.get(cp)||0)+n);nv+=n}
+  const cps=[...C].sort((x,y)=>y[1]-x[1]).slice(0,10),cmax=cps.length?cps[0][1]:1;
+  $("vCpHint").textContent=`Code postal des ventes où il est renseigné (réservations en ligne, anniversaires, groupes) · ${fmtN(nv)} ventes · mois de ${mLabel(m0)}${m0!==m1?" à "+mLabel(m1):""}`;
+  $("vCp").innerHTML=cps.length?cps.map(([cp,n],i)=>`<div class="it" data-tip="${cp} · ${fmtN(n)} ventes · ${fmtP(n/nv)} des ventes localisées">
+      <span class="n">${i+1}</span>${sk("pin",i<3?"--s1":"--s7",34)}
+      <div class="nm"><b>${esc(CP_NOM[cp]||"Code postal "+cp)}</b><span class="sub">${cp}</span><div class="bar"><i style="width:${n/cmax*100}%;background:var(--s1)"></i></div></div>
+      <span class="q">${fmtN(n)} ventes</span><span class="v">${fmtP(n/nv,0)}</span></div>`).join(""):'<p class="muted">Aucun code postal renseigné sur la période.</p>';
+
+  const vl=V.days[V.days.length-1],late=toD(LAST)-toD(vl)>2*DAY;
+  $("vNote").innerHTML=`Source : export caisse <b>${esc(V.file)}</b> (ventes du ${fmtDate(V.days[0])} au ${fmtDate(vl)}) · montants HT, ventes annulées exclues · heure = heure d'encaissement ; une réservation en ligne compte à la date de commande.`+
+    (late?` <b style="color:var(--crit-ink)">L'export s'arrête au ${fmtDate(vl)} : déposez un export plus récent dans SUIVI PARC pour couvrir les derniers jours.</b>`:"")+
+    (!hasV1?" Comparaison N-1 disponible pour les périodes couvertes par l'export un an plus tôt.":"");
+}
+function range2(a,b){const o=[];for(let i=a;i<=b;i++)o.push(i);return o}
+if(V)$("vSort").onclick=e=>{const btn=e.target.closest("button");if(!btn)return;VSORT=btn.dataset.s;
+  $("vSort").querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===btn));renderVentes()};
+
 /* ───────────── orchestration ───────────── */
 let MT=null;
 function renderAll(){
@@ -822,7 +1110,7 @@ function renderAll(){
   renderMtd();renderMix(c);renderAlerts(c,n1,L);
   renderMonthly(MT);renderCumul();
   renderDaily();renderCalendar();renderLastTable();
-  renderN1(MT);renderOKR();renderBP(MT);renderQual();renderCost(MT);
+  renderN1(MT);renderOKR();renderBP(MT);renderQual();renderCost(MT);renderVentes();
 }
 function renderFresh(){
   const age=Math.round((Date.now()-toD(LAST))/DAY);
@@ -850,6 +1138,7 @@ const tip=$("tip");
 document.addEventListener("mousemove",e=>{const t=e.target.closest("[data-tip]");if(!t){tip.style.opacity=0;return}tip.textContent=t.dataset.tip;tip.style.opacity=1;
   const x=Math.min(e.clientX+12,innerWidth-tip.offsetWidth-8);tip.style.left=x+"px";tip.style.top=(e.clientY+14)+"px"});
 
+if(!V)$("tabVentes").hidden=true;
 renderFresh();
 let startTab="synth";try{startTab=localStorage.getItem("palo.tab")||"synth"}catch(e){}
 let startP="mtd";try{startP=localStorage.getItem("palo.period")||"mtd"}catch(e){}

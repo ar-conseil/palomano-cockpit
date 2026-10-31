@@ -37,6 +37,7 @@ SCOPE = "https://graph.microsoft.com/Files.Read.All offline_access"
 DRIVE_ID = os.environ.get("SP_DRIVE_ID", "b!bSAxO8uBfEadDgDaxczJN3YHKcBl_Z5DpNXmbSfpraw3VfTDsgUSQbsRyhS9FVHu")
 FOLDER = os.environ.get("SP_FOLDER", "PARC/SUIVI PARC")
 FILES = ["Objectifs Palomano Lille.xlsx", "PALOMANO_Objectifs_Yannika.xlsx", "Colorhisto_PALOMANO_Lille.xlsx"]
+VENTES_PREFIX = "palomano-la-maillerie__"  # export caisse facultatif : on prend le plus récent du dossier
 DEST = Path(os.environ.get("PALOMANO_SUIVI_DIR", HERE / "sources"))
 TOKEN_FILE = Path(os.environ.get("MS_TOKEN_DIR", HERE / ".ms_token")) / "refresh_token.enc"
 TOKEN_URL = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
@@ -105,10 +106,21 @@ def graph(url, tok):
     return urllib.request.urlopen(urllib.request.Request(url, headers={"Authorization": f"Bearer {tok}"}), timeout=60)
 
 
+def latest_ventes(tok):
+    url = (f"https://graph.microsoft.com/v1.0/drives/{DRIVE_ID}/root:/{urllib.parse.quote(FOLDER)}:/children"
+           "?$select=name,lastModifiedDateTime&$top=200")
+    with graph(url, tok) as r:
+        items = json.load(r)["value"]
+    exports = [i for i in items if i["name"].startswith(VENTES_PREFIX) and i["name"].endswith(".xlsx")]
+    return max(exports, key=lambda i: i["lastModifiedDateTime"])["name"] if exports else None
+
+
 def main():
     DEST.mkdir(parents=True, exist_ok=True)
     tok = access_token()
-    for name in FILES:
+    ventes = latest_ventes(tok)
+    print(f"Export caisse : {ventes or 'aucun dans le dossier (onglet Ventes masqué)'}")
+    for name in FILES + ([ventes] if ventes else []):
         item = f"https://graph.microsoft.com/v1.0/drives/{DRIVE_ID}/root:/{urllib.parse.quote(f'{FOLDER}/{name}')}"
         try:
             with graph(item + ":/content", tok) as r:

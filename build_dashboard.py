@@ -16,6 +16,8 @@ from pathlib import Path
 
 import openpyxl
 
+from read_ventes import read_ventes
+
 HERE = Path(__file__).resolve().parent
 SRC = Path(os.environ.get(
     "PALOMANO_SUIVI_DIR",
@@ -24,6 +26,9 @@ SRC = Path(os.environ.get(
 F_SUIVI = SRC / "Objectifs Palomano Lille.xlsx"
 F_YANNIKA = SRC / "PALOMANO_Objectifs_Yannika.xlsx"
 F_COLOR = SRC / "Colorhisto_PALOMANO_Lille.xlsx"
+# Export caisse (facultatif) : le plus récent « palomano-la-maillerie__*.xlsx » du dossier SUIVI PARC,
+# ou le fichier désigné par PALOMANO_VENTES
+VENTES_GLOB = "palomano-la-maillerie__*.xlsx"
 TEMPLATE = HERE / "template.html"
 OUT = HERE / "Palomano_Dashboard.html"
 OUT_ARTIFACT = HERE / "palomano-cockpit.html"
@@ -242,6 +247,14 @@ def read_colorhisto():
         {"releve": releve, "mois": mois, "dist": dist, "semaines": semaines}
 
 
+def find_ventes():
+    env = os.environ.get("PALOMANO_VENTES")
+    if env:
+        return Path(env) if Path(env).exists() else None
+    found = sorted(SRC.glob(VENTES_GLOB), key=lambda f: f.stat().st_mtime)
+    return found[-1] if found else None
+
+
 def main():
     for f in (F_SUIVI, F_YANNIKA, F_COLOR):
         if not f.exists():
@@ -249,6 +262,11 @@ def main():
     daily, day_obj, day_coef, obj_cal, annual, obj_seg, last = read_suivi()
     yannika = read_yannika()
     color, okr, avis = read_colorhisto()
+    f_ventes = find_ventes()
+    ventes = None
+    if f_ventes:
+        ventes = read_ventes(f_ventes)
+        ventes["file"] = f_ventes.name
 
     data = {
         "generatedAt": dt.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
@@ -265,6 +283,7 @@ def main():
         "color": color,
         "okr": okr,
         "avis": avis,
+        "ventes": ventes,
     }
     html = TEMPLATE.read_text(encoding="utf-8").replace(
         "/*__DATA__*/null", json.dumps(data, ensure_ascii=False, separators=(",", ":")))
