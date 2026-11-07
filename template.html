@@ -201,6 +201,8 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
 .dist .t{height:14px;background:var(--surface-2);border-radius:4px;overflow:hidden}
 .dist .t i{display:block;height:100%;border-radius:4px;background:var(--s1)}
 .dist .v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+table.cmp th.grp{text-align:center;border-bottom:1px solid var(--axis);color:var(--ink-2)}
+table.cmp td.sep,table.cmp th.sep{border-left:1px solid var(--grid)}
 </style>
 </head>
 <body>
@@ -341,10 +343,22 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
       <p class="hint">À jour comparable : le mois en cours est comparé jour pour jour (J-364, même jour de semaine)</p>
       <div class="tablewrap"><table id="tMonthN1"></table></div>
     </div>
+    <p class="sectitle">Volumes, CA et prix moyens vs N-1 — effet des nouveaux tarifs</p>
+    <p class="hint" style="margin:-4px 0 12px">Mois complets comparés au même mois de l'année précédente · mois en cours comparé jour pour jour (J-364) · juin non comparé (ouverture le 18/06/2025) · le total ne cumule que les mois comparables</p>
+    <div class="card">
+      <h3>Anniversaires</h3>
+      <p class="hint">Nombre d'anniversaires (colonne « nb anniversaires » du fichier de suivi), CA HT anniversaires et CA moyen par anniversaire</p>
+      <div class="tablewrap"><table class="cmp" id="tN1Anniv"></table></div>
+    </div>
     <div class="card" style="margin-top:14px">
-      <h3>Anniversaires & fréquentation — comparatif mensuel</h3>
-      <p class="hint">Nombre d'anniversaires (colonne « nb anniversaires » du fichier de suivi) et d'entrées tous publics · le mois en cours est comparé jour pour jour (J-364) · juin n'est pas comparé (ouverture le 18/06/2025)</p>
-      <div class="tablewrap"><table id="tMonthVol"></table></div>
+      <h3>Entrées parc</h3>
+      <p class="hint">Entrées tous publics, CA HT billetterie parc et prix moyen HT par entrée payante (CA parc ÷ entrées payantes, hors anniversaires et groupes)</p>
+      <div class="tablewrap"><table class="cmp" id="tN1Parc"></table></div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Centres de loisirs & écoles</h3>
+      <p class="hint" id="tN1B2BHint"></p>
+      <div class="tablewrap"><table class="cmp" id="tN1B2B"></table></div>
     </div>
   </section>
 
@@ -531,7 +545,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ───────────── data model ───────────── */
-// daily row: [date, parc, anniv, scol, grp, snack, bout, event, tot, entrees, cap, nbAnniv, parcN]
+// daily row: [date, parc, anniv, scol, grp, snack, bout, event, tot, entrees, cap, nbAnniv, parcN, enfantsB2B]
 const SEG=[{k:"parc",i:1,lab:"Entrées parc",c:"--s1"},{k:"anniv",i:2,lab:"Anniversaires",c:"--s2"},
   {k:"b2b",i:[3,4],lab:"B2B (écoles, centres, CSE)",c:"--s3"},{k:"snack",i:5,lab:"Snacking",c:"--s4"},
   {k:"bout",i:6,lab:"Boutique",c:"--s5"},{k:"event",i:7,lab:"Évènements",c:"--s6"}];
@@ -561,7 +575,7 @@ const dayObjF=(d,f)=>{const v=monthSeg(d.slice(0,7),f);return isFinite(v)?v*dayW
 
 function range(a,b){const out=[];for(let t=toD(a);t<=toD(b);t+=DAY)out.push(toS(t));return out}
 function agg(a,b,shift=0){
-  const o={tot:0,parc:0,anniv:0,b2b:0,snack:0,bout:0,event:0,ent:0,cap:0,nbAnniv:0,parcN:0,open:0,obj:0,objVis:0,objAnn:0,objB2B:0,slots:0,days:0,hasObjVis:true};
+  const o={tot:0,parc:0,anniv:0,b2b:0,snack:0,bout:0,event:0,ent:0,cap:0,nbAnniv:0,parcN:0,open:0,obj:0,objVis:0,objAnn:0,objB2B:0,slots:0,days:0,hasObjVis:true,kids:0};
   for(const d0 of range(a,b)){
     const d=shift?addD(d0,shift):d0;const r=BY.get(d);
     o.days++;
@@ -570,7 +584,7 @@ function agg(a,b,shift=0){
       const an=dayObjF(d,"anniv");if(isFinite(an))o.objAnn+=an;const bb=dayObjF(d,"b2b");if(isFinite(bb))o.objB2B+=bb}
     if(!r)continue;
     o.tot+=r[8];o.parc+=r[1];o.anniv+=r[2];o.b2b+=r[3]+r[4];o.snack+=r[5];o.bout+=r[6];o.event+=r[7];
-    o.ent+=r[9];o.cap+=r[10];o.nbAnniv+=r[11];o.parcN+=r[12];if(r[8]>0)o.open++;
+    o.ent+=r[9];o.cap+=r[10];o.nbAnniv+=r[11];o.parcN+=r[12];o.kids+=r[13]||0;if(r[8]>0)o.open++;
   }
   return o;
 }
@@ -861,21 +875,51 @@ function renderN1(M){
     if(partialN1(kp)){prevT=null;note=" · N-1 non comparable (ouverture le "+fmtDate(FIRST)+")"}
     rows.push(`<tr class="${curT==null?"future":""}"><td>${MOISL[m-1]}${note}</td><td>${prevT!=null?fmtE(prevT):"—"}</td><td>${curT!=null?fmtE(curT):"—"}</td><td>${curT!=null&&prevT?sgn(curT-prevT,fmtE):"—"}</td><td>${curT!=null&&prevT?`<span class="delta ${curT>=prevT?"up":"down"}">${sgn(curT/prevT-1,v=>fmtP(v,0))}</span>`:"—"}</td><td>${fmtE(monthTarget(k))}</td><td>${curT!=null?stDot(curT/monthTarget(k)):"—"}</td></tr>`)}
   $("tMonthN1").innerHTML=`<thead><tr><th>Mois</th><th>${y-1}</th><th>${y}</th><th>Écart € HT</th><th>Écart %</th><th>Objectif HT ${y}</th><th>Atteinte</th></tr></thead><tbody>${rows.join("")}</tbody>`;
-  // anniversaires & entrées
-  const pc=(c,p)=>c!=null&&p?`<span class="delta ${c>=p?"up":"down"}">${sgn(c/p-1,v=>fmtP(v,0))}</span>`:"—";
-  const df=(c,p)=>c!=null&&p!=null&&(c||p)?sgn(c-p,v=>fmtN(v)):"—";
-  const vr=[],T={a0:0,a1:0,e0:0,e1:0};
+  // volumes / CA / prix moyens par mois (anniversaires, entrées parc, centres & écoles)
+  const VL=typeof V!=="undefined"&&V?V.days[V.days.length-1]:null;
+  const accN=(a,b,shift=0)=>{ // centres/écoles accueillis — export caisse ; null si l'export ne couvre pas la période
+    if(!V||!V.acc)return null;const a2=shift?addD(a,shift):a,b2=shift?addD(b,shift):b;
+    if(toD(a2)<toD(V.days[0])||toD(b2)>toD(VL))return null;
+    let n=0;for(const d of range(a2,b2)){const x=V.acc[d];if(x)for(const k in x)n+=x[k]}return n};
+  const months=[];
   for(let m=1;m<=12;m++){const k=`${y}-${String(m).padStart(2,"0")}`,kp=`${y-1}-${String(m).padStart(2,"0")}`;
-    const cur=M[k],prev=M[kp];if(!cur&&!prev)continue;
-    let a1=cur?cur.nb:null,a0=prev?prev.nb:null,e1=cur?cur.ent:null,e0=prev?prev.ent:null,note="";
-    if(k===LAST.slice(0,7)){const x=agg(k+"-01",LAST),n=agg(k+"-01",LAST,-364);a1=x.nbAnniv;a0=n.nbAnniv;e1=x.ent;e0=n.ent;note=" (à date)"}
-    if(toD(k+"-01")>toD(LAST))a1=e1=null;
-    if(partialN1(kp)){a0=e0=null;note=" · N-1 non comparable"}
-    if(a1!=null&&a0!=null){T.a0+=a0;T.a1+=a1;T.e0+=e0;T.e1+=e1}
-    vr.push(`<tr class="${a1==null?"future":""}"><td>${MOISL[m-1]}${note}</td><td>${a0!=null?fmtN(a0):"—"}</td><td>${a1!=null?fmtN(a1):"—"}</td><td>${df(a1,a0)}</td><td>${pc(a1,a0)}</td>
-      <td>${e0!=null?fmtN(e0):"—"}</td><td>${e1!=null?fmtN(e1):"—"}</td><td>${df(e1,e0)}</td><td>${pc(e1,e0)}</td></tr>`)}
-  if(T.e0)vr.push(`<tr class="tot"><td>Total mois comparables</td><td>${fmtN(T.a0)}</td><td>${fmtN(T.a1)}</td><td>${df(T.a1,T.a0)}</td><td>${pc(T.a1,T.a0)}</td><td>${fmtN(T.e0)}</td><td>${fmtN(T.e1)}</td><td>${df(T.e1,T.e0)}</td><td>${pc(T.e1,T.e0)}</td></tr>`);
-  $("tMonthVol").innerHTML=`<thead><tr><th>Mois</th><th>Anniv. ${y-1}</th><th>Anniv. ${y}</th><th>Écart</th><th>Écart %</th><th>Entrées ${y-1}</th><th>Entrées ${y}</th><th>Écart</th><th>Écart %</th></tr></thead><tbody>${vr.join("")}</tbody>`;
+    if(!M[k]&&!M[kp])continue;
+    const cur=toD(k+"-01")<=toD(LAST),isCur=k===LAST.slice(0,7),end=isCur?LAST:`${k}-${dim(k)}`;
+    let c=null,n=null,ac=null,an=null;
+    if(cur){c=agg(k+"-01",end);ac=accN(k+"-01",end)}
+    if(!partialN1(kp)&&M[kp]){if(isCur){n=agg(k+"-01",LAST,-364);an=accN(k+"-01",LAST,-364)}else{n=agg(kp+"-01",`${kp}-${dim(kp)}`);an=accN(kp+"-01",`${kp}-${dim(kp)}`)}}
+    months.push({m,k,isCur,cur,c,n,ac,an,partial:partialN1(kp)});}
+  const div=(x,y)=>x!=null&&y?x/y:null;
+  function cmpTable(id,metrics){
+    const T={c:{},n:{}},ok=months.filter(o=>o.c&&o.n);
+    const cell=(v,f)=>v==null||!isFinite(v)?"—":f(v);
+    const ev=(c,p)=>c!=null&&p?`<span class="delta ${c>=p?"up":"down"}">${sgn(c/p-1,v=>fmtP(v,0))}</span>`:"—";
+    const rowsH=months.map(o=>`<tr class="${o.cur?"":"future"}"><td>${MOISL[o.m-1]}${o.isCur?" (à date)":""}${o.partial?' <span class="muted">· N-1 non comparable</span>':""}</td>`+
+      metrics.map(mt=>{const p=o.n?mt.v(o.n,o.an):null,c=o.c?mt.v(o.c,o.ac):null;
+        return`<td class="sep">${cell(o.partial?null:p,mt.f)}</td><td>${cell(c,mt.f)}</td><td>${o.c&&o.n?ev(c,p):"—"}</td>`}).join("")+"</tr>");
+    const tot=metrics.map(mt=>{const S=(side,acc)=>{const parts=ok.map(o=>mt.sum?mt.sum(o[side],o[acc]):null);return parts.some(x=>x==null)?null:parts};
+      let p,c;if(mt.ratio){const nn=S("n","an"),cc=S("c","ac");p=nn?div(nn.reduce((s,x)=>s+x[0],0),nn.reduce((s,x)=>s+x[1],0)):null;c=cc?div(cc.reduce((s,x)=>s+x[0],0),cc.reduce((s,x)=>s+x[1],0)):null}
+      else{const nn=ok.map(o=>mt.v(o.n,o.an)),cc=ok.map(o=>mt.v(o.c,o.ac));p=nn.some(x=>x==null)?null:nn.reduce((s,x)=>s+x,0);c=cc.some(x=>x==null)?null:cc.reduce((s,x)=>s+x,0)}
+      return`<td class="sep">${cell(p,mt.f)}</td><td>${cell(c,mt.f)}</td><td>${ev(c,p)}</td>`}).join("");
+    $(id).innerHTML=`<thead><tr><th></th>${metrics.map(mt=>`<th colspan="3" class="grp sep">${mt.lab}</th>`).join("")}</tr>
+      <tr><th>Mois</th>${metrics.map(()=>`<th class="sep">${y-1}</th><th>${y}</th><th>Évol.</th>`).join("")}</tr></thead>
+      <tbody>${rowsH.join("")}${ok.length?`<tr class="tot"><td>Total mois comparables</td>${tot}</tr>`:""}</tbody>`;
+  }
+  const E0=v=>fmtE(v),E2=v=>fmtE(v,2),N0=v=>fmtN(v);
+  cmpTable("tN1Anniv",[
+    {lab:"Nombre d'anniversaires",v:o=>o.nbAnniv,f:N0},
+    {lab:"CA HT anniversaires",v:o=>o.anniv,f:E0},
+    {lab:"CA moyen / anniversaire",v:o=>div(o.anniv,o.nbAnniv),f:E0,ratio:true,sum:o=>[o.anniv,o.nbAnniv]}]);
+  cmpTable("tN1Parc",[
+    {lab:"Entrées (tous publics)",v:o=>o.ent,f:N0},
+    {lab:"CA HT billetterie parc",v:o=>o.parc,f:E0},
+    {lab:"Prix moyen HT / entrée payante",v:o=>div(o.parc,o.parcN),f:E2,ratio:true,sum:o=>[o.parc,o.parcN]}]);
+  cmpTable("tN1B2B",[
+    {lab:"Centres & écoles accueillis",v:(o,a)=>a,f:N0},
+    {lab:"Enfants",v:o=>o.kids,f:N0},
+    {lab:"CA HT centres & écoles",v:o=>o.b2b,f:E0},
+    {lab:"CA HT moyen / enfant",v:o=>div(o.b2b,o.kids),f:E2,ratio:true,sum:o=>[o.b2b,o.kids]}]);
+  $("tN1B2BHint").innerHTML=`Accueils de loisirs, écoles et groupes : nombre de centres/écoles accueillis (une structure un jour donné, d'après l'export caisse${VL?` à jour au ${fmtDate(VL)}`:""}), enfants et CA HT (fichier de suivi), CA moyen par enfant`+(VL&&toD(VL)<toD(LAST)?` · <b>les accueils après le ${fmtDate(VL)} arriveront avec le prochain export caisse</b>`:"");
 }
 
 /* ───────────── OBJECTIFS ───────────── */

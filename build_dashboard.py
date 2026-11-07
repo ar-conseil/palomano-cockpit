@@ -77,6 +77,7 @@ def read_suivi():
             int(num(r[27])),  # 10 capacité
             int(num(r[29])),  # 11 nb anniversaires
             int(num(r[8])),  # 12 entrées parc payantes (hors anniv/groupes)
+            int(num(r[14]) + num(r[17])),  # 13 enfants scolaires + centres/groupes
         ])
     last = max((x[0] for x in daily if x[8] > 0), default=None)
     daily = [x for x in daily if x[0] <= (last or "")]

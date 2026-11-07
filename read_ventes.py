@@ -83,6 +83,7 @@ def read_ventes(path):
     products, pidx = [], {}
     pd = defaultdict(lambda: [0.0, 0.0])            # (jour, produit) → [qté, HT]
     tickets = defaultdict(lambda: defaultdict(set)) # jour → famille → n° de vente
+    accueils = defaultdict(lambda: defaultdict(set))  # jour → loisirs/scolaire/groupe → client (compté, jamais exporté)
     hour = defaultdict(lambda: [0.0, 0.0])          # (jour, heure) → [HT snack, HT boutique]
     cp = defaultdict(lambda: [set(), 0.0])          # (mois, CP) → [ventes, HT]
 
@@ -117,6 +118,10 @@ def read_ventes(path):
         e[1] += ht
         if sale:
             tickets[d][fam].add(sale)
+        if fam == "b2b":
+            kind = "scolaire" if "scol" in cat.lower() else "loisirs" if "loisirs" in cat.lower() else "groupe"
+            who = g(r, "ID client") or (g(r, "Raison sociale"), g(r, "Nom Client"), g(r, "Prénom Client"))
+            accueils[d][kind].add(who if who != (None, None, None) else sale)
         if fam in ("snack", "boutique"):
             hour[(d, h)][0 if fam == "snack" else 1] += ht
         code = g(r, "Code postal")
@@ -135,6 +140,8 @@ def read_ventes(path):
         "products": products,                                       # [famille, groupe, produit, marque]
         "pd": [[di[d], p, round(v[0], 1), r2(v[1])] for (d, p), v in sorted(pd.items()) if v[0] or v[1]],
         "tk": {d: {f: len(s) for f, s in fs.items()} for d, fs in sorted(tickets.items())},
+        # jour → {loisirs|scolaire|groupe: nb de centres / écoles / groupes accueillis}
+        "acc": {d: {k: len(s) for k, s in ks.items()} for d, ks in sorted(accueils.items())},
         "hr": [[di[d], h, r2(v[0]), r2(v[1])] for (d, h), v in sorted(hour.items()) if d in di and (v[0] or v[1])],
         "cp": [[m, c, len(v[0]), r2(v[1])] for (m, c), v in sorted(cp.items())],
     }
