@@ -343,7 +343,7 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
     </div>
     <div class="card" style="margin-top:14px">
       <h3>Anniversaires & fréquentation — comparatif mensuel</h3>
-      <p class="hint">Nombre d'anniversaires (colonne « nb anniversaires » du fichier de suivi) et d'entrées tous publics · le mois en cours est comparé jour pour jour (J-364) · juin 2025 = ouverture le 18/06</p>
+      <p class="hint">Nombre d'anniversaires (colonne « nb anniversaires » du fichier de suivi) et d'entrées tous publics · le mois en cours est comparé jour pour jour (J-364) · juin n'est pas comparé (ouverture le 18/06/2025)</p>
       <div class="tablewrap"><table id="tMonthVol"></table></div>
     </div>
   </section>
@@ -829,7 +829,9 @@ function renderN1(M){
   // KPIs: YTD comparable, 8 semaines, mois en cours comparable, depuis ouverture N-1
   const y=+LAST.slice(0,4);
   const comp=(a,b)=>{const c=agg(a,b),n=agg(a,b,-364);return{c,n,r:n.tot?c.tot/n.tot-1:NaN,re:n.ent?c.ent/n.ent-1:NaN}};
-  const a0=toD(addD(`${y}-01-01`,-364))<toD(FIRST)?addD(FIRST,364):`${y}-01-01`;
+  // premier mois complet d'ouverture (juillet 2025) + 1 an, pour ne pas comparer juin
+  const fm=FIRST.slice(8)==="01"?FIRST.slice(0,7):(+FIRST.slice(5,7)===12?`${+FIRST.slice(0,4)+1}-01`:`${FIRST.slice(0,4)}-${String(+FIRST.slice(5,7)+1).padStart(2,"0")}`);
+  const a0=toD(addD(`${y}-01-01`,-364))<toD(FIRST)?`${+fm.slice(0,4)+1}${fm.slice(4)}-01`:`${y}-01-01`;
   const blocks=[
     {lab:"Période sélectionnée",x:hasN1(P.a)?comp(P.a,P.b):null},
     {lab:"Mois en cours (à date)",x:comp(LAST.slice(0,8)+"01",LAST)},
@@ -848,13 +850,15 @@ function renderN1(M){
     options:baseOpts({plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),callbacks:{
       title:i=>{const x=weeks[i[0].dataIndex];return`Semaine ${x.w}${x.partial?" (en cours)":""}`},
       footer:i=>{const x=weeks[i[0].dataIndex];return x.a&&x.b!=null?`Écart ${sgn(x.b-x.a,fmtE)} (${sgn(x.b/x.a-1,v=>fmtP(v,0))}) · entrées ${sgn(x.eb/x.ea-1,v=>fmtP(v,0))}`:""}}}}})});
-  // mensuel
+  // mensuel — le mois d'ouverture (juin 2025, 13 jours) n'est pas comparé
+  const partialN1=kp=>FIRST.slice(0,7)===kp&&FIRST.slice(8)!=="01";
   const rows=[];
   for(let m=1;m<=12;m++){const k=`${y}-${String(m).padStart(2,"0")}`,kp=`${y-1}-${String(m).padStart(2,"0")}`;
     const cur=M[k],prev=M[kp];if(!cur&&!prev)continue;
     let curT=cur?cur.tot:null,prevT=prev?prev.tot:null,note="";
     if(k===LAST.slice(0,7)){const x=agg(k+"-01",LAST),n=agg(k+"-01",LAST,-364);curT=x.tot;prevT=n.tot;note=" (à date)"}
     if(toD(k+"-01")>toD(LAST))curT=null;
+    if(partialN1(kp)){prevT=null;note=" · N-1 non comparable (ouverture le "+fmtDate(FIRST)+")"}
     rows.push(`<tr class="${curT==null?"future":""}"><td>${MOISL[m-1]}${note}</td><td>${prevT!=null?fmtE(prevT):"—"}</td><td>${curT!=null?fmtE(curT):"—"}</td><td>${curT!=null&&prevT?sgn(curT-prevT,fmtE):"—"}</td><td>${curT!=null&&prevT?`<span class="delta ${curT>=prevT?"up":"down"}">${sgn(curT/prevT-1,v=>fmtP(v,0))}</span>`:"—"}</td><td>${fmtE(monthTarget(k))}</td><td>${curT!=null?stDot(curT/monthTarget(k)):"—"}</td></tr>`)}
   $("tMonthN1").innerHTML=`<thead><tr><th>Mois</th><th>${y-1}</th><th>${y}</th><th>Écart € HT</th><th>Écart %</th><th>Objectif HT ${y}</th><th>Atteinte</th></tr></thead><tbody>${rows.join("")}</tbody>`;
   // anniversaires & entrées
@@ -866,7 +870,8 @@ function renderN1(M){
     let a1=cur?cur.nb:null,a0=prev?prev.nb:null,e1=cur?cur.ent:null,e0=prev?prev.ent:null,note="";
     if(k===LAST.slice(0,7)){const x=agg(k+"-01",LAST),n=agg(k+"-01",LAST,-364);a1=x.nbAnniv;a0=n.nbAnniv;e1=x.ent;e0=n.ent;note=" (à date)"}
     if(toD(k+"-01")>toD(LAST))a1=e1=null;
-    if(a1!=null&&prev){T.a0+=a0;T.a1+=a1;T.e0+=e0;T.e1+=e1}
+    if(partialN1(kp)){a0=e0=null;note=" · N-1 non comparable"}
+    if(a1!=null&&a0!=null){T.a0+=a0;T.a1+=a1;T.e0+=e0;T.e1+=e1}
     vr.push(`<tr class="${a1==null?"future":""}"><td>${MOISL[m-1]}${note}</td><td>${a0!=null?fmtN(a0):"—"}</td><td>${a1!=null?fmtN(a1):"—"}</td><td>${df(a1,a0)}</td><td>${pc(a1,a0)}</td>
       <td>${e0!=null?fmtN(e0):"—"}</td><td>${e1!=null?fmtN(e1):"—"}</td><td>${df(e1,e0)}</td><td>${pc(e1,e0)}</td></tr>`)}
   if(T.e0)vr.push(`<tr class="tot"><td>Total mois comparables</td><td>${fmtN(T.a0)}</td><td>${fmtN(T.a1)}</td><td>${df(T.a1,T.a0)}</td><td>${pc(T.a1,T.a0)}</td><td>${fmtN(T.e0)}</td><td>${fmtN(T.e1)}</td><td>${df(T.e1,T.e0)}</td><td>${pc(T.e1,T.e0)}</td></tr>`);
