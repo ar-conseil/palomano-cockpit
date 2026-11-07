@@ -341,6 +341,11 @@ footer{margin-top:36px;color:var(--muted);font-size:12px}
       <p class="hint">À jour comparable : le mois en cours est comparé jour pour jour (J-364, même jour de semaine)</p>
       <div class="tablewrap"><table id="tMonthN1"></table></div>
     </div>
+    <div class="card" style="margin-top:14px">
+      <h3>Anniversaires & fréquentation — comparatif mensuel</h3>
+      <p class="hint">Nombre d'anniversaires (colonne « nb anniversaires » du fichier de suivi) et d'entrées tous publics · le mois en cours est comparé jour pour jour (J-364) · juin 2025 = ouverture le 18/06</p>
+      <div class="tablewrap"><table id="tMonthVol"></table></div>
+    </div>
   </section>
 
   <!-- ═════════ OBJECTIFS ═════════ -->
@@ -833,7 +838,7 @@ function renderN1(M){
   ];
   $("n1kpis").innerHTML=blocks.map(b=>{if(!b.x)return`<div class="card kpi"><div class="lab">${b.lab}</div><div class="val">—</div><div class="meta"><span>Pas de N-1 sur cette période</span></div></div>`;
     const{c,n,r,re}=b.x;return`<div class="card kpi"><div class="lab">${b.lab}</div><div class="val"><span class="delta ${r>=0?"up":"down"}">${r>=0?"▲":"▼"} ${sgn(r,v=>fmtP(v,1))}</span></div>
-    <div class="meta"><span>${fmtE(c.tot)} vs ${fmtE(n.tot)} (${sgn(c.tot-n.tot,fmtE)})</span><span>Entrées ${sgn(re,v=>fmtP(v,0))} · ${fmtN(c.ent)} vs ${fmtN(n.ent)}</span></div></div>`}).join("");
+    <div class="meta"><span>${fmtE(c.tot)} vs ${fmtE(n.tot)} (${sgn(c.tot-n.tot,fmtE)})</span><span>Entrées ${sgn(re,v=>fmtP(v,0))} · ${fmtN(c.ent)} vs ${fmtN(n.ent)}</span><span>Anniversaires ${n.nbAnniv?sgn(c.nbAnniv/n.nbAnniv-1,v=>fmtP(v,0))+" · ":""}${fmtN(c.nbAnniv)} vs ${fmtN(n.nbAnniv)}</span></div></div>`}).join("");
   // semaines
   const W={};for(const r of DATA.daily){const[wy,w]=isoWeek(r[0]);const k=wy+"-"+w;(W[k]=W[k]||{tot:0,ent:0,days:0,start:r[0]});W[k].tot+=r[8];W[k].ent+=r[9];W[k].days++}
   const weeks=[];for(let w=1;w<=53;w++){const a=W[(y-1)+"-"+w],b=W[y+"-"+w];if((a&&a.tot)||(b&&b.tot))weeks.push({w,a:a?a.tot:0,b:b?b.tot:null,partial:b&&b.days<7,start:b?b.start:a.start,ea:a?a.ent:0,eb:b?b.ent:0})}
@@ -852,6 +857,20 @@ function renderN1(M){
     if(toD(k+"-01")>toD(LAST))curT=null;
     rows.push(`<tr class="${curT==null?"future":""}"><td>${MOISL[m-1]}${note}</td><td>${prevT!=null?fmtE(prevT):"—"}</td><td>${curT!=null?fmtE(curT):"—"}</td><td>${curT!=null&&prevT?sgn(curT-prevT,fmtE):"—"}</td><td>${curT!=null&&prevT?`<span class="delta ${curT>=prevT?"up":"down"}">${sgn(curT/prevT-1,v=>fmtP(v,0))}</span>`:"—"}</td><td>${fmtE(monthTarget(k))}</td><td>${curT!=null?stDot(curT/monthTarget(k)):"—"}</td></tr>`)}
   $("tMonthN1").innerHTML=`<thead><tr><th>Mois</th><th>${y-1}</th><th>${y}</th><th>Écart € HT</th><th>Écart %</th><th>Objectif HT ${y}</th><th>Atteinte</th></tr></thead><tbody>${rows.join("")}</tbody>`;
+  // anniversaires & entrées
+  const pc=(c,p)=>c!=null&&p?`<span class="delta ${c>=p?"up":"down"}">${sgn(c/p-1,v=>fmtP(v,0))}</span>`:"—";
+  const df=(c,p)=>c!=null&&p!=null&&(c||p)?sgn(c-p,v=>fmtN(v)):"—";
+  const vr=[],T={a0:0,a1:0,e0:0,e1:0};
+  for(let m=1;m<=12;m++){const k=`${y}-${String(m).padStart(2,"0")}`,kp=`${y-1}-${String(m).padStart(2,"0")}`;
+    const cur=M[k],prev=M[kp];if(!cur&&!prev)continue;
+    let a1=cur?cur.nb:null,a0=prev?prev.nb:null,e1=cur?cur.ent:null,e0=prev?prev.ent:null,note="";
+    if(k===LAST.slice(0,7)){const x=agg(k+"-01",LAST),n=agg(k+"-01",LAST,-364);a1=x.nbAnniv;a0=n.nbAnniv;e1=x.ent;e0=n.ent;note=" (à date)"}
+    if(toD(k+"-01")>toD(LAST))a1=e1=null;
+    if(a1!=null&&prev){T.a0+=a0;T.a1+=a1;T.e0+=e0;T.e1+=e1}
+    vr.push(`<tr class="${a1==null?"future":""}"><td>${MOISL[m-1]}${note}</td><td>${a0!=null?fmtN(a0):"—"}</td><td>${a1!=null?fmtN(a1):"—"}</td><td>${df(a1,a0)}</td><td>${pc(a1,a0)}</td>
+      <td>${e0!=null?fmtN(e0):"—"}</td><td>${e1!=null?fmtN(e1):"—"}</td><td>${df(e1,e0)}</td><td>${pc(e1,e0)}</td></tr>`)}
+  if(T.e0)vr.push(`<tr class="tot"><td>Total mois comparables</td><td>${fmtN(T.a0)}</td><td>${fmtN(T.a1)}</td><td>${df(T.a1,T.a0)}</td><td>${pc(T.a1,T.a0)}</td><td>${fmtN(T.e0)}</td><td>${fmtN(T.e1)}</td><td>${df(T.e1,T.e0)}</td><td>${pc(T.e1,T.e0)}</td></tr>`);
+  $("tMonthVol").innerHTML=`<thead><tr><th>Mois</th><th>Anniv. ${y-1}</th><th>Anniv. ${y}</th><th>Écart</th><th>Écart %</th><th>Entrées ${y-1}</th><th>Entrées ${y}</th><th>Écart</th><th>Écart %</th></tr></thead><tbody>${vr.join("")}</tbody>`;
 }
 
 /* ───────────── OBJECTIFS ───────────── */
