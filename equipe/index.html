@@ -210,6 +210,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .anchip small{display:block;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .anchip.todo{background:#fff;box-shadow:inset 0 0 0 1.5px var(--rouge-f)}.anchip.todo small{color:var(--rouge-f);font-weight:600}
 .anchip:disabled{cursor:default}
+.anchip.plain{background:var(--card);box-shadow:inset 0 0 0 1px var(--line-2)}
 .res-strip .anchip{width:auto;display:inline-block}.wk .who.click:hover b,.tl .who.click:hover b{text-decoration:underline}
 .wk .cell{padding:6px;min-height:64px;display:flex;flex-direction:column;gap:5px;position:relative}
 .wk .cell.today{background:rgba(247,213,137,.10)}
@@ -462,6 +463,7 @@ const canValidate=()=>isDirection()&&S.me.can_validate_planning;
 const realDirection=()=>((S.real&&S.real.me)||S.me)?.role==="direction";
 const person=id=>S.byId.get(id)||(S.ext&&S.ext.get(id))||{full_name:"—",color:"#9a9895"};
 const animOf=a=>a&&(a.animateur||a.animateur_ext);   // animateur d'un anniversaire : salarié (compte) ou intervenant
+const needAnim=a=>!!(a&&a.option_animateur);   // option « animateur » prise sur Qweekle
 const animCols=v=>v&&S.ext&&S.ext.has(v)?{animateur:null,animateur_ext:v}:{animateur:v||null,animateur_ext:null};
 const whoOptions=(sel,{empty}={})=>peopleOptions(sel,{empty})+(()=>{const ex=[...(S.ext||new Map()).values()].filter(x=>x.active||x.id===sel);
   return ex.length?`<optgroup label="Sans compte (intérim, invités)">${ex.map(x=>`<option value="${x.id}" ${x.id===sel?"selected":""}>${esc(x.full_name)} — ${esc(INT_TYPE[x.type])}</option>`).join("")}</optgroup>`:""})();
@@ -742,7 +744,7 @@ VIEWS.planning=async m=>{
     S.sb.from("plannings").select("*").eq("week_start",w).maybeSingle(),
     S.sb.from("shifts").select("*").eq("week_start",w).order("start_time"),
     S.sb.from("leaves").select("*").eq("status","acceptee").lte("start_date",days[6]).gte("end_date",w),
-    S.sb.from("anniversaires").select("id,date,heure,duree_min,enfant,age,nb_enfants,salle,animateur,animateur_ext").gte("date",w).lte("date",days[6]).neq("statut","annule"),
+    S.sb.from("anniversaires").select("*").gte("date",w).lte("date",days[6]).neq("statut","annule"),
     S.sb.from("groupes").select("date,heure_arrivee,structure,nb_enfants,type").gte("date",w).lte("date",days[6]).neq("statut","annule"),
   ]);
   const st=pl?pl.status:null,editable=isManager()&&!!pl&&["brouillon","refuse"].includes(st);
@@ -764,15 +766,15 @@ VIEWS.planning=async m=>{
   const who=p=>`<div class="who ${p.ext&&isManager()?"click":""}" ${p.ext?`data-ext="${p.id}"`:""}>${avatar(p,34)}<div style="min-width:0"><b>${esc(p.full_name)}</b><small>${p.ext?esc(INT_TYPE[p.type]+(p.agence?" · "+p.agence:"")):esc(p.poste||ROLE[p.role])}</small></div></div>`;
   const shHtml=s=>`<div class="sh ${editable?"edit":""} ${s.user_id===S.user.id?"me":""}" data-id="${s.id}" style="--c:${esc(person(s.user_id).color||"#c1daf3")}"><b>${fTime(s.start_time)}–${fTime(s.end_time)}</b>${s.label?`<small>${esc(s.label)}</small>`:""}</div>`;
   const annOn=d=>(anniv||[]).filter(a=>a.date===d).sort((a,b)=>a.heure.localeCompare(b.heure));
-  const noAnim=()=>(anniv||[]).filter(a=>!animOf(a)).length;
-  const anChip=a=>{const p=animOf(a)?person(animOf(a)):null;return`<button type="button" class="anchip ${p?"":"todo"}" data-ann="${a.id}" ${isManager()?"":"disabled"} style="${p?`--c:${esc(p.color||"#c1daf3")}`:""}"><b>${fTime(a.heure)}</b> ${esc(a.enfant)}${a.nb_enfants?` · ${a.nb_enfants} enf.`:""}<small>${p?"🎈 "+esc(p.full_name.split(" ")[0]):"⚠ animateur à prévoir"}</small></button>`};
+  const noAnim=()=>(anniv||[]).filter(a=>needAnim(a)&&!animOf(a)).length;
+  const anChip=a=>{const p=animOf(a)?person(animOf(a)):null;return`<button type="button" class="anchip ${!p&&needAnim(a)?"todo":""} ${!p&&!needAnim(a)?"plain":""}" data-ann="${a.id}" ${isManager()?"":"disabled"} style="${p?`--c:${esc(p.color||"#c1daf3")}`:""}"><b>${fTime(a.heure)}</b> ${esc(a.enfant)}${a.nb_enfants?` · ${a.nb_enfants} enf.`:""}<small>${p?"🎈 "+esc(p.full_name.split(" ")[0]):needAnim(a)?"⚠ option animateur : à prévoir":"sans animateur"}</small></button>`};
   const nbDay=d=>new Set(SH.filter(s=>s.day===d).map(s=>s.user_id)).size;
   const hDay=d=>SH.filter(s=>s.day===d).reduce((t,s)=>t+(s.b-s.a)/60,0);
   const weekGrid=()=>`<div class="board"><div class="wk">
       <div class="hd" style="text-align:left;padding-left:14px">Équipe</div>
       ${days.map(d=>`<div class="hd ${d===today?"today":""}">${parse(d).toLocaleDateString("fr-FR",{weekday:"short"})}<b>${parse(d).getDate()}</b>${resaOn(d).length?`<div style="font-size:11px;color:var(--ink-2)">${resaOn(d).length} résa</div>`:""}</div>`).join("")}
       <div class="hd">Total</div>
-      ${(anniv||[]).length?`<div class="who anrow"><div class="tile-ic" style="width:34px;height:34px;background:var(--rouge-c);color:var(--rouge-f)">${ic("cake","sm")}</div><div style="min-width:0"><b>Anniversaires</b><small>${noAnim()?`<span style="color:var(--rouge-f);font-weight:600">${noAnim()} sans animateur</span>`:"tous ont un animateur"}</small></div></div>`+
+      ${(anniv||[]).length?`<div class="who anrow"><div class="tile-ic" style="width:34px;height:34px;background:var(--rouge-c);color:var(--rouge-f)">${ic("cake","sm")}</div><div style="min-width:0"><b>Anniversaires</b><small>${noAnim()?`<span style="color:var(--rouge-f);font-weight:600">${noAnim()} animateur${noAnim()>1?"s":""} à prévoir</span>`:(anniv||[]).some(needAnim)?"animateurs prévus":"aucune option animateur"}</small></div></div>`+
         days.map(d=>`<div class="cell anrow ${d===today?"today":""}">${annOn(d).map(anChip).join("")}</div>`).join("")+`<div class="anrow"></div>`:""}
       ${team.map(p=>who(p)+days.map(d=>{const list=SH.filter(s=>s.user_id===p.id&&s.day===d).sort((a,b)=>a.a-b.a),off=offOn(d,p.id);
         return`<div class="cell ${d===today?"today":""} ${off?"off":""} ${editable?"edit":""}" data-uid="${p.id}" data-day="${d}">${off?'<small style="color:var(--rouge-f);font-weight:600">🌴 Congé</small>':""}${list.map(shHtml).join("")}${editable&&!list.length?`<button class="add" data-add>${ic("plus","sm")}</button>`:""}</div>`}).join("")
@@ -960,7 +962,7 @@ async function resaView(m,kind){
   const card=r=>{const st=ST[r.statut]||["",r.statut];
     const when=isA?`${fTime(r.heure)}<small>${r.duree_min?Math.round(r.duree_min/60*10)/10+" h":""}</small>`:`${fTime(r.heure_arrivee)||"—"}<small>${r.heure_depart?"→ "+fTime(r.heure_depart):""}</small>`;
     const title=isA?`${esc(r.enfant)}${r.age?` <span style="font-weight:500;color:var(--ink-2)">· ${r.age} ans</span>`:""}`:`${esc(r.structure)}${r.ville?` <span style="font-weight:500;color:var(--ink-2)">· ${esc(r.ville)}</span>`:""}`;
-    const meta=isA?[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.formule&&`${ic("cake","sm")} ${esc(r.formule)}`,r.salle&&`${ic("pin","sm")} ${esc(r.salle)}`,animOf(r)?`${ic("clock","sm")} ${esc(firstName(animOf(r)))}`:isManager()&&r.statut!=="annule"?`<span style="color:var(--rouge-f);font-weight:600">⚠ animateur à prévoir</span>`:"",r.theme&&`✨ ${esc(r.theme)}`]
+    const meta=isA?[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.formule&&`${ic("cake","sm")} ${esc(r.formule)}`,r.salle&&`${ic("pin","sm")} ${esc(r.salle)}`,animOf(r)?`${ic("clock","sm")} ${esc(firstName(animOf(r)))}`:isManager()&&needAnim(r)&&r.statut!=="annule"?`<span style="color:var(--rouge-f);font-weight:600">⚠ option animateur : à prévoir</span>`:"",r.theme&&`✨ ${esc(r.theme)}`]
       :[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.nb_encadrants&&`${r.nb_encadrants} encadrants`,r.niveau&&`${ic(conf.icon,"sm")} ${esc(r.niveau)}`,r.formule&&esc(r.formule),r.referent&&`référent ${esc(firstName(r.referent))}`];
     return`<div class="resa" data-id="${r.id}" tabindex="0"><div class="when" style="background:var(${conf.col})">${when}</div>
       <div class="tx"><b>${title}</b><div class="meta">${meta.filter(Boolean).map(x=>`<span>${x}</span>`).join("")}</div>${isA&&r.allergies?`<div class="meta"><span class="alert">${ic("alert","sm")} ${esc(r.allergies)}</span></div>`:""}${r.qweekle_note?`<div class="meta"><span>${ic("alert","sm")} Note du client : ${esc(r.qweekle_note)}</span></div>`:""}</div>
