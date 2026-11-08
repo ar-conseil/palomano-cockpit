@@ -144,6 +144,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .stat b{display:block;font-size:26px;font-weight:700;line-height:1.1}
 .stat span{color:var(--ink-2);font-size:13px}
 @media (max-width:700px){.stat{padding:12px}.stat b{font-size:20px}.stat .tile-ic{width:36px;height:36px}}
+.beta{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:var(--jaune);color:var(--ink);margin-left:6px}
+.bnav .beta{display:none}
+.betabar{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;margin-bottom:16px;border-radius:var(--radius);background:var(--jaune-c,#f9e2b4);box-shadow:inset 0 0 0 1.5px var(--jaune)}
+.betabar b{display:block;font-size:15px}.betabar span{display:block;font-size:13.5px;color:var(--ink-2);margin-top:2px}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--bg);white-space:nowrap}
 .pill i{width:8px;height:8px;border-radius:50%;background:var(--c,var(--muted))}
 .pill.ok{background:var(--ok-c)}.pill.ok i{background:var(--ok)}
@@ -474,15 +478,16 @@ const avatar=(p,size=38)=>`<div class="avatar" style="width:${size}px;height:${s
 /* ───────────── navigation ───────────── */
 const NAV=[
   {h:"Au quotidien"},
-  {t:"today",l:"Aujourd'hui",i:"home"},{t:"planning",l:"Planning",i:"cal",b:"bPlan"},{t:"stocks",l:"Stocks",i:"box",b:"bStock"},
+  {t:"today",l:"Aujourd'hui",i:"home"},{t:"planning",l:"Planning",i:"cal",b:"bPlan"},{t:"stocks",l:"Stocks",i:"box",b:"bStock",beta:true},
   {h:"Réservations"},
   {t:"anniv",l:"Anniversaires",i:"cake"},{t:"centres",l:"Centres de loisirs",i:"tent"},{t:"ecoles",l:"Écoles",i:"school"},
   {h:"Équipe"},
   {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"objectifs",l:"Objectifs",i:"target"},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
 ];
 const BNAV=["today","planning","anniv","stocks"];
+const STOCK_TEST=true;   // module Stocks en phase de test : ni alertes ni badge tant que c'est vrai
 const BADGES={};
-function navLink(n){return`<a href="#" data-t="${n.t}" ${S.tab===n.t?'aria-current="page"':""}>${ic(n.i)}<span>${n.l}</span>${BADGES[n.b]?`<span class="badge">${BADGES[n.b]}</span>`:""}</a>`}
+function navLink(n){return`<a href="#" data-t="${n.t}" ${S.tab===n.t?'aria-current="page"':""}>${ic(n.i)}<span>${n.l}</span>${n.beta?`<span class="beta">Test</span>`:""}${BADGES[n.b]?`<span class="badge">${BADGES[n.b]}</span>`:""}</a>`}
 function renderNav(){
   const items=NAV.filter(n=>(!n.mgr||isManager())&&(!n.dir||isDirection())&&(!n.saisie||isManager()||S.canSaisie));
   const viewAs=realDirection()?`<a href="#" data-t="__viewas">${ic("users")}<span>Voir comme…</span></a>`:"";
@@ -646,7 +651,7 @@ async function refreshBadges(){
     ]);
     const{count:aPayer}=isDirection()?await S.sb.from("factures_fournisseurs").select("id",{count:"exact",head:true}).eq("statut","a_payer"):{count:0};
     setBadge("bFac",aPayer||0);
-    setBadge("bStock",(items||[]).filter(i=>i.current_qty<=i.min_qty).length);
+    setBadge("bStock",STOCK_TEST?0:(items||[]).filter(i=>i.current_qty<=i.min_qty).length);
     setBadge("bDem",(pend||[]).length+(inc||[]).length);
     setBadge("bPlan",(plans||[]).filter(p=>canValidate()?p.status==="soumis":isManager()?p.status==="refuse":false).length);
     setBadge("bReg",wait||0);
@@ -707,7 +712,7 @@ VIEWS.today=async m=>{
     <div class="grid g2" style="margin-top:18px">${cl("ouverture")}${cl("fermeture")}</div>
     <div class="grid g2" style="margin-top:18px">
       <div class="card"><div class="card-head"><h3>${ic("box")} Stocks à surveiller</h3><a class="link" data-t="stocks" href="#">Voir les stocks →</a></div>
-        ${low.length?`<div class="list">${low.slice(0,6).map(i=>`<div class="row"><div class="tx"><b>${esc(i.name)}</b><small>${i.kind==="snack"?"Snack":"Jouets"} · seuil ${fQty(i.min_qty)}</small></div><span class="qty" style="color:var(--bad)">${fQty(i.current_qty)}</span></div>`).join("")}</div>`:'<div class="empty">✓ Aucun article sous le seuil.</div>'}</div>
+        ${STOCK_TEST?'<div class="empty">Pas encore disponible — en phase de test.</div>':low.length?`<div class="list">${low.slice(0,6).map(i=>`<div class="row"><div class="tx"><b>${esc(i.name)}</b><small>${i.kind==="snack"?"Snack":"Jouets"} · seuil ${fQty(i.min_qty)}</small></div><span class="qty" style="color:var(--bad)">${fQty(i.current_qty)}</span></div>`).join("")}</div>`:'<div class="empty">✓ Aucun article sous le seuil.</div>'}</div>
       <div class="card"><div class="card-head"><h3>${ic("target")} Objectifs d'équipe</h3><a class="link" data-t="objectifs" href="#">Tout voir →</a></div>
         ${(objs||[]).length?(objs||[]).map(o=>objLine(o,kp)).join(""):'<div class="empty">Aucun objectif en cours.</div>'}</div>
     </div>`;
@@ -1046,7 +1051,8 @@ VIEWS.stocks=async m=>{
   const low=items.filter(i=>i.current_qty<=i.min_qty).length;
   m.innerHTML=topbar("Stocks",`${items.length} articles · ${low?`<b style="color:var(--bad)">${low} à commander</b>`:"rien à commander"}`,
       `<div class="seg" id="kSeg"><button data-k="snack" aria-pressed="${k==="snack"}">Snack</button><button data-k="jouets" aria-pressed="${k==="jouets"}">Jouets & boutique</button></div>${isManager()?`<button class="btn pri" id="iAdd">${ic("plus","sm")} Article</button>`:""}`)+
-    `<div class="card"><div class="card-head"><input class="search" id="q" placeholder="Rechercher un article…" type="search"><span class="hint" style="margin:0">Touchez un article pour compter, entrer ou sortir du stock</span></div>
+    `<div class="betabar">${ic("wrench","sm")}<div><b>Pas encore disponible — en phase de test</b><span>Les stocks ne sont pas encore suivis pour de vrai : les quantités affichées ne sont pas fiables. Continuez à faire comme d'habitude.</span></div></div>
+    <div class="card"><div class="card-head"><input class="search" id="q" placeholder="Rechercher un article…" type="search"><span class="hint" style="margin:0">Touchez un article pour compter, entrer ou sortir du stock</span></div>
       <div class="list">${items.map(i=>{const lo=i.current_qty<=i.min_qty,pct=i.min_qty?Math.min(1,i.current_qty/(i.min_qty*3)):1;
         return`<div class="row click" data-item="${i.id}" data-name="${esc((i.name+" "+i.category).toLowerCase())}"><div class="tile-ic" style="width:40px;height:40px;background:var(${k==="snack"?"--jaune-c":"--bleu-c"})">${ic(k==="snack"?"cake":"box","sm")}</div>
           <div class="tx"><b>${esc(i.name)}</b><small>${esc(i.category||"")}${i.category?" · ":""}seuil ${fQty(i.min_qty)} ${esc(i.unit)} · maj ${fStamp(i.updated_at)}</small>
