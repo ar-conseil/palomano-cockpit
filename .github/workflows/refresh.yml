@@ -70,8 +70,10 @@ jobs:
         run: python encrypt_page.py
 
       # Espace équipe (app statique ; les données vivent dans Supabase, protégées par ses règles d'accès)
-      - name: Ajouter l'espace équipe
-        run: mkdir -p site/equipe && cp equipe/index.html equipe/config.js site/equipe/
+      - name: Ajouter l'espace équipe (racine du site) et la redirection de l'ancienne adresse
+        run: |
+          cp equipe/index.html equipe/config.js site/
+          mkdir -p site/equipe && cp equipe/ancienne-adresse.html site/equipe/index.html
 
       - name: Publier les indicateurs pour l'équipe
         env:

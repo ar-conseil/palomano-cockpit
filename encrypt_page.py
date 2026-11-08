@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Chiffre Palomano_Dashboard.html (AES-256-GCM, clé dérivée du mot de passe par PBKDF2-SHA256)
-et produit site/index.html : une page de connexion qui déchiffre le dashboard dans le navigateur.
+et produit site/pilotage/index.html : une page de connexion qui déchiffre le dashboard dans le navigateur.
 Rien de lisible n'est publié sans le mot de passe.
 
 Variable d'environnement : DASH_PASSWORD
@@ -21,6 +21,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 HERE = Path(__file__).resolve().parent
 SRC = HERE / "Palomano_Dashboard.html"
 SITE = HERE / "site"
+OUT = SITE / "pilotage"  # le dashboard est servi sur /pilotage, l'espace équipe à la racine
 ITERATIONS = 600_000
 
 SHELL = """<!doctype html>
@@ -107,12 +108,12 @@ def main():
     ct = AESGCM(key).encrypt(iv, html.encode("utf-8"), None)
     payload = {"salt": base64.b64encode(salt).decode(), "iv": base64.b64encode(iv).decode(),
                "iter": ITERATIONS, "ct": base64.b64encode(ct).decode()}
-    SITE.mkdir(exist_ok=True)
-    (SITE / "index.html").write_text(SHELL.replace("__PAYLOAD__", json.dumps(payload)), encoding="utf-8")
+    OUT.mkdir(parents=True, exist_ok=True)
+    (OUT / "index.html").write_text(SHELL.replace("__PAYLOAD__", json.dumps(payload)), encoding="utf-8")
     m = re.search(r'"generatedAt":"([^"]+)"', html)
-    (SITE / "version.json").write_text(json.dumps({"generatedAt": m.group(1) if m else None}), encoding="utf-8")
+    (OUT / "version.json").write_text(json.dumps({"generatedAt": m.group(1) if m else None}), encoding="utf-8")
     (SITE / ".nojekyll").write_text("")
-    print(f"OK → {SITE / 'index.html'} (chiffré, {len(ct):,} octets)")
+    print(f"OK → {OUT / 'index.html'} (chiffré, {len(ct):,} octets)")
 
 
 if __name__ == "__main__":
