@@ -231,6 +231,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .apcard.todo .who2{color:var(--rouge-f)}
 @media (max-width:1100px){.apweek{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:620px){.apweek{grid-template-columns:1fr}}
+.animbig{display:block;margin:6px 0 4px;padding:8px 12px;border-radius:12px;background:var(--rouge-f);color:#fff;font-size:16px;font-weight:800;letter-spacing:.02em}
+.animbig span{font-weight:600;font-size:14px;opacity:.95}
+.optchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}.optchips span{font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--jaune-c);color:var(--ink)}
 .animtag{display:inline-block;margin-left:8px;padding:2px 10px;border-radius:999px;background:var(--rouge-f);color:#fff;font-size:12.5px;font-weight:700;vertical-align:2px;white-space:nowrap}
 .anchip.plain{background:var(--card);box-shadow:inset 0 0 0 1px var(--line-2)}
 .res-strip .anchip{width:auto;display:inline-block}.wk .who.click:hover b,.tl .who.click:hover b{text-decoration:underline}
@@ -998,6 +1001,7 @@ VIEWS.planning=async m=>{
 
 /* ═════════ RÉSERVATIONS : anniversaires, centres, écoles ═════════ */
 const ST_ANNIV={option:["warn","Option"],confirme:["ok","Confirmé"],termine:["info","Terminé"],annule:["bad","Annulé"]};
+const OPT_IC=o=>/g[âa]teau/i.test(o)?"🎂":/goodies/i.test(o)?"🎁":/soft|oasis/i.test(o)?"🥤":/bonbon/i.test(o)?"🍬":"✨";
 const ANNIV_OPTS=["Gâteau au chocolat","Gâteau aux pommes","Pochette goodies","Soft Oasis","Bonbons végétariens","Bonbons non végétariens"];
 const optBoxes=r=>`<div class="f full">Options<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px">${ANNIV_OPTS.map((o,i)=>`<label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" name="opt:${i}" ${(r.options||[]).includes(o)?"checked":""} style="width:auto">${esc(o)}</label>`).join("")}</div></div>`;
 const optsOf=d=>ANNIV_OPTS.filter((_,i)=>d["opt:"+i]==="on");
@@ -1024,10 +1028,10 @@ async function resaView(m,kind){
   const card=r=>{const st=ST[r.statut]||["",r.statut];
     const when=isA?`${fTime(r.heure)}<small>${r.duree_min?Math.round(r.duree_min/60*10)/10+" h":""}</small>`:`${fTime(r.heure_arrivee)||"—"}<small>${r.heure_depart?"→ "+fTime(r.heure_depart):""}</small>`;
     const title=isA?`${esc(r.enfant)}${r.age?` <span style="font-weight:500;color:var(--ink-2)">· ${r.age} ans</span>`:""}`:`${esc(r.structure)}${r.ville?` <span style="font-weight:500;color:var(--ink-2)">· ${esc(r.ville)}</span>`:""}`;
-    const meta=isA?[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.formule&&`${ic("cake","sm")} ${esc(r.formule)}`,r.salle&&`${ic("pin","sm")} ${esc(r.salle)}`,animOf(r)?`${ic("clock","sm")} ${esc(firstName(animOf(r)))}`:isManager()&&needAnim(r)&&r.statut!=="annule"?`<span style="color:var(--rouge-f);font-weight:600">⚠ option animateur : à prévoir</span>`:"",r.theme&&`✨ ${esc(r.theme)}`,(r.options||[]).length&&`🎁 ${esc(r.options.join(", "))}`]
+    const meta=isA?[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.formule&&`${ic("cake","sm")} ${esc(r.formule)}`,r.salle&&`${ic("pin","sm")} ${esc(r.salle)}`,animOf(r)?`${ic("clock","sm")} ${esc(firstName(animOf(r)))}`:"",r.theme&&`✨ ${esc(r.theme)}`]
       :[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.nb_encadrants&&`${r.nb_encadrants} encadrants`,r.niveau&&`${ic(conf.icon,"sm")} ${esc(r.niveau)}`,r.formule&&esc(r.formule),r.referent&&`référent ${esc(firstName(r.referent))}`];
     return`<div class="resa" data-id="${r.id}" tabindex="0"><div class="when" style="background:var(${conf.col})">${when}</div>
-      <div class="tx"><b>${title}</b>${isA&&needAnim(r)&&r.statut!=="annule"?` <span class="animtag">🎈 Avec animateur !</span>`:""}<div class="meta">${meta.filter(Boolean).map(x=>`<span>${x}</span>`).join("")}</div>${isA&&r.allergies?`<div class="meta"><span class="alert">${ic("alert","sm")} ${esc(r.allergies)}</span></div>`:""}${r.qweekle_note?`<div class="meta"><span>${ic("alert","sm")} Note du client : ${esc(r.qweekle_note)}</span></div>`:""}</div>
+      <div class="tx"><b>${title}</b>${isA&&needAnim(r)&&r.statut!=="annule"?`<div class="animbig">🎈 AVEC ANIMATEUR !${animOf(r)?` <span>· ${esc(person(animOf(r)).full_name)}</span>`:" <span>· à prévoir</span>"}</div>`:""}${isA&&(r.options||[]).length?`<div class="optchips">${r.options.map(o=>`<span>${OPT_IC(o)} ${esc(o)}</span>`).join("")}</div>`:""}<div class="meta">${meta.filter(Boolean).map(x=>`<span>${x}</span>`).join("")}</div>${isA&&r.allergies?`<div class="meta"><span class="alert">${ic("alert","sm")} ${esc(r.allergies)}</span></div>`:""}${r.qweekle_note?`<div class="meta"><span>${ic("alert","sm")} Note du client : ${esc(r.qweekle_note)}</span></div>`:""}</div>
       <div class="side-r" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="pill ${st[0]}"><i></i>${st[1]}</span>${r.paiement&&PAY[r.paiement]&&r.statut!=="annule"?`<span class="pill ${PAY[r.paiement][0]}"><i></i>${PAY[r.paiement][1]}</span>`:""}${isManager()&&r.montant!=null?`<span style="font-size:13px;color:var(--ink-2)">${fEur(r.montant)}</span>`:""}</div></div>`};
   m.innerHTML=topbar(conf.title,`${past?"Historique":"À venir"} · ${isA?"formules, salles, animateurs et allergies":"structures, effectifs, horaires et contacts"}`,
       `<div class="seg" id="rSeg"><button data-p="0" aria-pressed="${!past}">À venir</button><button data-p="1" aria-pressed="${past}">Passés</button></div><div class="seg" id="rPay"><button data-u="0" aria-pressed="${!unpaid}">Tous</button><button data-u="1" aria-pressed="${!!unpaid}">Non payés</button></div>${isManager()?`<button class="btn pri" id="rNew">${ic("plus","sm")} ${isA?"Nouvel anniversaire":kind==="centre"?"Nouveau centre":"Nouvelle école"}</button>`:""}`)+
@@ -1086,7 +1090,7 @@ async function resaView(m,kind){
     const row=clean(r.data);if(!isA)row.type=kind;const{error}=await S.sb.from(table).insert(row);if(error)return fail(error);toast("Réservation ajoutée");render()};
   const open=async r=>{
     if(!isManager()){const st=ST[r.statut]||["",r.statut];
-      const fields=isA?[["Quand",`${capital(fDay(r.date))} à ${fTime(r.heure)}`],["Âge",r.age&&r.age+" ans"],["Enfants",r.nb_enfants],["Formule",r.formule],["Salle",r.salle],["Thème",r.theme],["Animateur·rice",animOf(r)&&person(animOf(r)).full_name],["Allergies",r.allergies],["Parent",[r.parent_nom,r.parent_tel].filter(Boolean).join(" · ")],["Note du client (Qweekle)",r.qweekle_note],["Statut",st[1]]]
+      const fields=isA?[["Quand",`${capital(fDay(r.date))} à ${fTime(r.heure)}`],["Âge",r.age&&r.age+" ans"],["Enfants",r.nb_enfants],["Formule",r.formule],["Salle",r.salle],["Thème",r.theme],["Option animateur",r.option_animateur?"🎈 OUI — avec animateur":"Non"],["Animateur·rice",animOf(r)?person(animOf(r)).full_name:r.option_animateur?"à prévoir":""],["Options",(r.options||[]).map(o=>OPT_IC(o)+" "+o).join("\n")||"Aucune"],["Allergies",r.allergies],["Parent",[r.parent_nom,r.parent_tel].filter(Boolean).join(" · ")],["Note du client (Qweekle)",r.qweekle_note],["Statut",st[1]]]
         :[["Quand",`${capital(fDay(r.date))} · ${fTime(r.heure_arrivee)}${r.heure_depart?" → "+fTime(r.heure_depart):""}`],["Ville",r.ville],[kind==="ecole"?"Classe(s)":"Âges",r.niveau],["Enfants",r.nb_enfants],["Encadrants",r.nb_encadrants],["Formule",r.formule],["Référent",r.referent&&person(r.referent).full_name],["Contact",[r.contact_nom,r.contact_tel].filter(Boolean).join(" · ")],["Notes",r.notes],["Statut",st[1]]];
       const info=`<div class="list">${fields.filter(([,v])=>v).map(([k,v])=>`<div class="row"><div class="tx"><small>${k}</small><b style="white-space:pre-wrap">${esc(v)}</b></div></div>`).join("")}</div>`;
       if(!isA){await modal(r.structure,info,{readonly:true});return}
