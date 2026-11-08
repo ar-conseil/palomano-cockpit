@@ -97,6 +97,15 @@ def reconcile(journal, ventes):
             f"{k} {sum(ventes[x].get(k, 0) for x in common) / a * 100:.0f} %"
             for k in ("ent_sans_adultes_groupes", "ent_sans_bebes", "ent_sans_adultes_ni_bebes", "ent_enfants_seuls",
                       "ent_entrees", "ent_anniv", "ent_b2b")))
+        for lbl, keep in (("lun-mar-jeu-ven", lambda x: dt.date.fromisoformat(x).weekday() in (0, 1, 3, 4)),
+                          ("mer-sam-dim", lambda x: dt.date.fromisoformat(x).weekday() in (2, 5, 6))):
+            sub = [x for x in common if keep(x)]
+            j = sum(journal[x]["ent"] for x in sub)
+            if j:
+                v = lambda k: sum(ventes[x].get(k, 0) for x in sub)
+                print(f"Entrées {lbl} : parc+anniv {(v('ent_entrees') + v('ent_anniv')) / j * 100:.0f} % · "
+                      f"parc+groupes {(v('ent_entrees') + v('ent_b2b')) / j * 100:.0f} % · "
+                      f"parc seul {v('ent_entrees') / j * 100:.0f} %")
 
 
 def daily_real(d):
