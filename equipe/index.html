@@ -59,6 +59,7 @@ nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--page)}
 nav.tabs .badge,.badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;margin-left:4px}
 main{max-width:960px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) calc(90px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
 @media (max-width:720px){
+  header.top{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--page)}
   nav.tabs{position:fixed;left:0;right:0;bottom:0;margin:0;z-index:20;background:var(--surface);border-top:1px solid var(--ring);padding:6px 6px calc(6px + env(safe-area-inset-bottom));justify-content:space-around;gap:0}
   nav.tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;padding:6px 4px;border-radius:10px;flex:1;min-width:0}
   nav.tabs button .ic{font-size:19px;line-height:1}
@@ -78,6 +79,8 @@ h3{font-size:15px;margin:0 0 8px}
 .li .tx{flex:1;min-width:0}
 .li .tx b{display:block;font-weight:600}
 .li .tx small{color:var(--muted);font-size:12px}
+.li.wrap{flex-wrap:wrap;row-gap:8px}
+.li.wrap .tx{flex-basis:100%}
 .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:650;padding:3px 9px;border-radius:999px;background:var(--surface-2);white-space:nowrap}
 .pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c,var(--muted))}
 .pill.good{--c:var(--good)}.pill.warn{--c:var(--warn)}.pill.crit{--c:var(--crit)}.pill.info{--c:var(--brand)}
@@ -218,6 +221,7 @@ const fShort=s=>parse(s).toLocaleDateString("fr-FR",{weekday:"short",day:"2-digi
 const fDate=s=>parse(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"});
 const fTime=t=>t?t.slice(0,5).replace(":","h"):"";
 const fStamp=ts=>new Date(ts).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+const fQty=v=>fNum(v,Number.isInteger(+v)?0:1);
 const fNum=(v,d=0)=>v==null||!isFinite(v)?"—":Number(v).toLocaleString("fr-FR",{maximumFractionDigits:d,minimumFractionDigits:d});
 const hours=(a,b)=>{const[h1,m1]=a.split(":").map(Number),[h2,m2]=b.split(":").map(Number);return(h2*60+m2-h1*60-m1)/60};
 const ROLE={direction:"Direction",responsable:"Responsable",equipe:"Équipe"};
@@ -402,7 +406,7 @@ VIEWS.planning=async m=>{
   const end=parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"long"});
   m.innerHTML=`<h2>Planning</h2>
     <div class="card"><div class="row" style="justify-content:space-between">
-      <div class="row"><button class="btn sm" id="wPrev" aria-label="Semaine précédente">←</button><b>Semaine du ${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"long"})} au ${end}</b><button class="btn sm" id="wNext" aria-label="Semaine suivante">→</button><button class="btn sm" id="wNow">Cette semaine</button></div>
+      <div class="row" style="flex-wrap:nowrap"><button class="btn sm" id="wPrev" aria-label="Semaine précédente">←</button><b style="flex:1;text-align:center">${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} → ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})}</b><button class="btn sm" id="wNext" aria-label="Semaine suivante">→</button><button class="btn sm" id="wNow">Auj.</button></div>
       ${st?`<span class="pill ${PLAN_ST[st][0]}">${PLAN_ST[st][1]}</span>`:isManager()?'<span class="pill">Pas encore commencé</span>':""}</div>
       ${pl&&pl.comment&&isManager()?`<p class="hint" style="margin:10px 0 0">💬 ${st==="refuse"?"Motif du refus":"Commentaire"} : ${esc(pl.comment)}</p>`:""}
       ${pl&&pl.validated_at&&st==="valide"?`<p class="hint" style="margin:10px 0 0">Validé par ${esc(person(pl.validated_by).full_name)} le ${fStamp(pl.validated_at)}</p>`:""}
@@ -454,6 +458,7 @@ VIEWS.stocks=async m=>{
   const k=S.stockKind;
   const{data:items,error}=await S.sb.from("stock_items").select("*").eq("kind",k).eq("active",true).order("category").order("name");
   if(error)return fail(error);
+  items.sort((a,b)=>(b.current_qty<=b.min_qty)-(a.current_qty<=a.min_qty));
   const low=items.filter(i=>i.current_qty<=i.min_qty).length;
   m.innerHTML=`<h2>Stocks</h2>
     <div class="row" style="justify-content:space-between;margin-bottom:12px"><div class="seg" id="kSeg"><button data-k="snack" aria-pressed="${k==="snack"}">🍪 Snack</button><button data-k="jouets" aria-pressed="${k==="jouets"}">🧸 Jouets & boutique</button></div>
@@ -462,7 +467,7 @@ VIEWS.stocks=async m=>{
       <p class="hint">${items.length} articles · ${low?`<b style="color:var(--crit-ink)">${low} sous le seuil de réassort</b>`:"aucun sous le seuil"} · touchez un article pour compter, entrer ou sortir du stock</p>
       <div class="list" id="iList">${items.map(i=>{const lo=i.current_qty<=i.min_qty;
         return`<div class="li" data-item="${i.id}" data-name="${esc((i.name+" "+i.category).toLowerCase())}" style="cursor:pointer"><div class="tx"><b>${esc(i.name)}</b><small>${esc(i.category||"")}${i.category?" · ":""}seuil ${fNum(i.min_qty)} ${esc(i.unit)} · maj ${fStamp(i.updated_at)}</small></div>
-          ${lo?'<span class="pill crit">À commander</span>':""}<span class="qty" style="${lo?"color:var(--crit-ink)":""}">${fNum(i.current_qty,1)}</span></div>`}).join("")||'<div class="empty">Aucun article. '+(isManager()?"Ajoutez-en avec « + Article ».":"La direction doit d\'abord créer la liste.")+"</div>"}</div></div>`;
+          ${lo?'<span class="pill crit">À commander</span>':""}<span class="qty" style="${lo?"color:var(--crit-ink)":""}">${fQty(i.current_qty)}</span></div>`}).join("")||'<div class="empty">Aucun article. '+(isManager()?"Ajoutez-en avec « + Article ».":"La direction doit d\'abord créer la liste.")+"</div>"}</div></div>`;
   $("kSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.stockKind=b.dataset.k;render()}};
   $("q").oninput=e=>{const q=e.target.value.toLowerCase().trim();m.querySelectorAll("[data-item]").forEach(li=>li.classList.toggle("hidden",q&&!li.dataset.name.includes(q)))};
   const itemForm=(i={})=>`<label class="f">Nom<input name="name" value="${esc(i.name||"")}" required maxlength="80"></label>
@@ -478,7 +483,7 @@ VIEWS.stocks=async m=>{
     const it=items.find(x=>x.id===+li.dataset.item);
     const{data:hist}=await S.sb.from("stock_moves").select("*").eq("item_id",it.id).order("created_at",{ascending:false}).limit(6);
     const MV={comptage:"Comptage",entree:"Entrée (livraison)",sortie:"Sortie / vente",casse:"Casse / perte"};
-    const r=await modal(it.name,`<p class="hint" style="margin:0">Stock actuel : <b>${fNum(it.current_qty,1)} ${esc(it.unit)}</b> · seuil ${fNum(it.min_qty)}</p>
+    const r=await modal(it.name,`<p class="hint" style="margin:0">Stock actuel : <b>${fQty(it.current_qty)} ${esc(it.unit)}</b> · seuil ${fNum(it.min_qty)}</p>
       <label class="f">Action<select name="move">${Object.entries(MV).map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select></label>
       <label class="f">Quantité (pour un comptage : ce que vous comptez en rayon)<input type="number" name="qty" min="0" step="any" required inputmode="decimal"></label>
       <label class="f">Note (facultatif)<input name="note" maxlength="120"></label>
@@ -501,7 +506,7 @@ VIEWS.demandes=async m=>{
   if(t==="conges"){
     const{data:lv,error}=await S.sb.from("leaves").select("*").order("start_date",{ascending:false}).limit(80);if(error)return fail(error);
     const KIND={conges:"Congés payés",recup:"Récupération",absence:"Absence",autre:"Autre"},ST={en_attente:["warn","En attente"],acceptee:["good","Acceptée"],refusee:["crit","Refusée"]};
-    const line=l=>`<div class="li"><div class="tx"><b>${isManager()?esc(person(l.user_id).full_name)+" · ":""}${KIND[l.kind]}</b><small>du ${fDate(l.start_date)} au ${fDate(l.end_date)}${l.comment?" · "+esc(l.comment):""}${l.decision_note?" · 💬 "+esc(l.decision_note):""}</small></div>
+    const line=l=>`<div class="li wrap"><div class="tx"><b>${isManager()?esc(person(l.user_id).full_name)+" · ":""}${KIND[l.kind]}</b><small>du ${fDate(l.start_date)} au ${fDate(l.end_date)}${l.comment?" · "+esc(l.comment):""}${l.decision_note?" · 💬 "+esc(l.decision_note):""}</small></div>
       <span class="pill ${ST[l.status][0]}">${ST[l.status][1]}</span>
       ${isDirection()&&l.status==="en_attente"?`<button class="btn sm ok" data-ok="${l.id}">Accepter</button><button class="btn sm bad" data-ko="${l.id}">Refuser</button>`:""}
       ${l.user_id===S.user.id&&l.status==="en_attente"?`<button class="btn sm" data-del="${l.id}">Annuler</button>`:""}</div>`;
