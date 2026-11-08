@@ -203,7 +203,14 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .wk .who{display:flex;align-items:center;gap:10px;padding:10px 12px;border-left:0;position:sticky;left:0;background:var(--card);z-index:1}
 .wk .who b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wk .who small{display:block;font-size:11.5px;color:var(--muted)}
-.wk .who.click,.tl .who.click{cursor:pointer}.wk .who.click:hover b,.tl .who.click:hover b{text-decoration:underline}
+.wk .who.click,.tl .who.click{cursor:pointer}
+.wk .anrow{background:color-mix(in srgb,var(--rouge-c) 35%,var(--card))}
+.anchip{display:block;width:100%;text-align:left;border:0;border-radius:10px;padding:5px 8px;font:inherit;font-size:12px;line-height:1.25;cursor:pointer;color:var(--ink);
+  background:color-mix(in srgb,var(--c,#c1daf3) 35%,#fff);box-shadow:inset 3px 0 0 var(--c,#c1daf3)}
+.anchip small{display:block;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anchip.todo{background:#fff;box-shadow:inset 0 0 0 1.5px var(--rouge-f)}.anchip.todo small{color:var(--rouge-f);font-weight:600}
+.anchip:disabled{cursor:default}
+.res-strip .anchip{width:auto;display:inline-block}.wk .who.click:hover b,.tl .who.click:hover b{text-decoration:underline}
 .wk .cell{padding:6px;min-height:64px;display:flex;flex-direction:column;gap:5px;position:relative}
 .wk .cell.today{background:rgba(247,213,137,.10)}
 .wk .cell.off{background:repeating-linear-gradient(135deg,rgba(239,129,142,.08) 0 8px,transparent 8px 16px)}
@@ -454,6 +461,10 @@ const isDirection=()=>S.me&&S.me.role==="direction";
 const canValidate=()=>isDirection()&&S.me.can_validate_planning;
 const realDirection=()=>((S.real&&S.real.me)||S.me)?.role==="direction";
 const person=id=>S.byId.get(id)||(S.ext&&S.ext.get(id))||{full_name:"—",color:"#9a9895"};
+const animOf=a=>a&&(a.animateur||a.animateur_ext);   // animateur d'un anniversaire : salarié (compte) ou intervenant
+const animCols=v=>v&&S.ext&&S.ext.has(v)?{animateur:null,animateur_ext:v}:{animateur:v||null,animateur_ext:null};
+const whoOptions=(sel,{empty}={})=>peopleOptions(sel,{empty})+(()=>{const ex=[...(S.ext||new Map()).values()].filter(x=>x.active||x.id===sel);
+  return ex.length?`<optgroup label="Sans compte (intérim, invités)">${ex.map(x=>`<option value="${x.id}" ${x.id===sel?"selected":""}>${esc(x.full_name)} — ${esc(INT_TYPE[x.type])}</option>`).join("")}</optgroup>`:""})();
 const INT_TYPE={animateur:"Animateur (intérim)",staffeur:"Staffeur (intérim)",salarie:"Salarié · compte pas encore créé",autre:"Renfort"};
 const firstName=id=>person(id).full_name.split(" ")[0];
 const avatar=(p,size=38)=>`<div class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.36)}px;background:${esc(p.color||"#c1daf3")}">${esc(initials(p.full_name))}</div>`;
@@ -667,7 +678,7 @@ VIEWS.today=async m=>{
   const mine=(shifts||[]).filter(s=>s.user_id===S.user.id),others=(shifts||[]).filter(s=>s.user_id!==S.user.id);
   const low=(stock||[]).filter(i=>i.current_qty<=i.min_qty);
   const hr=new Date().getHours();
-  const prog=[...(anniv||[]).map(a=>({k:"anniv",t:a.heure,title:`Anniversaire de ${a.enfant}${a.age?` · ${a.age} ans`:""}`,sub:[a.nb_enfants&&`${a.nb_enfants} enfants`,a.formule,a.salle,a.animateur&&`avec ${firstName(a.animateur)}`].filter(Boolean).join(" · "),alert:a.allergies})),
+  const prog=[...(anniv||[]).map(a=>({k:"anniv",t:a.heure,title:`Anniversaire de ${a.enfant}${a.age?` · ${a.age} ans`:""}`,sub:[a.nb_enfants&&`${a.nb_enfants} enfants`,a.formule,a.salle,animOf(a)&&`avec ${firstName(animOf(a))}`].filter(Boolean).join(" · "),alert:a.allergies})),
     ...(groupes||[]).map(g=>({k:g.type,t:g.heure_arrivee||"00:00",title:`${g.type==="ecole"?"École":"Centre"} · ${g.structure}`,sub:[g.nb_enfants&&`${g.nb_enfants} enfants`,g.nb_encadrants&&`${g.nb_encadrants} encadrants`,g.heure_depart&&`départ ${fTime(g.heure_depart)}`,g.niveau].filter(Boolean).join(" · ")}))]
     .sort((a,b)=>a.t.localeCompare(b.t));
   const cl=mom=>{const its=(items||[]).filter(i=>i.moment===mom),n=its.filter(i=>doneBy.has(i.id)).length;
@@ -731,7 +742,7 @@ VIEWS.planning=async m=>{
     S.sb.from("plannings").select("*").eq("week_start",w).maybeSingle(),
     S.sb.from("shifts").select("*").eq("week_start",w).order("start_time"),
     S.sb.from("leaves").select("*").eq("status","acceptee").lte("start_date",days[6]).gte("end_date",w),
-    S.sb.from("anniversaires").select("date,heure,enfant,nb_enfants").gte("date",w).lte("date",days[6]).neq("statut","annule"),
+    S.sb.from("anniversaires").select("id,date,heure,duree_min,enfant,age,nb_enfants,salle,animateur,animateur_ext").gte("date",w).lte("date",days[6]).neq("statut","annule"),
     S.sb.from("groupes").select("date,heure_arrivee,structure,nb_enfants,type").gte("date",w).lte("date",days[6]).neq("statut","annule"),
   ]);
   const st=pl?pl.status:null,editable=isManager()&&!!pl&&["brouillon","refuse"].includes(st);
@@ -752,12 +763,17 @@ VIEWS.planning=async m=>{
   const sub=st?`<span class="pill ${PLAN_ST[st][0]}"><i></i>${PLAN_ST[st][1]}</span>${pl.comment&&isManager()?` &nbsp;💬 ${esc(pl.comment)}`:""}${st==="valide"&&pl.validated_at?` &nbsp;<span style="font-size:13px">par ${esc(firstName(pl.validated_by))} le ${fStamp(pl.validated_at)}</span>`:""}${st==="soumis"&&pl.submitted_at?` &nbsp;<span style="font-size:13px">envoyé par ${esc(firstName(pl.submitted_by))} le ${fStamp(pl.submitted_at)}</span>`:""}`:(isManager()?"Cette semaine n'est pas encore préparée.":"");
   const who=p=>`<div class="who ${p.ext&&isManager()?"click":""}" ${p.ext?`data-ext="${p.id}"`:""}>${avatar(p,34)}<div style="min-width:0"><b>${esc(p.full_name)}</b><small>${p.ext?esc(INT_TYPE[p.type]+(p.agence?" · "+p.agence:"")):esc(p.poste||ROLE[p.role])}</small></div></div>`;
   const shHtml=s=>`<div class="sh ${editable?"edit":""} ${s.user_id===S.user.id?"me":""}" data-id="${s.id}" style="--c:${esc(person(s.user_id).color||"#c1daf3")}"><b>${fTime(s.start_time)}–${fTime(s.end_time)}</b>${s.label?`<small>${esc(s.label)}</small>`:""}</div>`;
+  const annOn=d=>(anniv||[]).filter(a=>a.date===d).sort((a,b)=>a.heure.localeCompare(b.heure));
+  const noAnim=()=>(anniv||[]).filter(a=>!animOf(a)).length;
+  const anChip=a=>{const p=animOf(a)?person(animOf(a)):null;return`<button type="button" class="anchip ${p?"":"todo"}" data-ann="${a.id}" ${isManager()?"":"disabled"} style="${p?`--c:${esc(p.color||"#c1daf3")}`:""}"><b>${fTime(a.heure)}</b> ${esc(a.enfant)}${a.nb_enfants?` · ${a.nb_enfants} enf.`:""}<small>${p?"🎈 "+esc(p.full_name.split(" ")[0]):"⚠ animateur à prévoir"}</small></button>`};
   const nbDay=d=>new Set(SH.filter(s=>s.day===d).map(s=>s.user_id)).size;
   const hDay=d=>SH.filter(s=>s.day===d).reduce((t,s)=>t+(s.b-s.a)/60,0);
   const weekGrid=()=>`<div class="board"><div class="wk">
       <div class="hd" style="text-align:left;padding-left:14px">Équipe</div>
       ${days.map(d=>`<div class="hd ${d===today?"today":""}">${parse(d).toLocaleDateString("fr-FR",{weekday:"short"})}<b>${parse(d).getDate()}</b>${resaOn(d).length?`<div style="font-size:11px;color:var(--ink-2)">${resaOn(d).length} résa</div>`:""}</div>`).join("")}
       <div class="hd">Total</div>
+      ${(anniv||[]).length?`<div class="who anrow"><div class="tile-ic" style="width:34px;height:34px;background:var(--rouge-c);color:var(--rouge-f)">${ic("cake","sm")}</div><div style="min-width:0"><b>Anniversaires</b><small>${noAnim()?`<span style="color:var(--rouge-f);font-weight:600">${noAnim()} sans animateur</span>`:"tous ont un animateur"}</small></div></div>`+
+        days.map(d=>`<div class="cell anrow ${d===today?"today":""}">${annOn(d).map(anChip).join("")}</div>`).join("")+`<div class="anrow"></div>`:""}
       ${team.map(p=>who(p)+days.map(d=>{const list=SH.filter(s=>s.user_id===p.id&&s.day===d).sort((a,b)=>a.a-b.a),off=offOn(d,p.id);
         return`<div class="cell ${d===today?"today":""} ${off?"off":""} ${editable?"edit":""}" data-uid="${p.id}" data-day="${d}">${off?'<small style="color:var(--rouge-f);font-weight:600">🌴 Congé</small>':""}${list.map(shHtml).join("")}${editable&&!list.length?`<button class="add" data-add>${ic("plus","sm")}</button>`:""}</div>`}).join("")
         +`<div class="tot ${!p.ext&&(hrs[p.id]||0)>35?"over":""}">${fNum(hrs[p.id]||0,1)} h</div>`).join("")}
@@ -767,7 +783,7 @@ VIEWS.planning=async m=>{
     </div></div>`;
   const day=S.planDay,dl=SH.filter(s=>s.day===day);
   const pct=mn=>((mn-H0*60)/((H1-H0)*60))*100;
-  const dayTimeline=()=>`<div class="res-strip">${resaOn(day).map(r=>`<span class="pill" style="background:var(${RESA_COL[r.k][0]})">${ic(RESA_COL[r.k][2],"sm")} ${esc(r.l)}</span>`).join("")||'<span class="pill">Aucune réservation ce jour</span>'}</div>
+  const dayTimeline=()=>`${annOn(day).length?`<div class="res-strip">${annOn(day).map(anChip).join("")}</div>`:""}<div class="res-strip">${resaOn(day).filter(r=>r.k!=="anniv").map(r=>`<span class="pill" style="background:var(${RESA_COL[r.k][0]})">${ic(RESA_COL[r.k][2],"sm")} ${esc(r.l)}</span>`).join("")||(annOn(day).length?"":'<span class="pill">Aucune réservation ce jour</span>')}</div>
     <div class="board"><div class="tl" style="--hours:${H1-H0}">
       <div class="who" style="border-top:0;font-size:13px;color:var(--ink-2);padding-left:14px;display:flex;align-items:center">${capital(fDay(day))}</div>
       <div class="hrs">${[...Array(H1-H0+1)].map((_,i)=>`<span style="left:${i/(H1-H0)*100}%">${i===0||i===H1-H0?"":H0+i+"h"}</span>`).join("")}</div>
@@ -807,7 +823,7 @@ VIEWS.planning=async m=>{
 
   /* ── vue semaine : glisser un service d'une case à l'autre ── */
   if(view==="semaine"&&editable){
-    m.querySelectorAll(".wk .cell").forEach(cell=>cell.addEventListener("click",e=>{
+    m.querySelectorAll(".wk .cell:not(.anrow)").forEach(cell=>cell.addEventListener("click",e=>{
       if(e.target.closest(".sh"))return;createShift({user_id:cell.dataset.uid,day:cell.dataset.day,...lastTimes(cell.dataset.uid)})}));
     m.querySelectorAll(".wk .sh").forEach(el=>el.addEventListener("pointerdown",e=>{
       if(e.button>0)return;e.preventDefault();el.setPointerCapture(e.pointerId);
@@ -815,7 +831,7 @@ VIEWS.planning=async m=>{
       const mv=ev=>{
         if(!fl){if(Math.hypot(ev.clientX-x0,ev.clientY-y0)<5)return;fl=el.cloneNode(true);fl.classList.add("floating");fl.style.width=el.offsetWidth+"px";document.body.appendChild(fl);el.classList.add("dragging");DRAG={mode:"week"}}
         fl.style.left=ev.clientX+"px";fl.style.top=ev.clientY+"px";
-        const c=document.elementFromPoint(ev.clientX,ev.clientY)?.closest(".wk .cell");
+        const c=document.elementFromPoint(ev.clientX,ev.clientY)?.closest(".wk .cell:not(.anrow)");
         if(c!==target){target?.classList.remove("drop");target=c;target?.classList.add("drop")}
       };
       const up=async()=>{el.removeEventListener("pointermove",mv);el.removeEventListener("pointerup",up);DRAG=null;
@@ -899,6 +915,17 @@ VIEWS.planning=async m=>{
     const r=await modal(x.full_name,extForm(x),{danger:x.type==="salarie"?null:"Retirer du planning"});if(!r)return;
     const upd=r.action==="danger"?{active:false}:{full_name:r.data.full_name.trim(),color:r.data.color,...(x.type==="salarie"?{}:{type:r.data.type,agence:(r.data.agence||"").trim()})};
     const{error}=await S.sb.from("intervenants").update(upd).eq("id",x.id);if(error)return fail(error);await loadPeople();render()}});
+  m.querySelectorAll("[data-ann]").forEach(b=>b.onclick=async()=>{if(!isManager())return;const a=(anniv||[]).find(x=>x.id===+b.dataset.ann);if(!a)return;
+    const a0=toMin(a.heure),a1=a0+(a.duree_min||120),fin=toTime(Math.min(a1,23*60+45));
+    const r=await modal(`Anniversaire de ${a.enfant}`,`<p style="margin:0 0 10px;font-size:15px"><b>${capital(fDay(a.date))}</b> · ${fTime(a.heure)} – ${fTime(fin)}${a.nb_enfants?` · ${a.nb_enfants} enfants`:""}${a.age?` · ${a.age} ans`:""}${a.salle?` · ${esc(a.salle)}`:""}</p>
+      <label class="f full">Animateur·rice<select name="who">${whoOptions(animOf(a),{empty:"— à prévoir —"})}</select></label>
+      ${editable?`<label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="shift" checked style="width:auto"> Ajouter aussi son service au planning (${fTime(a.heure)} – ${fTime(fin)}) s'il n'est pas déjà prévu</label>`
+        :`<p style="font-size:13px;color:var(--ink-2);margin:6px 0 0">${pl?"Le planning de la semaine n'est plus modifiable : pensez à vérifier ses horaires.":"Le planning de cette semaine n'est pas encore commencé : son service n'y sera pas ajouté."}</p>`}`,{submit:"Enregistrer"});
+    if(!r)return;const who=r.data.who||null;
+    const{error}=await S.sb.from("anniversaires").update({...animCols(who),updated_at:new Date().toISOString()}).eq("id",a.id);if(error)return fail(error);
+    if(who&&editable&&r.data.shift&&!SH.some(s=>s.user_id===who&&s.day===a.date&&s.a<=a0&&s.b>=a1)){
+      const{error:e2}=await S.sb.from("shifts").insert(qui({week_start:w,user_id:who,day:a.date,start_time:a.heure,end_time:fin,label:`Anniv ${a.enfant}`.slice(0,60)}));if(e2)return fail(e2)}
+    toast(who?`${person(who).full_name.split(" ")[0]} anime l'anniversaire de ${a.enfant}`:"Animateur retiré");render()});
   m.querySelectorAll("[data-addday]").forEach(b=>b.onclick=()=>createShift({day:b.dataset.addday,start_time:"09:30",end_time:"18:30"}));
   m.querySelectorAll(".mshift[data-shift]").forEach(el=>el.onclick=()=>editShift(SH.find(x=>x.id===+el.dataset.shift)));
   on("pSubmit",async()=>{if(!SH.length)return toast("Ajoutez au moins un service");if(!confirm("Envoyer ce planning à Alex pour validation ? Il ne sera plus modifiable sauf refus."))return;
@@ -933,7 +960,7 @@ async function resaView(m,kind){
   const card=r=>{const st=ST[r.statut]||["",r.statut];
     const when=isA?`${fTime(r.heure)}<small>${r.duree_min?Math.round(r.duree_min/60*10)/10+" h":""}</small>`:`${fTime(r.heure_arrivee)||"—"}<small>${r.heure_depart?"→ "+fTime(r.heure_depart):""}</small>`;
     const title=isA?`${esc(r.enfant)}${r.age?` <span style="font-weight:500;color:var(--ink-2)">· ${r.age} ans</span>`:""}`:`${esc(r.structure)}${r.ville?` <span style="font-weight:500;color:var(--ink-2)">· ${esc(r.ville)}</span>`:""}`;
-    const meta=isA?[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.formule&&`${ic("cake","sm")} ${esc(r.formule)}`,r.salle&&`${ic("pin","sm")} ${esc(r.salle)}`,r.animateur&&`${ic("clock","sm")} ${esc(firstName(r.animateur))}`,r.theme&&`✨ ${esc(r.theme)}`]
+    const meta=isA?[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.formule&&`${ic("cake","sm")} ${esc(r.formule)}`,r.salle&&`${ic("pin","sm")} ${esc(r.salle)}`,animOf(r)?`${ic("clock","sm")} ${esc(firstName(animOf(r)))}`:isManager()&&r.statut!=="annule"?`<span style="color:var(--rouge-f);font-weight:600">⚠ animateur à prévoir</span>`:"",r.theme&&`✨ ${esc(r.theme)}`]
       :[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.nb_encadrants&&`${r.nb_encadrants} encadrants`,r.niveau&&`${ic(conf.icon,"sm")} ${esc(r.niveau)}`,r.formule&&esc(r.formule),r.referent&&`référent ${esc(firstName(r.referent))}`];
     return`<div class="resa" data-id="${r.id}" tabindex="0"><div class="when" style="background:var(${conf.col})">${when}</div>
       <div class="tx"><b>${title}</b><div class="meta">${meta.filter(Boolean).map(x=>`<span>${x}</span>`).join("")}</div>${isA&&r.allergies?`<div class="meta"><span class="alert">${ic("alert","sm")} ${esc(r.allergies)}</span></div>`:""}${r.qweekle_note?`<div class="meta"><span>${ic("alert","sm")} Note du client : ${esc(r.qweekle_note)}</span></div>`:""}</div>
@@ -960,7 +987,7 @@ async function resaView(m,kind){
       <label class="f">Formule<input name="formule" list="formules" value="${esc(r.formule||"")}" placeholder="Palo-Fiesta, Goûter Palomano…"><datalist id="formules"><option>Palo-Fiesta</option><option>Goûter Palomano</option><option>Goûter non compris</option><option>Découverte</option></datalist></label>
       <label class="f">Salle<input name="salle" value="${esc(r.salle||"")}" placeholder="Salle 1, Salle 2…"></label>
       <label class="f">Thème<input name="theme" value="${esc(r.theme||"")}" maxlength="60"></label>
-      <label class="f">Animateur·rice<select name="animateur">${peopleOptions(r.animateur,{empty:"—"})}</select></label>
+      <label class="f">Animateur·rice<select name="animateur">${whoOptions(animOf(r),{empty:"— à prévoir —"})}</select></label>
       <label class="f full">Allergies / régimes<input name="allergies" value="${esc(r.allergies||"")}" placeholder="Ex. : arachides (Léon), sans gluten (2 enfants)"></label>
       <label class="f">Parent<input name="parent_nom" value="${esc(r.parent_nom||"")}"></label>
       <label class="f">Téléphone<input type="tel" name="parent_tel" value="${esc(r.parent_tel||"")}"></label>
@@ -987,13 +1014,13 @@ async function resaView(m,kind){
       <label class="f full">Montant (€)<input type="number" step="0.01" name="montant" value="${r.montant??""}"></label>
       <label class="f full">Notes<textarea name="notes">${esc(r.notes||"")}</textarea></label></div>`;
   const NUM=["age","nb_enfants","nb_encadrants","duree_min","montant","acompte"];
-  const clean=d=>{const o={};for(const[k,v]of Object.entries(d))o[k]=v===""?null:NUM.includes(k)?+v:v;return o};
+  const clean=d=>{const o={};for(const[k,v]of Object.entries(d))o[k]=v===""?null:NUM.includes(k)?+v:v;if(isA&&"animateur" in d)Object.assign(o,animCols(d.animateur));return o};
   const table=isA?"anniversaires":"groupes";
   const nb=$("rNew");if(nb)nb.onclick=async()=>{const r=await modal(isA?"Nouvel anniversaire":kind==="centre"?"Nouveau centre de loisirs":"Nouvelle sortie scolaire",form(),{submit:"Ajouter"});if(!r)return;
     const row=clean(r.data);if(!isA)row.type=kind;const{error}=await S.sb.from(table).insert(row);if(error)return fail(error);toast("Réservation ajoutée");render()};
   const open=async r=>{
     if(!isManager()){const st=ST[r.statut]||["",r.statut];
-      const fields=isA?[["Quand",`${capital(fDay(r.date))} à ${fTime(r.heure)}`],["Âge",r.age&&r.age+" ans"],["Enfants",r.nb_enfants],["Formule",r.formule],["Salle",r.salle],["Thème",r.theme],["Animateur·rice",r.animateur&&person(r.animateur).full_name],["Allergies",r.allergies],["Parent",[r.parent_nom,r.parent_tel].filter(Boolean).join(" · ")],["Notes",r.notes],["Statut",st[1]]]
+      const fields=isA?[["Quand",`${capital(fDay(r.date))} à ${fTime(r.heure)}`],["Âge",r.age&&r.age+" ans"],["Enfants",r.nb_enfants],["Formule",r.formule],["Salle",r.salle],["Thème",r.theme],["Animateur·rice",animOf(r)&&person(animOf(r)).full_name],["Allergies",r.allergies],["Parent",[r.parent_nom,r.parent_tel].filter(Boolean).join(" · ")],["Notes",r.notes],["Statut",st[1]]]
         :[["Quand",`${capital(fDay(r.date))} · ${fTime(r.heure_arrivee)}${r.heure_depart?" → "+fTime(r.heure_depart):""}`],["Ville",r.ville],[kind==="ecole"?"Classe(s)":"Âges",r.niveau],["Enfants",r.nb_enfants],["Encadrants",r.nb_encadrants],["Formule",r.formule],["Référent",r.referent&&person(r.referent).full_name],["Contact",[r.contact_nom,r.contact_tel].filter(Boolean).join(" · ")],["Notes",r.notes],["Statut",st[1]]];
       await modal(isA?`Anniversaire de ${r.enfant}`:r.structure,`<div class="list">${fields.filter(([,v])=>v).map(([k,v])=>`<div class="row"><div class="tx"><small>${k}</small><b style="white-space:pre-wrap">${esc(v)}</b></div></div>`).join("")}</div>`,{readonly:true});return}
     const res=await modal(isA?`Anniversaire de ${r.enfant}`:r.structure,form(r),{danger:"Supprimer"});if(!res)return;
