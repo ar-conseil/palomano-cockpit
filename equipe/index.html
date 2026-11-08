@@ -1113,6 +1113,13 @@ VIEWS.demandes=async m=>{
 
 /* ═════════ OBJECTIFS ═════════ */
 function objLine(o,kp){
+  const kd=o.kpi_key&&kp.get(o.kpi_key+"@jour"),kw=o.kpi_key&&kp.get(o.kpi_key+"@semaine"),km=o.kpi_key&&kp.get(o.kpi_key);
+  if(km&&(kd||kw)){  // suivi automatique : jour, semaine et mois en cours
+    const fv=(v,unit)=>v==null?"—":unit==="%"?fNum(v,0)+" %":unit==="€"?(Math.abs(v)>=100?fNum(v,0):fNum(v,2))+" €":unit==="note"?fNum(v,2):fNum(v,0);
+    const bar=(lbl,k)=>{if(!k)return"";const r=k.target?k.value/k.target:NaN,w=isFinite(r)?Math.min(r,1)*100:0,col=!isFinite(r)?"var(--muted)":r>=1?"var(--vert-f)":r>=.9?"var(--jaune-f)":"var(--bleu-f)";
+      return`<div style="display:grid;grid-template-columns:74px 1fr auto;gap:10px;align-items:center;margin-top:6px"><small style="color:var(--ink-2);font-weight:600">${lbl}</small><div class="prog" style="margin:0"><i style="width:${w}%;background:${col}"></i></div><small style="white-space:nowrap">${fv(k.value,k.unit)} <span style="color:var(--muted)">/ ${fv(k.target,k.unit)}${isFinite(r)?" · "+(r>=1?"🎉 ":"")+fNum(r*100,0)+" %":""}</span></small></div>`};
+    return`<div style="margin:12px 0"><b>${esc(o.title.replace(/ du mois\b/i,""))}</b>${bar("Jour",kd)}${bar("Semaine",kw)}${bar("Mois",km)}
+      <small style="color:var(--muted)">${[kd&&kd.period,kw&&kw.period,km.period].filter(Boolean).map(esc).join(" · ")} · suivi automatique${o.description?" · "+esc(o.description):""}</small></div>`}
   const k=o.kpi_key?kp.get(o.kpi_key):null,cur=k?k.value:o.current,tgt=k&&k.target!=null?k.target:o.target,unit=k?k.unit:o.unit;
   const r=tgt?cur/tgt:NaN,w=isFinite(r)?Math.min(r,1)*100:0,col=!isFinite(r)?"var(--muted)":r>=1?"var(--vert-f)":r>=.9?"var(--jaune-f)":"var(--bleu-f)";
   const fv=v=>v==null?"—":unit==="%"?fNum(v,0)+" %":unit==="€"?(Math.abs(v)>=100?fNum(v,0):fNum(v,2))+" €":unit==="note"?fNum(v,2):fNum(v,0)+(unit&&unit!=="nb"?" "+esc(unit):"");
@@ -1124,7 +1131,7 @@ VIEWS.objectifs=async m=>{
   const[{data:objs,error},{data:kpis}]=await Promise.all([S.sb.from("objectives").select("*").eq("active",true).order("end_date",{nullsFirst:false}),S.sb.from("kpi_feed").select("*")]);
   if(error)return fail(error);
   const kp=new Map((kpis||[]).map(k=>[k.key,k]));
-  if(S.real&&S.me.invite&&/yannika/i.test(S.me.email))(kpis||[]).filter(k=>k.key.startsWith("yan_")).forEach(k=>objs.push({id:"pv-"+k.key,scope:"individuel",user_id:S.user.id,
+  if(S.real&&S.me.invite&&/yannika/i.test(S.me.email))(kpis||[]).filter(k=>k.key.startsWith("yan_")&&!k.key.includes("@")).forEach(k=>objs.push({id:"pv-"+k.key,scope:"individuel",user_id:S.user.id,
     title:k.label.replace(" (objectif Yannika)",""),kpi_key:k.key,unit:k.unit,description:"Objectif mensuel du BP, mis à jour chaque jour",active:true}));
   const team=objs.filter(o=>o.scope==="equipe"),mine=objs.filter(o=>o.scope==="individuel"&&o.user_id===S.user.id),others=objs.filter(o=>o.scope==="individuel"&&o.user_id!==S.user.id);
   const byPerson=new Map();others.forEach(o=>{if(!byPerson.has(o.user_id))byPerson.set(o.user_id,[]);byPerson.get(o.user_id).push(o)});
@@ -1135,7 +1142,7 @@ VIEWS.objectifs=async m=>{
     ${isManager()&&byPerson.size?`<div class="grid g2" style="margin-top:18px">${[...byPerson].map(([uid,list])=>`<div class="card"><h3>${avatar(person(uid),32)} ${esc(person(uid).full_name)}</h3>${block(list,true)}</div>`).join("")}</div>`:""}`;
   const form=(o={})=>`<div class="fgrid"><label class="f full">Objectif<input name="title" value="${esc(o.title||"")}" required maxlength="100" placeholder="Ex. : 4,8 de note Google"></label>
     <label class="f full">Pour<select name="who"><option value="">Toute l'équipe</option>${peopleOptions(o.user_id)}</select></label>
-    <label class="f full">Suivi automatique depuis le dashboard<select name="kpi_key"><option value="">Non — saisie manuelle</option>${(kpis||[]).map(k=>`<option value="${k.key}" ${k.key===o.kpi_key?"selected":""}>${esc(k.label)}</option>`).join("")}</select></label>
+    <label class="f full">Suivi automatique depuis le dashboard<select name="kpi_key"><option value="">Non — saisie manuelle</option>${(kpis||[]).filter(k=>!k.key.includes("@")).map(k=>`<option value="${k.key}" ${k.key===o.kpi_key?"selected":""}>${esc(k.label)}</option>`).join("")}</select></label>
     <label class="f">Valeur actuelle<input type="number" step="any" name="current" value="${o.current??0}"></label>
     <label class="f">Cible<input type="number" step="any" name="target" value="${o.target??""}"></label>
     <label class="f">Unité<input name="unit" value="${esc(o.unit||"")}" placeholder="nb, %, €, note…" maxlength="12"></label>

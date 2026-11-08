@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Publie les indicateurs du mois vers l'espace équipe (table Supabase kpi_feed),
-pour les objectifs suivis automatiquement.
+Publie les indicateurs du jour, de la semaine et du mois en cours vers l'espace équipe (table Supabase kpi_feed),
+pour les objectifs suivis automatiquement (clés « …@jour » et « …@semaine » à côté de la clé du mois).
+Le réalisé vient du journal « Objectifs Palomano Lille » ; les jours pas encore saisis sont complétés
+par l'export caisse Qweekle. Cibles du jour et de la semaine : objectif du mois × poids du jour (OBJECTIF JOUR).
 - Indicateurs d'équipe : volumes et pourcentages uniquement, sans montant de CA.
 - Objectifs mensuels de la directrice (fichier « Objectifs Yannika ») : montants en € HT,
   marqués « restricted » donc lisibles seulement par la direction et les responsables.
@@ -35,52 +37,147 @@ def month_visitors(d, k):
     return (d["objSeg"].get(k) or {}).get("vis")
 
 
+# ───────────── Réalisé jour par jour : journal « Objectifs Palomano Lille » + export caisse Qweekle ─────────────
+SEG = ("ca", "parc", "anniv_ht", "groupes", "snack", "ent", "paying", "anniv_n")
+
+
+def from_journal(r):
+    return {"ca": r[8], "parc": r[1], "anniv_ht": r[2], "groupes": r[3] + r[4], "snack": r[5] + r[6],
+            "ent": r[9], "paying": r[12], "anniv_n": r[11], "snack_only": r[5]}
+
+
+def from_ventes(v):
+    """Agrégats journaliers de l'export caisse (montants HT, par date de vente)."""
+    out = {}
+    for di, p, q, ht in v["pd"]:
+        fam, _, name, _ = v["products"][p]
+        d = out.setdefault(v["days"][di], dict.fromkeys(SEG + ("snack_only",), 0.0))
+        if fam != "autre":                      # acomptes, bons cadeaux, avoirs : pas du CA du jour
+            d["ca"] += ht
+        if fam == "entrees":
+            d["parc"] += ht
+            d["paying"] += q
+        elif fam == "anniv":
+            d["anniv_ht"] += ht
+        elif fam == "b2b":
+            d["groupes"] += ht
+        elif fam in ("snack", "boutique"):
+            d["snack"] += ht
+            if fam == "snack":
+                d["snack_only"] += ht
+        if fam in ("entrees", "anniv", "b2b") and not str(name).lower().startswith("anniversaire"):
+            d["ent"] += q                       # entrées tous publics (hors ligne « formule anniversaire »)
+    for day, t in v.get("tk", {}).items():
+        if day in out:
+            out[day]["anniv_n"] = t.get("anniv", 0)
+    return out
+
+
+def reconcile(journal, ventes):
+    """Écart caisse / journal sur les jours communs du dernier mois saisi (en %, sans montant)."""
+    common = sorted(set(journal) & set(ventes))[-31:]
+    if not common:
+        return
+    def pct(k):
+        a, b = sum(journal[x][k] for x in common), sum(ventes[x][k] for x in common)
+        return f"{k} {b / a * 100:.0f} %" if a else f"{k} —"
+    print(f"Contrôle caisse / journal ({common[0]} → {common[-1]}) : " + " · ".join(pct(k) for k in SEG))
+
+
+def daily_real(d):
+    journal = {r[0]: from_journal(r) for r in d["daily"]}
+    days, source = dict(journal), {}
+    if d.get("ventes"):
+        ventes = from_ventes(d["ventes"])
+        reconcile(journal, ventes)
+        for day, v in ventes.items():
+            if day > (d["lastDate"] or ""):     # le journal fait foi ; la caisse complète les jours non saisis
+                days[day], source[day] = v, "caisse"
+    return days, source
+
+
+def weights(d):
+    raw = {}
+    for day, v in d["dayObj"].items():
+        raw[day[:7]] = raw.get(day[:7], 0) + v
+    def w(day):
+        k = day[:7]
+        n = (dt.date(int(k[:4]) + int(k[5:]) // 12, int(k[5:]) % 12 + 1, 1) - dt.timedelta(days=1)).day
+        return d["dayObj"].get(day, 0) / raw[k] if raw.get(k) else 1 / n
+    return w
+
+
+def span(a, b):
+    a, b = dt.date.fromisoformat(a), dt.date.fromisoformat(b)
+    return [(a + dt.timedelta(days=i)).isoformat() for i in range((b - a).days + 1)]
+
+
 def kpis(d):
-    last = d["lastDate"]
-    k = last[:7]
-    rows = [r for r in d["daily"] if r[0].startswith(k)]
-    # même mois N-1, à date comparable (J-364)
-    a1 = (dt.date.fromisoformat(k + "-01") - dt.timedelta(days=364)).isoformat()
-    b1 = (dt.date.fromisoformat(last) - dt.timedelta(days=364)).isoformat()
-    n1 = [r for r in d["daily"] if a1 <= r[0] <= b1]
-    ca, ent, paying, snack = (sum(r[i] for r in rows) for i in (8, 9, 12, 5))
-    anniv, anniv1 = sum(r[11] for r in rows), sum(r[11] for r in n1)
-    tgt = month_target(d, k)
+    days, source = daily_real(d)
+    last = max(x for x, v in days.items() if v["ca"] > 0)
+    w = weights(d)
+    ref = dt.date.fromisoformat(last)
+    mon = ref - dt.timedelta(days=ref.weekday())
+    periods = {   # (jours réalisés, jours de la cible, libellé)
+        "jour": ([last], [last], ref.strftime("%d/%m")),
+        "semaine": (span(mon.isoformat(), last), span(mon.isoformat(), (mon + dt.timedelta(days=6)).isoformat()),
+                    "semaine du " + mon.strftime("%d/%m")),
+        "mois": (span(last[:8] + "01", last), None, ref.strftime("%m/%Y")),
+    }
     dist = d["avis"].get("dist") or []
     nb = sum(x["n"] for x in dist)
     note = sum(x["etoiles"] * x["n"] for x in dist) / nb if nb else None
-    label = dt.date.fromisoformat(last).strftime("%m/%Y")
-    return [
-        {"key": "entrees_mois", "label": "Entrées du mois vs objectif", "value": ent,
-         "target": month_visitors(d, k), "unit": "nb", "period": label},
-        {"key": "ca_mois", "label": "Atteinte de l'objectif du mois", "value": round(ca / tgt * 100, 1) if tgt else None,
-         "target": 100, "unit": "%", "period": label},
-        {"key": "snack_visiteur", "label": "Snack par visiteur", "value": round(snack / paying, 2) if paying else None,
-         "target": 1.05, "unit": "€", "period": label},
-        {"key": "anniv_mois", "label": "Anniversaires du mois (vs même période N-1)", "value": anniv,
-         "target": anniv1 or None, "unit": "nb", "period": label},
-        {"key": "note_google", "label": "Note Google", "value": round(note, 2) if note else None,
-         "target": 4.8, "unit": "note", "period": d["avis"].get("releve", "")},
-    ] + yannika(d, k, rows, label)
+    out = [{"key": "note_google", "label": "Note Google", "value": round(note, 2) if note else None,
+            "target": 4.8, "unit": "note", "period": d["avis"].get("releve", "")}]
+    for per, (real_days, tgt_days, label) in periods.items():
+        sfx = "" if per == "mois" else "@" + per
+        if any(source.get(x) for x in real_days):
+            label += " · caisse Qweekle"
+        tot = lambda k: sum(days[x][k] for x in real_days if x in days)
+        k = last[:7]
+        if per == "mois":
+            ca_t, vis_t = month_target(d, k), month_visitors(d, k)
+        else:
+            ca_t = sum(month_target(d, x[:7]) * w(x) for x in tgt_days if month_target(d, x[:7]))
+            vis_t = sum((month_visitors(d, x[:7]) or 0) * w(x) for x in tgt_days) or None
+        n1 = [(dt.date.fromisoformat(x) - dt.timedelta(days=364)).isoformat() for x in real_days]
+        anniv1 = sum(days[x]["anniv_n"] for x in n1 if x in days)
+        lab = {"jour": " du jour", "semaine": " de la semaine", "mois": " du mois"}[per]
+        out += [
+            {"key": "entrees_mois" + sfx, "label": f"Entrées{lab} vs objectif", "value": round(tot("ent")),
+             "target": round(vis_t) if vis_t else None, "unit": "nb", "period": label},
+            {"key": "ca_mois" + sfx, "label": f"Atteinte de l'objectif{lab}",
+             "value": round(tot("ca") / ca_t * 100, 1) if ca_t else None, "target": 100, "unit": "%", "period": label},
+            {"key": "snack_visiteur" + sfx, "label": f"Snack par visiteur{lab}",
+             "value": round(tot("snack_only") / tot("paying"), 2) if tot("paying") else None,
+             "target": 1.05, "unit": "€", "period": label},
+            {"key": "anniv_mois" + sfx, "label": f"Anniversaires{lab} (vs même période N-1)", "value": round(tot("anniv_n")),
+             "target": anniv1 or None, "unit": "nb", "period": label},
+        ] + yannika(d, k, tot, label, sfx, None if per == "mois" else tgt_days, w)
+    return out
 
 
-def yannika(d, k, rows, label):
-    """Réalisé du mois face aux objectifs mensuels du BP de la directrice (€ HT, sauf visiteurs)."""
+def yannika(d, k, tot, label, sfx, tgt_days, w):
+    """Réalisé face aux objectifs du BP de la directrice (€ HT, sauf visiteurs) ; jour et semaine au prorata."""
+    R = d["bp"]["rows"]
+    def tgt(*keys):
+        def month(m):
+            return sum((R.get(x) or [0] * 12)[BPM.index(m)] or 0 for x in keys) if m in BPM else 0
+        v = month(k) if tgt_days is None else sum(month(x[:7]) * w(x) for x in tgt_days)
+        return round(v) or None
     if k not in BPM:
         return []
-    i, R = BPM.index(k), d["bp"]["rows"]
-    tgt = lambda *keys: round(sum((R.get(x) or [0] * 12)[i] or 0 for x in keys)) or None
-    real = lambda *idx: round(sum(r[j] for r in rows for j in idx))
     out = [  # (clé, libellé, réalisé, cible, unité)
-        ("yan_ca", "CA HT du mois (objectif Yannika)", real(8), tgt("ca"), "€"),
-        ("yan_visiteurs", "Visiteurs du mois (objectif Yannika)", real(9), tgt("vis"), "nb"),
-        ("yan_parc", "CA HT billetterie parc (objectif Yannika)", real(1), tgt("enfants", "adultes"), "€"),
-        ("yan_anniv", "CA HT anniversaires (objectif Yannika)", real(2), tgt("anniv"), "€"),
-        ("yan_groupes", "CA HT écoles & centres (objectif Yannika)", real(3, 4), tgt("ecole", "adl"), "€"),
-        ("yan_snack", "CA HT snack & boutique (objectif Yannika)", real(5, 6), tgt("snackbout"), "€"),
+        ("yan_ca", "CA HT", tot("ca"), tgt("ca"), "€"),
+        ("yan_visiteurs", "Visiteurs", tot("ent"), tgt("vis"), "nb"),
+        ("yan_parc", "CA HT billetterie parc", tot("parc"), tgt("enfants", "adultes"), "€"),
+        ("yan_anniv", "CA HT anniversaires", tot("anniv_ht"), tgt("anniv"), "€"),
+        ("yan_groupes", "CA HT écoles & centres", tot("groupes"), tgt("ecole", "adl"), "€"),
+        ("yan_snack", "CA HT snack & boutique", tot("snack"), tgt("snackbout"), "€"),
     ]
-    return [{"key": a, "label": b, "value": v, "target": t, "unit": u, "period": label, "restricted": True}
-            for a, b, v, t, u in out]
+    lab = {"": " du mois", "@jour": " du jour", "@semaine": " de la semaine"}[sfx]
+    return [{"key": a + sfx, "label": f"{b}{lab} (objectif Yannika)", "value": round(v), "target": t, "unit": u,
+             "period": label, "restricted": True} for a, b, v, t, u in out]
 
 
 def main():
@@ -99,8 +196,11 @@ def main():
         urllib.request.urlopen(req, timeout=30)
     except urllib.error.HTTPError as e:
         sys.exit(f"Espace équipe : échec de publication des indicateurs (HTTP {e.code}) {e.read()[:200]!r}")
-    print("Espace équipe : " + " · ".join(f"{r['key']}={r['value']}" for r in rows))
-    ensure_yannika_objectives(url, key, [r for r in rows if r["key"].startswith("yan_")])
+    # journal public (dépôt public) : pas de montants, seulement les pourcentages d'atteinte
+    print("Espace équipe : " + " · ".join(
+        f"{r['key']}={round(r['value'] / r['target'] * 100) if r['value'] is not None and r['target'] else '—'} %"
+        for r in rows if r["key"] != "note_google"))
+    ensure_yannika_objectives(url, key, [r for r in rows if r["key"].startswith("yan_") and "@" not in r["key"]])
 
 
 def rest(url, key, path, body=None, method="GET"):
