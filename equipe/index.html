@@ -208,12 +208,22 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .wk .who b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wk .who small{display:block;font-size:11.5px;color:var(--muted)}
 .wk .who.click,.tl .who.click{cursor:pointer}
-.wk .anrow{background:color-mix(in srgb,var(--rouge-c) 35%,var(--card))}
 .anchip{display:block;width:100%;text-align:left;border:0;border-radius:10px;padding:5px 8px;font:inherit;font-size:12px;line-height:1.25;cursor:pointer;color:var(--ink);
   background:color-mix(in srgb,var(--c,#c1daf3) 35%,#fff);box-shadow:inset 3px 0 0 var(--c,#c1daf3)}
 .anchip small{display:block;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .anchip.todo{background:#fff;box-shadow:inset 0 0 0 1.5px var(--rouge-f)}.anchip.todo small{color:var(--rouge-f);font-weight:600}
 .anchip:disabled{cursor:default}
+.apweek{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px}
+.apday{background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:12px;display:flex;flex-direction:column;gap:8px;min-height:120px}
+.apday.today{box-shadow:inset 0 0 0 2px var(--rouge-f),var(--shadow)}
+.apday h4{margin:0 0 2px;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+.apday h4 span{font-size:12px;background:var(--rouge-c);color:var(--rouge-f);border-radius:999px;padding:1px 8px}
+.apnone{color:var(--muted);font-size:13px;text-align:center;margin:auto}
+.apcard{padding:8px 10px}.apcard .t{display:block;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+.apcard b{display:block;font-size:13.5px}.apcard .who2{display:block;margin-top:4px;font-size:12px;font-weight:600}
+.apcard.todo .who2{color:var(--rouge-f)}
+@media (max-width:1100px){.apweek{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.apweek{grid-template-columns:1fr}}
 .anchip.plain{background:var(--card);box-shadow:inset 0 0 0 1px var(--line-2)}
 .res-strip .anchip{width:auto;display:inline-block}.wk .who.click:hover b,.tl .who.click:hover b{text-decoration:underline}
 .wk .cell{padding:6px;min-height:64px;display:flex;flex-direction:column;gap:5px;position:relative}
@@ -480,7 +490,7 @@ const NAV=[
   {h:"Au quotidien"},
   {t:"today",l:"Aujourd'hui",i:"home"},{t:"planning",l:"Planning",i:"cal",b:"bPlan"},{t:"stocks",l:"Stocks",i:"box",b:"bStock",beta:true},
   {h:"Réservations"},
-  {t:"anniv",l:"Anniversaires",i:"cake"},{t:"centres",l:"Centres de loisirs",i:"tent"},{t:"ecoles",l:"Écoles",i:"school"},
+  {t:"anniv",l:"Anniversaires",i:"cake"},{t:"annivplan",l:"Planning anniversaires",i:"cal"},{t:"centres",l:"Centres de loisirs",i:"tent"},{t:"ecoles",l:"Écoles",i:"school"},
   {h:"Équipe"},
   {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"objectifs",l:"Objectifs",i:"target"},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
 ];
@@ -771,17 +781,12 @@ VIEWS.planning=async m=>{
   const sub=st?`<span class="pill ${PLAN_ST[st][0]}"><i></i>${PLAN_ST[st][1]}</span>${pl.comment&&isManager()?` &nbsp;💬 ${esc(pl.comment)}`:""}${st==="valide"&&pl.validated_at?` &nbsp;<span style="font-size:13px">par ${esc(firstName(pl.validated_by))} le ${fStamp(pl.validated_at)}</span>`:""}${st==="soumis"&&pl.submitted_at?` &nbsp;<span style="font-size:13px">envoyé par ${esc(firstName(pl.submitted_by))} le ${fStamp(pl.submitted_at)}</span>`:""}`:(isManager()?"Cette semaine n'est pas encore préparée.":"");
   const who=p=>`<div class="who ${p.ext&&isManager()?"click":""}" ${p.ext?`data-ext="${p.id}"`:""}>${avatar(p,34)}<div style="min-width:0"><b>${esc(p.full_name)}</b><small>${p.ext?esc(INT_TYPE[p.type]+(p.agence?" · "+p.agence:"")):esc(p.poste||ROLE[p.role])}</small></div></div>`;
   const shHtml=s=>`<div class="sh ${editable?"edit":""} ${s.user_id===S.user.id?"me":""}" data-id="${s.id}" style="--c:${esc(person(s.user_id).color||"#c1daf3")}"><b>${fTime(s.start_time)}–${fTime(s.end_time)}</b>${s.label?`<small>${esc(s.label)}</small>`:""}</div>`;
-  const annOn=d=>(anniv||[]).filter(a=>a.date===d).sort((a,b)=>a.heure.localeCompare(b.heure));
-  const noAnim=()=>(anniv||[]).filter(a=>needAnim(a)&&!animOf(a)).length;
-  const anChip=a=>{const p=animOf(a)?person(animOf(a)):null;return`<button type="button" class="anchip ${!p&&needAnim(a)?"todo":""} ${!p&&!needAnim(a)?"plain":""}" data-ann="${a.id}" ${isManager()?"":"disabled"} style="${p?`--c:${esc(p.color||"#c1daf3")}`:""}"><b>${fTime(a.heure)}</b> ${esc(a.enfant)}${a.nb_enfants?` · ${a.nb_enfants} enf.`:""}<small>${p?"🎈 "+esc(p.full_name.split(" ")[0]):needAnim(a)?"⚠ option animateur : à prévoir":"sans animateur"}</small></button>`};
   const nbDay=d=>new Set(SH.filter(s=>s.day===d).map(s=>s.user_id)).size;
   const hDay=d=>SH.filter(s=>s.day===d).reduce((t,s)=>t+(s.b-s.a)/60,0);
   const weekGrid=()=>`<div class="board"><div class="wk">
       <div class="hd" style="text-align:left;padding-left:14px">Équipe</div>
       ${days.map(d=>`<div class="hd ${d===today?"today":""}">${parse(d).toLocaleDateString("fr-FR",{weekday:"short"})}<b>${parse(d).getDate()}</b>${resaOn(d).length?`<div style="font-size:11px;color:var(--ink-2)">${resaOn(d).length} résa</div>`:""}</div>`).join("")}
       <div class="hd">Total</div>
-      ${(anniv||[]).length?`<div class="who anrow"><div class="tile-ic" style="width:34px;height:34px;background:var(--rouge-c);color:var(--rouge-f)">${ic("cake","sm")}</div><div style="min-width:0"><b>Anniversaires</b><small>${noAnim()?`<span style="color:var(--rouge-f);font-weight:600">${noAnim()} animateur${noAnim()>1?"s":""} à prévoir</span>`:(anniv||[]).some(needAnim)?"animateurs prévus":"aucune option animateur"}</small></div></div>`+
-        days.map(d=>`<div class="cell anrow ${d===today?"today":""}">${annOn(d).map(anChip).join("")}</div>`).join("")+`<div class="anrow"></div>`:""}
       ${team.map(p=>who(p)+days.map(d=>{const list=SH.filter(s=>s.user_id===p.id&&s.day===d).sort((a,b)=>a.a-b.a),off=offOn(d,p.id);
         return`<div class="cell ${d===today?"today":""} ${off?"off":""} ${editable?"edit":""}" data-uid="${p.id}" data-day="${d}">${off?'<small style="color:var(--rouge-f);font-weight:600">🌴 Congé</small>':""}${list.map(shHtml).join("")}${editable&&!list.length?`<button class="add" data-add>${ic("plus","sm")}</button>`:""}</div>`}).join("")
         +`<div class="tot ${!p.ext&&(hrs[p.id]||0)>35?"over":""}">${fNum(hrs[p.id]||0,1)} h</div>`).join("")}
@@ -791,7 +796,7 @@ VIEWS.planning=async m=>{
     </div></div>`;
   const day=S.planDay,dl=SH.filter(s=>s.day===day);
   const pct=mn=>((mn-H0*60)/((H1-H0)*60))*100;
-  const dayTimeline=()=>`${annOn(day).length?`<div class="res-strip">${annOn(day).map(anChip).join("")}</div>`:""}<div class="res-strip">${resaOn(day).filter(r=>r.k!=="anniv").map(r=>`<span class="pill" style="background:var(${RESA_COL[r.k][0]})">${ic(RESA_COL[r.k][2],"sm")} ${esc(r.l)}</span>`).join("")||(annOn(day).length?"":'<span class="pill">Aucune réservation ce jour</span>')}</div>
+  const dayTimeline=()=>`<div class="res-strip">${resaOn(day).map(r=>`<span class="pill" style="background:var(${RESA_COL[r.k][0]})">${ic(RESA_COL[r.k][2],"sm")} ${esc(r.l)}</span>`).join("")||'<span class="pill">Aucune réservation ce jour</span>'}</div>
     <div class="board"><div class="tl" style="--hours:${H1-H0}">
       <div class="who" style="border-top:0;font-size:13px;color:var(--ink-2);padding-left:14px;display:flex;align-items:center">${capital(fDay(day))}</div>
       <div class="hrs">${[...Array(H1-H0+1)].map((_,i)=>`<span style="left:${i/(H1-H0)*100}%">${i===0||i===H1-H0?"":H0+i+"h"}</span>`).join("")}</div>
@@ -923,18 +928,6 @@ VIEWS.planning=async m=>{
     const r=await modal(x.full_name,extForm(x),{danger:x.type==="salarie"?null:"Retirer du planning"});if(!r)return;
     const upd=r.action==="danger"?{active:false}:{full_name:r.data.full_name.trim(),color:r.data.color,...(x.type==="salarie"?{}:{type:r.data.type,agence:(r.data.agence||"").trim()})};
     const{error}=await S.sb.from("intervenants").update(upd).eq("id",x.id);if(error)return fail(error);await loadPeople();render()}});
-  m.querySelectorAll("[data-ann]").forEach(b=>b.onclick=async()=>{if(!isManager())return;const a=(anniv||[]).find(x=>x.id===+b.dataset.ann);if(!a)return;
-    const a0=toMin(a.heure),a1=a0+(a.duree_min||120),fin=toTime(Math.min(a1,23*60+45));
-    const r=await modal(`Anniversaire de ${a.enfant}`,`<p style="margin:0 0 10px;font-size:15px"><b>${capital(fDay(a.date))}</b> · ${fTime(a.heure)} – ${fTime(fin)}${a.nb_enfants?` · ${a.nb_enfants} enfants`:""}${a.age?` · ${a.age} ans`:""}${a.salle?` · ${esc(a.salle)}`:""}</p>
-      <label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="opt" ${a.option_animateur?"checked":""} style="width:auto"> Option animateur prise (vendue sur place sur Qweekle)</label>
-      <label class="f full">Animateur·rice<select name="who">${whoOptions(animOf(a),{empty:"—"})}</select></label>
-      ${editable?`<label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="shift" checked style="width:auto"> Ajouter aussi son service au planning (${fTime(a.heure)} – ${fTime(fin)}) s'il n'est pas déjà prévu</label>`
-        :`<p style="font-size:13px;color:var(--ink-2);margin:6px 0 0">${pl?"Le planning de la semaine n'est plus modifiable : pensez à vérifier ses horaires.":"Le planning de cette semaine n'est pas encore commencé : son service n'y sera pas ajouté."}</p>`}`,{submit:"Enregistrer"});
-    if(!r)return;const who=r.data.who||null;
-    const{error}=await S.sb.from("anniversaires").update({...animCols(who),option_animateur:r.data.opt==="on",updated_at:new Date().toISOString()}).eq("id",a.id);if(error)return fail(error);
-    if(who&&editable&&r.data.shift&&!SH.some(s=>s.user_id===who&&s.day===a.date&&s.a<=a0&&s.b>=a1)){
-      const{error:e2}=await S.sb.from("shifts").insert(qui({week_start:w,user_id:who,day:a.date,start_time:a.heure,end_time:fin,label:`Anniv ${a.enfant}`.slice(0,60)}));if(e2)return fail(e2)}
-    toast(who?`${person(who).full_name.split(" ")[0]} anime l'anniversaire de ${a.enfant}`:r.data.opt==="on"?"Option animateur notée : animateur à prévoir":"Enregistré");render()});
   m.querySelectorAll("[data-addday]").forEach(b=>b.onclick=()=>createShift({day:b.dataset.addday,start_time:"09:30",end_time:"18:30"}));
   m.querySelectorAll(".mshift[data-shift]").forEach(el=>el.onclick=()=>editShift(SH.find(x=>x.id===+el.dataset.shift)));
   on("pSubmit",async()=>{if(!SH.length)return toast("Ajoutez au moins un service");if(!confirm("Envoyer ce planning à Alex pour validation ? Il ne sera plus modifiable sauf refus."))return;
@@ -1055,6 +1048,50 @@ async function resaView(m,kind){
   m.querySelectorAll(".resa").forEach(el=>{const r=rows.find(x=>x.id===+el.dataset.id);el.onclick=()=>open(r);el.onkeydown=e=>{if(e.key==="Enter")open(r)}});
 }
 VIEWS.anniv=m=>resaView(m,"anniv");
+/* ═════════ PLANNING DES ANNIVERSAIRES (animateurs) ═════════ */
+VIEWS.annivplan=async m=>{
+  const w=S.apWeek||monday(TODAY()),days=[...Array(7)].map((_,i)=>addDays(w,i)),today=TODAY();
+  const[{data:anniv,error},{data:pl},{data:shifts}]=await Promise.all([
+    S.sb.from("anniversaires").select("*").gte("date",w).lte("date",days[6]).neq("statut","annule").order("date").order("heure"),
+    S.sb.from("plannings").select("*").eq("week_start",w).maybeSingle(),
+    S.sb.from("shifts").select("*").eq("week_start",w),
+  ]);
+  if(error)return fail(error);
+  const editable=isManager()&&!!pl&&["brouillon","refuse"].includes(pl.status);
+  const SH=(shifts||[]).map(s=>({...s,user_id:s.user_id||s.intervenant_id,a:toMin(s.start_time),b:toMin(s.end_time)}));
+  const qui=row=>{const{user_id,...r}=row;return S.ext.has(user_id)?{...r,user_id:null,intervenant_id:user_id}:{...r,user_id,intervenant_id:null}};
+  const list=anniv||[],todo=list.filter(a=>needAnim(a)&&!animOf(a)),withA=list.filter(a=>animOf(a));
+  const annOn=d=>list.filter(a=>a.date===d);
+  const card=a=>{const p=animOf(a)?person(animOf(a)):null,cls=!p&&needAnim(a)?"todo":!p?"plain":"";
+    return`<button type="button" class="apcard anchip ${cls}" data-ann="${a.id}" ${isManager()?"":"disabled"} style="${p?`--c:${esc(p.color||"#c1daf3")}`:""}">
+      <span class="t">${fTime(a.heure)}${a.duree_min?` – ${fTime(toTime(toMin(a.heure)+a.duree_min))}`:""}</span><b>${esc(a.enfant)}${a.age?` · ${a.age} ans`:""}</b>
+      <small>${[a.nb_enfants&&a.nb_enfants+" enfants",a.salle,a.formule].filter(Boolean).map(esc).join(" · ")}</small>
+      <span class="who2">${p?"🎈 "+esc(p.full_name):needAnim(a)?"⚠ Option animateur : à prévoir":"Sans animateur"}</span></button>`};
+  const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
+  m.innerHTML=topbar("Planning anniversaires","Qui anime quel anniversaire, semaine par semaine")+
+    `<div class="plan-bar"><button class="btn icon" id="aPrev" aria-label="Semaine précédente">${ic("left")}</button><span class="week">${wl}</span><button class="btn icon" id="aNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="aNow">Aujourd'hui</button></div>
+    <div class="grid g3" style="margin-bottom:18px">
+      <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("cake")}</div><div><b>${list.length}</b><span>anniversaire${list.length>1?"s":""} cette semaine</span></div></div>
+      <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("alert")}</div><div><b>${todo.length}</b><span>option animateur sans animateur</span></div></div>
+      <div class="stat"><div class="tile-ic" style="background:var(--vert-c);color:#9aab55">${ic("users")}</div><div><b>${withA.length}</b><span>avec un animateur</span></div></div>
+    </div>
+    <div class="apweek">${days.map(d=>`<div class="apday ${d===today?"today":""}"><h4>${capital(fShort(d))}${annOn(d).length?`<span>${annOn(d).length}</span>`:""}</h4>${annOn(d).map(card).join("")||'<div class="apnone">—</div>'}</div>`).join("")}</div>
+    <p class="plan-hint">${isManager()?"Cliquez sur un anniversaire pour noter l'option animateur et choisir qui l'anime"+(editable?" ; son service peut être ajouté en même temps au planning de l'équipe.":pl?" (le planning de l'équipe de cette semaine n'est plus modifiable : vérifiez ses horaires).":" (le planning de l'équipe de cette semaine n'est pas encore commencé)."):"Les animateurs prévus pour chaque anniversaire."}</p>`;
+  $("aPrev").onclick=()=>{S.apWeek=addDays(w,-7);render()};$("aNext").onclick=()=>{S.apWeek=addDays(w,7);render()};$("aNow").onclick=()=>{S.apWeek=null;render()};
+  m.querySelectorAll("[data-ann]").forEach(b=>b.onclick=async()=>{if(!isManager())return;const a=(anniv||[]).find(x=>x.id===+b.dataset.ann);if(!a)return;
+    const a0=toMin(a.heure),a1=a0+(a.duree_min||120),fin=toTime(Math.min(a1,23*60+45));
+    const r=await modal(`Anniversaire de ${a.enfant}`,`<p style="margin:0 0 10px;font-size:15px"><b>${capital(fDay(a.date))}</b> · ${fTime(a.heure)} – ${fTime(fin)}${a.nb_enfants?` · ${a.nb_enfants} enfants`:""}${a.age?` · ${a.age} ans`:""}${a.salle?` · ${esc(a.salle)}`:""}</p>
+      <label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="opt" ${a.option_animateur?"checked":""} style="width:auto"> Option animateur prise (vendue sur place sur Qweekle)</label>
+      <label class="f full">Animateur·rice<select name="who">${whoOptions(animOf(a),{empty:"—"})}</select></label>
+      ${editable?`<label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="shift" checked style="width:auto"> Ajouter aussi son service au planning (${fTime(a.heure)} – ${fTime(fin)}) s'il n'est pas déjà prévu</label>`
+        :`<p style="font-size:13px;color:var(--ink-2);margin:6px 0 0">${pl?"Le planning de la semaine n'est plus modifiable : pensez à vérifier ses horaires.":"Le planning de cette semaine n'est pas encore commencé : son service n'y sera pas ajouté."}</p>`}`,{submit:"Enregistrer"});
+    if(!r)return;const who=r.data.who||null;
+    const{error}=await S.sb.from("anniversaires").update({...animCols(who),option_animateur:r.data.opt==="on",updated_at:new Date().toISOString()}).eq("id",a.id);if(error)return fail(error);
+    if(who&&editable&&r.data.shift&&!SH.some(s=>s.user_id===who&&s.day===a.date&&s.a<=a0&&s.b>=a1)){
+      const{error:e2}=await S.sb.from("shifts").insert(qui({week_start:w,user_id:who,day:a.date,start_time:a.heure,end_time:fin,label:`Anniv ${a.enfant}`.slice(0,60)}));if(e2)return fail(e2)}
+    toast(who?`${person(who).full_name.split(" ")[0]} anime l'anniversaire de ${a.enfant}`:r.data.opt==="on"?"Option animateur notée : animateur à prévoir":"Enregistré");render()});
+};
+
 VIEWS.centres=m=>resaView(m,"centre");
 VIEWS.ecoles=m=>resaView(m,"ecole");
 
