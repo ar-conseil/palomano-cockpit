@@ -43,6 +43,16 @@ jobs:
           key: ms-token-${{ github.run_id }}
           restore-keys: ms-token-
 
+      - name: Recopier la saisie du jour dans l'Excel Objectifs (espace équipe → SharePoint)
+        env:
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
+          MS_TOKEN_DIR: .ms_token
+          MS_SCOPE: ${{ vars.MS_SCOPE }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python sync_saisie.py || echo "::warning::Recopie de la saisie du jour en échec"
+
       - name: Télécharger les fichiers SharePoint
         env:
           MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
@@ -68,6 +78,7 @@ jobs:
           MS_SCOPE: ${{ vars.MS_SCOPE }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
         run: python import_qweekle.py || echo "::warning::Import Qweekle en échec"
 
 

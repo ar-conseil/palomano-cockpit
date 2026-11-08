@@ -200,36 +200,6 @@ def main():
     print("Espace équipe : " + " · ".join(
         f"{r['key']}={round(r['value'] / r['target'] * 100) if r['value'] is not None and r['target'] else '—'} %"
         for r in rows if r["key"] != "note_google"))
-    ensure_yannika_objectives(url, key, [r for r in rows if r["key"].startswith("yan_") and "@" not in r["key"]])
-
-
-def rest(url, key, path, body=None, method="GET"):
-    req = urllib.request.Request(url.rstrip("/") + "/rest/v1/" + path, method=method,
-                                 data=json.dumps(body).encode() if body is not None else None,
-                                 headers={"apikey": key, "Authorization": f"Bearer {key}",
-                                          "Content-Type": "application/json", "Prefer": "return=minimal"})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read() or "null")
-
-
-def ensure_yannika_objectives(url, key, yan):
-    """Crée une fois les objectifs mensuels de la directrice, dès qu'elle a un compte (yannika.zoa-tsama@palomano.com)."""
-    if not yan:
-        return
-    try:
-        who = rest(url, key, "profiles?select=id&email=eq.yannika.zoa-tsama@palomano.com&active=is.true")
-        if not who:
-            return
-        uid = who[0]["id"]
-        have = {o["kpi_key"] for o in rest(url, key, f"objectives?select=kpi_key&user_id=eq.{uid}&kpi_key=like.yan_*")}
-        new = [{"title": r["label"].replace(" (objectif Yannika)", ""), "scope": "individuel", "user_id": uid,
-                "kpi_key": r["key"], "unit": r["unit"], "description": "Objectif mensuel du BP, mis à jour chaque jour"}
-               for r in yan if r["key"] not in have]
-        if new:
-            rest(url, key, "objectives", new, "POST")
-            print(f"Espace équipe : {len(new)} objectifs mensuels créés pour Yannika")
-    except urllib.error.HTTPError as e:
-        print(f"::warning::Objectifs Yannika non créés (HTTP {e.code})")
 
 
 if __name__ == "__main__":

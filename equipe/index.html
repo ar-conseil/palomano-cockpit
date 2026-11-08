@@ -478,13 +478,13 @@ const NAV=[
   {h:"Réservations"},
   {t:"anniv",l:"Anniversaires",i:"cake"},{t:"centres",l:"Centres de loisirs",i:"tent"},{t:"ecoles",l:"Écoles",i:"school"},
   {h:"Équipe"},
-  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"objectifs",l:"Objectifs",i:"target"},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
+  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"objectifs",l:"Objectifs",i:"target"},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
 ];
 const BNAV=["today","planning","anniv","stocks"];
 const BADGES={};
 function navLink(n){return`<a href="#" data-t="${n.t}" ${S.tab===n.t?'aria-current="page"':""}>${ic(n.i)}<span>${n.l}</span>${BADGES[n.b]?`<span class="badge">${BADGES[n.b]}</span>`:""}</a>`}
 function renderNav(){
-  const items=NAV.filter(n=>(!n.mgr||isManager())&&(!n.dir||isDirection()));
+  const items=NAV.filter(n=>(!n.mgr||isManager())&&(!n.dir||isDirection())&&(!n.saisie||isManager()||S.canSaisie));
   const viewAs=realDirection()?`<a href="#" data-t="__viewas">${ic("users")}<span>Voir comme…</span></a>`:"";
   $("sideNav").innerHTML=items.map(n=>n.h?`<h6>${n.h}</h6>`:navLink(n)).join("")+
     (isDirection()?`<h6>Pilotage</h6><a href="pilotage/">${ic("chart")}<span>Dashboard financier</span></a>`:realDirection()?`<h6>Pilotage</h6>`:"")+viewAs;
@@ -600,6 +600,7 @@ async function enter(user){
   S.me=me;
   if(!me||!me.role||!me.active){$("pendTxt").textContent=me&&!me.active?"Votre accès a été désactivé. Contactez la direction.":"Votre compte est créé. La direction doit maintenant vous donner accès ; revenez un peu plus tard.";showAuth("vPending");return}
   await loadPeople();
+  try{const{data}=await S.sb.rpc("can_saisie");S.canSaisie=!!data}catch(e){S.canSaisie=false}   // saisie du jour (schema_v8)
   $("vAuth").classList.add("hidden");$("vApp").classList.remove("hidden");
   S.real=null;$("pvBar").classList.add("hidden");paintMe(me);
   $("logout").innerHTML=ic("out");
@@ -1140,6 +1141,47 @@ VIEWS.demandes=async m=>{
   }
 };
 
+/* ═════════ SAISIE DU JOUR (recopiée dans « Objectifs Palomano Lille ») ═════════ */
+const SJ=[["Entrée parc","users",[["parc_ttc","CA TTC",1],["parc_nb","Nb entrées"]]],
+  ["Anniversaires","cake",[["anniv_ttc","CA TTC",1],["anniv_entrees","Nb entrées"],["anniv_nb","Nb anniversaires"]]],
+  ["Scolaire","school",[["scolaire_ttc","CA TTC",1],["scolaire_nb","Nb entrées"]]],
+  ["Groupe / centre","tent",[["groupe_ttc","CA TTC",1],["groupe_nb","Nb entrées"]]],
+  ["Snacking","box",[["snack_ht","CA HT",1],["snack_ttc","CA TTC",1]]],
+  ["Boutique","box",[["boutique_ht","CA HT",1],["boutique_ttc","CA TTC",1]]],
+  ["Évènement","cal",[["event_ttc","CA TTC",1]]]];
+const SJ_F=SJ.flatMap(([,,f])=>f.map(x=>x[0]));
+VIEWS.saisie=async m=>{
+  if(!(isManager()||S.canSaisie))return m.innerHTML=topbar("Saisie du jour","")+'<div class="card empty">Accès réservé.</div>';
+  const d=S.sjDate||TODAY();
+  const[{data:row,error},{data:recent},{data:st}]=await Promise.all([
+    S.sb.from("saisie_jour").select("*").eq("date",d).maybeSingle(),
+    S.sb.from("saisie_jour").select("*").order("date",{ascending:false}).limit(10),
+    S.sb.from("sync_state").select("*").eq("key","saisie").maybeSingle()]);
+  if(error)return fail(error);
+  const r=row||{},num=v=>v===""||v==null?null:+String(v).replace(",",".");
+  const ttc=x=>["parc_ttc","anniv_ttc","scolaire_ttc","groupe_ttc","snack_ttc","boutique_ttc","event_ttc"].reduce((t,k)=>t+(+x[k]||0),0);
+  const ent=x=>["parc_nb","anniv_entrees","scolaire_nb","groupe_nb"].reduce((t,k)=>t+(+x[k]||0),0);
+  const status=x=>x.sync_error?`<span class="pill bad"><i></i>${esc(x.sync_error)}</span>`:x.dirty?'<span class="pill warn"><i></i>En attente de copie dans l\'Excel</span>':x.synced_at?`<span class="pill ok"><i></i>Dans l'Excel depuis le ${fStamp(x.synced_at)}</span>`:"";
+  m.innerHTML=topbar("Saisie du jour","Résultats de la journée, recopiés automatiquement dans « Objectifs Palomano Lille » (toutes les 30 min)",
+      `<input type="date" id="sjDate" value="${d}" max="${TODAY()}" style="padding:8px 10px;border-radius:12px;border:1.5px solid var(--line-2);font:inherit">`)+
+    `<form id="sjForm" class="card"><h3>${ic("cal")} ${capital(fDay(d))} ${row?status(r):""}</h3>
+      <div class="grid g2" style="margin-top:8px">${SJ.map(([t,i,f])=>`<div><h4 style="margin:10px 0 6px">${ic(i,"sm")} ${t}</h4><div class="fgrid">${f.map(([k,l,eur])=>
+        `<label class="f">${l}${eur?" (€)":""}<input name="${k}" type="number" inputmode="decimal" min="0" step="${eur?"0.01":"1"}" value="${r[k]??""}"></label>`).join("")}</div></div>`).join("")}</div>
+      <label class="f full" style="margin-top:12px">Remarque (facultatif)<input name="note" maxlength="200" value="${esc(r.note||"")}"></label>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap"><b id="sjTot"></b><span style="flex:1"></span><button class="btn pri" type="submit">${ic("check","sm")} Enregistrer la journée</button></div>
+    </form>
+    <div class="card" style="margin-top:18px"><h3>${ic("clock")} Derniers jours saisis</h3>${st?`<p class="hint" style="margin:0 0 8px;color:${st.ok?"var(--ink-2)":"var(--rouge-f)"}">Dernière copie : ${fStamp(st.synced_at)} · ${esc(st.message||"")}</p>`:""}
+      <div class="list">${(recent||[]).map(x=>`<div class="row click" data-d="${x.date}"><div class="tx"><b>${capital(fDay(x.date))}</b><small>${fEur(ttc(x))} TTC · ${fNum(ent(x))} entrées${x.saisi_par?" · par "+esc(firstName(x.saisi_par)):""}</small></div>${status(x)}</div>`).join("")||'<div class="empty">Aucune journée saisie pour l\'instant.</div>'}</div></div>`;
+  const f=$("sjForm"),tot=()=>{const x=Object.fromEntries(new FormData(f));$("sjTot").textContent=`Total ${fEur(ttc(x))} TTC · ${fNum(ent(x))} entrées`};tot();f.oninput=tot;
+  $("sjDate").onchange=e=>{S.sjDate=e.target.value||TODAY();render()};
+  m.querySelectorAll("[data-d]").forEach(el=>el.onclick=()=>{S.sjDate=el.dataset.d;render();window.scrollTo(0,0)});
+  f.onsubmit=async e=>{e.preventDefault();const x=Object.fromEntries(new FormData(f));
+    const rec={date:d,note:(x.note||"").trim(),dirty:true,sync_error:null,updated_at:new Date().toISOString(),saisi_par:S.user.id};
+    SJ_F.forEach(k=>rec[k]=num(x[k]));
+    const{error}=await S.sb.from("saisie_jour").upsert(rec,{onConflict:"date"});if(error)return fail(error);
+    toast("Journée enregistrée : copie dans l'Excel au prochain passage (30 min max)");render()};
+};
+
 /* ═════════ OBJECTIFS ═════════ */
 function objLine(o,kp){
   const kd=o.kpi_key&&kp.get(o.kpi_key+"@jour"),kw=o.kpi_key&&kp.get(o.kpi_key+"@semaine"),km=o.kpi_key&&kp.get(o.kpi_key);
@@ -1160,8 +1202,6 @@ VIEWS.objectifs=async m=>{
   const[{data:objs,error},{data:kpis}]=await Promise.all([S.sb.from("objectives").select("*").eq("active",true).order("end_date",{nullsFirst:false}),S.sb.from("kpi_feed").select("*")]);
   if(error)return fail(error);
   const kp=new Map((kpis||[]).map(k=>[k.key,k]));
-  if(S.real&&S.me.invite&&/yannika/i.test(S.me.email))(kpis||[]).filter(k=>k.key.startsWith("yan_")&&!k.key.includes("@")).forEach(k=>objs.push({id:"pv-"+k.key,scope:"individuel",user_id:S.user.id,
-    title:k.label.replace(" (objectif Yannika)",""),kpi_key:k.key,unit:k.unit,description:"Objectif mensuel du BP, mis à jour chaque jour",active:true}));
   const team=objs.filter(o=>o.scope==="equipe"),mine=objs.filter(o=>o.scope==="individuel"&&o.user_id===S.user.id),others=objs.filter(o=>o.scope==="individuel"&&o.user_id!==S.user.id);
   const byPerson=new Map();others.forEach(o=>{if(!byPerson.has(o.user_id))byPerson.set(o.user_id,[]);byPerson.get(o.user_id).push(o)});
   const block=(list,edit)=>list.map(o=>`<div ${edit?`data-obj="${o.id}" class="row click" style="display:block"`:""}>${objLine(o,kp)}</div>`).join("");

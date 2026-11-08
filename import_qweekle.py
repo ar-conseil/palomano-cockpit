@@ -17,6 +17,8 @@ Une réservation = plusieurs lignes (Enfant / Adulte, entrée + formule annivers
 - Les champs de l'équipe (notes, salle, thème, animateur, référent, prénom de l'enfant)
   ne sont jamais écrasés ; aucun montant n'est importé.
 - État de paiement (colonne Statut) : payé, acompte versé, non payé, option. L'export n'a pas de montant.
+- Option « Animateur » (produit ajouté à la commande, absent de l'export des réservations) : lue dans
+  l'export caisse téléchargé par fetch_sharepoint.py, rattachée par le nom du client et la date de vente.
 - Une réservation importée qui disparaît d'un export plus récent couvrant sa date
   (annulée dans Qweekle) passe en « annulé ».
 
@@ -32,7 +34,9 @@ import re
 import sys
 import urllib.parse
 import urllib.request
+import unicodedata
 import zipfile
+from pathlib import Path
 from xml.etree.ElementTree import iterparse
 
 import fetch_sharepoint as fs
@@ -168,6 +172,7 @@ def parse(data):
             continue
         key = "qw-" + hashlib.sha1(f"{client}|{g(r, 'Réservé le')}".encode()).hexdigest()[:16]
         res = resas.setdefault(key, {"kind": kind, "start": start, "client": client, "kids": 0, "adults": 0,
+                                     "booked": to_dt(g(r, "Réservé le")),
                                      "formule": "", "email": g(r, "e-mail client") or "",
                                      "tel": phone(g(r, "téléphone client")), "note": clean_note(g(r, "Note en ligne")),
                                      "state": g(r, "Statut"), "origin": g(r, "Origine"), "label": act})
@@ -187,6 +192,42 @@ def parse(data):
             if low.startswith("groupe"):
                 res["groupe"] = True
     return resas, (min(dates), max(dates)) if dates else (None, None)
+
+
+# ───────────── Option « Animateur » : produit de la commande, visible seulement dans l'export caisse ─────────────
+def tokens(*names):
+    t = unicodedata.normalize("NFKD", " ".join(str(n or "") for n in names)).encode("ascii", "ignore").decode().lower()
+    return frozenset(w for w in re.split(r"[^a-z]+", t) if len(w) > 1)
+
+
+def animateur_sales():
+    """{noms du client : [dates de vente]} des lignes « Animateur » de l'export caisse le plus récent (ou None)."""
+    src = Path(os.environ.get("PALOMANO_SUIVI_DIR", "sources"))
+    files = sorted(src.glob("palomano-la-maillerie__*.xlsx"), key=lambda f: f.stat().st_mtime)
+    if not files:
+        return None, None
+    from read_ventes import iter_rows as caisse_rows
+    rows = caisse_rows(files[-1])
+    ix = {h: i for i, h in enumerate(next(rows))}
+    g = lambda r, k: r[ix[k]] if k in ix and ix[k] < len(r) else None
+    out = {}
+    for r in rows:
+        if not r or g(r, "Vente supprimée le") or "annul" in str(g(r, "Statut") or "").lower():
+            continue
+        name = g(r, "Produit") or g(r, "Produit & Paiement") or ""
+        if not re.match(r"\s*(\[[^\]]*\]\s*)?animateur\b", str(name), re.I):
+            continue
+        ts = g(r, "Enregistré le")
+        if isinstance(ts, str) and len(ts) >= 10:
+            out.setdefault(tokens(g(r, "Prénom Client"), g(r, "Nom Client")), []).append(dt.date.fromisoformat(ts[:10]))
+    return out, files[-1].name
+
+
+def has_animateur(r, sales):
+    """Vrai si le même client a acheté « Animateur » entre la réservation et le jour de la fête."""
+    dates = sales.get(tokens(r["client"])) or []
+    lo = (r["booked"] or r["start"]).date() - dt.timedelta(days=1)
+    return any(lo <= d <= r["start"].date() + dt.timedelta(days=1) for d in dates)
 
 
 def record(key, r):
@@ -241,15 +282,23 @@ def main():
         state(False, f"export « {item['name']} » illisible : {e}")
         sys.exit(1)
 
+    try:
+        sales, caisse = animateur_sales()
+    except Exception as e:                      # l'option animateur ne doit jamais bloquer l'import
+        print(f"::warning::Option animateur non lue dans l'export caisse : {e}")
+        sales, caisse = None, None
+    own_anniv = OWN_ANNIV + (["option_animateur"] if sales is not None else [])
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     created = updated = cancelled = 0
-    for table, own in (("anniversaires", OWN_ANNIV), ("groupes", OWN_GROUPE)):
+    for table, own in (("anniversaires", own_anniv), ("groupes", OWN_GROUPE)):
         db = {r["qweekle_id"]: r for r in sb(f"{table}?qweekle_id=not.is.null&select=id,qweekle_id,{','.join(own)}", prefer="")}
         seen = set()
         for key, r in resas.items():
             t, rec = record(key, r)
             if t != table:
                 continue
+            if t == "anniversaires" and sales is not None:
+                rec["option_animateur"] = has_animateur(r, sales)
             seen.add(key)
             cur = db.get(key)
             if not cur:
@@ -281,6 +330,9 @@ def main():
     age = (dt.datetime.now(dt.timezone.utc)
            - dt.datetime.fromisoformat(item["lastModifiedDateTime"].replace("Z", "+00:00"))).days
     n = {k: sum(1 for r in resas.values() if r["kind"] == k) for k in ("anniv", "centre", "ecole")}
+    if sales is not None:
+        n_anim = sum(1 for r in resas.values() if r["kind"] == "anniv" and has_animateur(r, sales))
+        print(f"Qweekle : option animateur sur {n_anim} anniversaire(s) sur {n['anniv']} (caisse « {caisse} »)")
     msg = (f"{n['anniv']} anniversaires, {n['centre']} centres/groupes, {n['ecole']} écoles"
            + (f" du {d0:%d/%m/%Y} au {d1:%d/%m/%Y}" if d0 else "")
            + f" · {created} ajoutées, {updated} mises à jour, {cancelled} annulées · « {item['name']} »")
