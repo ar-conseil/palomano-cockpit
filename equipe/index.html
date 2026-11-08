@@ -1061,6 +1061,57 @@ VIEWS.objectifs=async m=>{
 };
 
 /* ═════════ HEURES (pointage, direction) ═════════ */
+/* Règles de paie (semaine civile lundi → dimanche) :
+   - temps plein (contrat ≥ 35 h), apprentis majeurs compris : h. sup. +25 % de la 36e à la 43e h, +50 % au-delà ;
+   - temps partiel : h. complémentaires +10 % jusqu'à 1/10 du contrat, +25 % au-delà, plafond 1/3 ; 35 h → risque de requalification ;
+   - apprentis : les heures de cours (CFA/IUT) sont du temps de travail (art. L6222-24) et comptent dans le total ;
+   - apprentis mineurs : 8 h/jour et 35 h/semaine maximum, cours compris (art. L3162-1) : tout dépassement est signalé ;
+   - alertes générales : plus de 10 h dans une journée, plus de 48 h dans la semaine. */
+function payWeek(p,list,from,to){
+  const day={};let work=0,school=0;
+  for(const x of list){const h=ptHours([x],from,to);if(!h)continue;const d=iso(new Date(x.start_at));day[d]=(day[d]||0)+h;if(x.kind==="ecole")school+=h;else work+=h}
+  const tot=work+school,c=+p.contrat_h||35,full=c>=35,r={work,school,tot,hs25:0,hs50:0,hc10:0,hc25:0,alerts:[]};
+  if(full){r.hs25=Math.min(Math.max(tot-35,0),8);r.hs50=Math.max(tot-43,0)}
+  else{r.hc10=Math.min(Math.max(tot-c,0),c/10);r.hc25=Math.max(tot-c*1.1,0);
+    if(tot>=35)r.alerts.push("Temps partiel ≥ 35 h : risque de requalification en temps plein");
+    else if(tot>c*4/3+.01)r.alerts.push(`Dépasse le plafond légal d'heures complémentaires (${fDur(c*4/3)})`)}
+  const maxDay=Math.max(0,...Object.values(day));
+  if(p.apprenti&&p.mineur){if(tot>35.01)r.alerts.push("Apprentie mineure : plus de 35 h (cours compris) — interdit sauf dérogation, repos compensateur obligatoire");
+    if(maxDay>8.01)r.alerts.push("Apprentie mineure : plus de 8 h dans une journée")}
+  if(maxDay>10.01)r.alerts.push("Plus de 10 h dans une journée (maximum légal)");
+  if(tot>48.01)r.alerts.push("Plus de 48 h dans la semaine (maximum légal)");
+  if(p.modulation&&(r.hs25||r.hs50))r.alerts.push("Contrat avec modulation : décompte possible sur la période, à confirmer avec la gestionnaire de paie");
+  return r;
+}
+function contratLabel(p){const c=+p.contrat_h;return p.apprenti?`Apprentissage ${c||35} h${p.mineur?" (mineur)":""}`:c&&c<35?`Temps partiel ${c} h`:`Temps plein ${c||35} h${p.modulation?" (modulation)":""}`}
+async function exportPaie(month){
+  const[y,mo]=month.split("-").map(Number),first=new Date(y,mo-1,1),last=new Date(y,mo,0);
+  // une semaine est rattachée au mois de son dimanche (comme le tableau de la gestionnaire)
+  let wk=monday(iso(first));const weeks=[];
+  for(;;){const sun=addDays(wk,6);if(parse(sun)>last)break;if(parse(sun)>=first)weeks.push(wk);wk=addDays(wk,7)}
+  if(!weeks.length)return toast("Aucune semaine pour ce mois");
+  const from=parse(weeks[0]).getTime(),to=parse(addDays(weeks[weeks.length-1],7)).getTime();
+  const{data:pts,error}=await S.sb.from("pointages").select("*").gte("start_at",new Date(from-864e5).toISOString()).lt("start_at",new Date(to).toISOString());
+  if(error)return fail(error);
+  const team=S.people.filter(p=>p.active&&p.role&&(p.contrat_h||p.apprenti));
+  const hh=h=>{const m=Math.round(h*60);return`${Math.floor(m/60)}:${String(m%60).padStart(2,"0")}`};
+  const q=v=>`"${String(v).replace(/"/g,'""')}"`;
+  const rows=[["Salarié(e)","Contrat","Durée contractuelle (h/sem)","Semaine","Du","Au","Heures travaillées","dont cours CFA/IUT","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Alertes"]];
+  const recap=[["Salarié(e)","Contrat","Total heures","dont cours","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Semaines sans pointage","Alertes"]];
+  for(const p of team){const T={tot:0,school:0,hs25:0,hs50:0,hc10:0,hc25:0},al=new Set();let empty=0;
+    for(const w of weeks){const a=parse(w).getTime(),b=parse(addDays(w,7)).getTime(),list=(pts||[]).filter(x=>x.user_id===p.id);
+      const r=payWeek(p,list,a,b);if(!r.tot)empty++;r.alerts.forEach(x=>al.add(x));for(const k in T)T[k]+=r[k];
+      rows.push([p.full_name,contratLabel(p),+p.contrat_h||35,"S"+isoWeekNum(w),fDate(w),fDate(addDays(w,6)),hh(r.tot),hh(r.school),hh(r.hs25),hh(r.hs50),hh(r.hc10),hh(r.hc25),r.alerts.join(" · ")])}
+    recap.push([p.full_name,contratLabel(p),hh(T.tot),hh(T.school),hh(T.hs25),hh(T.hs50),hh(T.hc10),hh(T.hc25),empty,[...al].join(" · ")])}
+  const label=parse(month+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
+  const csv="﻿"+[[`PALOMANO LILLE – Heures pour la paie de ${label}`],[`Semaines civiles rattachées au mois de leur dimanche · cours CFA/IUT inclus (art. L6222-24) · généré le ${new Date().toLocaleString("fr-FR")}`],[],["RÉCAPITULATIF À TRANSMETTRE À LA GESTIONNAIRE DE PAIE"],...recap,[],["DÉTAIL PAR SEMAINE"],...rows,[],
+    ["Règles : temps plein et apprentis majeurs +25 % de la 36e à la 43e h, +50 % au-delà · temps partiel +10 % jusqu'à 1/10 du contrat, +25 % au-delà, plafond 1/3 · apprentis mineurs 35 h/sem et 8 h/jour max (art. L3162-1) · taux conventionnels IDCC 1790 à confirmer par la gestionnaire."]]
+    .map(r=>r.map(q).join(";")).join("\r\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`Palomano_heures_paie_${month}.csv`;document.body.appendChild(a);a.click();a.remove();
+  toast(`Export de ${label} téléchargé`);
+}
+const isoWeekNum=s=>{const d=parse(s);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/864e5-3+(w1.getDay()+6)%7)/7)};
+
 VIEWS.heures=async m=>{
   await loadPeople();
   const w=S.hWeek||monday(TODAY()),days=[...Array(7)].map((_,i)=>addDays(w,i));
@@ -1074,35 +1125,42 @@ VIEWS.heures=async m=>{
   const plan=uid=>(shifts||[]).filter(s=>s.user_id===uid).reduce((t,s)=>t+(toMin(s.end_time)-toMin(s.start_time))/60,0);
   const mine=uid=>(pts||[]).filter(p=>p.user_id===uid);
   const open=uid=>mine(uid).find(p=>!p.end_at);
-  const rows=team.map(p=>({p,done:ptHours(mine(p.id),from,to),plan:plan(p.id),open:open(p.id)}));
+  const rows=team.map(p=>({p,done:ptHours(mine(p.id),from,to),plan:plan(p.id),open:open(p.id),pay:payWeek(p,mine(p.id),from,to)}));
   const tot=k=>rows.reduce((t,r)=>t+(r[k]||0),0),nOn=rows.filter(r=>r.open).length;
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
   m.innerHTML=topbar("Heures de l'équipe",`Pointages en temps réel · ${nOn?`<span class="live">${nOn} en poste maintenant</span>`:"personne en poste en ce moment"}`,
-      `<button class="btn icon" id="hPrev" aria-label="Semaine précédente">${ic("left")}</button><b style="min-width:190px;text-align:center">${wl}</b><button class="btn icon" id="hNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="hNow">Cette semaine</button>`)+
+      `<button class="btn" id="hExport">${ic("copy","sm")} Export paie</button><button class="btn icon" id="hPrev" aria-label="Semaine précédente">${ic("left")}</button><b style="min-width:190px;text-align:center">${wl}</b><button class="btn icon" id="hNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="hNow">Cette semaine</button>`)+
     `<div class="grid g4">
       <div class="stat"><div class="tile-ic" style="background:var(--vert-c);color:#9aab55">${ic("users")}</div><div><b>${nOn}</b><span>en poste maintenant</span></div></div>
       <div class="stat"><div class="tile-ic" style="background:var(--bleu-c);color:var(--bleu-f)">${ic("clock")}</div><div><b>${fNum(tot("done"),1)} h</b><span>pointées cette semaine</span></div></div>
       <div class="stat"><div class="tile-ic" style="background:var(--jaune-c);color:#c99a2e">${ic("cal")}</div><div><b>${fNum(tot("plan"),1)} h</b><span>prévues au planning</span></div></div>
       <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("users")}</div><div><b>${fNum(team.reduce((t,p)=>t+(+p.contrat_h||0),0),0)} h</b><span>au total des contrats</span></div></div>
     </div>
-    <div class="card" style="margin-top:18px"><div class="hours-row hd"><span>Salarié</span><span class="num opt">Contrat</span><span class="num opt">Prévu</span><span class="num">Pointé</span><span class="num opt">Écart</span><span class="opt">Maintenant</span></div>
+    <div class="card" style="margin-top:18px"><div class="hours-row hd"><span>Salarié</span><span class="num opt">Contrat</span><span class="num opt">Prévu</span><span class="num">Pointé</span><span class="num opt">Écart</span><span class="opt">H. sup. / compl. · maintenant</span></div>
       ${rows.map(r=>{const ref=+r.p.contrat_h||r.plan,ec=r.done-(r.plan||0),pc=ref?Math.min(1,r.done/ref):0;
         return`<div class="hours-row click" data-uid="${r.p.id}"><div style="display:flex;gap:10px;align-items:center;min-width:0">${avatar(r.p,36)}<div style="min-width:0"><b style="display:block">${esc(r.p.full_name)}</b><div class="prog" style="height:6px;margin:4px 0 0;width:140px"><i style="width:${pc*100}%;background:${r.done>(+r.p.contrat_h||1e9)?"var(--rouge-f)":"var(--vert-f)"}"></i></div></div></div>
           <span class="num opt" style="font-weight:500">${r.p.contrat_h?fNum(+r.p.contrat_h,0)+" h":"—"}</span><span class="num opt" style="font-weight:500">${fDur(r.plan)}</span><span class="num">${fDur(r.done)}</span>
           <span class="num opt" style="color:${Math.abs(ec)<.25?"var(--muted)":ec>0?"var(--rouge-f)":"var(--bleu-f)"}">${r.plan||r.done?(ec>=0?"+":"−")+fDur(Math.abs(ec)):"—"}</span>
-          <span class="opt">${r.open?`<span class="live">depuis ${new Date(r.open.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>`:'<span style="color:var(--muted);font-size:13px">—</span>'}</span></div>`}).join("")}
-      <p class="hint" style="margin:12px 8px 0">Écart = pointé − prévu au planning. Les heures en cours comptent jusqu'à maintenant. Touchez une ligne pour voir le détail et corriger un oubli de pointage. Le contrat se règle dans Réglages.</p></div>`;
+          <span class="opt" style="font-size:12.5px;line-height:1.35">${(()=>{const y=r.pay,parts=[y.hs25&&`+25 % ${fDur(y.hs25)}`,y.hs50&&`+50 % ${fDur(y.hs50)}`,y.hc10&&`compl. +10 % ${fDur(y.hc10)}`,y.hc25&&`compl. +25 % ${fDur(y.hc25)}`].filter(Boolean);
+            return(parts.length?`<b>${parts.join(" · ")}</b><br>`:"")+(y.school?`<span style="color:var(--ink-2)">dont cours ${fDur(y.school)}</span><br>`:"")+(y.alerts.length?`<span style="color:var(--bad);font-weight:600">⚠ ${esc(y.alerts[0])}${y.alerts.length>1?` (+${y.alerts.length-1})`:""}</span><br>`:"")+(r.open?`<span class="live">en poste depuis ${new Date(r.open.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>`:"")})()||'<span style="color:var(--muted)">—</span>'}</span></div>`}).join("")}
+      <p class="hint" style="margin:12px 8px 0">Heures sup. et complémentaires calculées à la semaine civile selon le contrat ; pour les apprenties, les heures de cours saisies (CFA/IUT) sont incluses. Écart = pointé − prévu au planning. Les heures en cours comptent jusqu'à maintenant. Touchez une ligne pour voir le détail et corriger un oubli de pointage. Le contrat se règle dans Réglages.</p></div>`;
   const on=(id,f)=>{const el=$(id);if(el)el.onclick=f};
+  on("hExport",async()=>{const now=new Date(),cur=iso(now).slice(0,7),prev=iso(new Date(now.getFullYear(),now.getMonth()-1,1)).slice(0,7);
+    const r=await modal("Export pour la paie",`<p style="margin:0">Fichier prêt à transmettre à la gestionnaire de paie : récapitulatif du mois et détail par semaine (heures, cours, heures sup. et complémentaires, alertes légales). S'ouvre dans Excel.</p>
+      <label class="f">Mois de paie<input type="month" name="month" value="${prev}" max="${cur}" required></label>
+      <p class="hint" style="margin:0">Chaque semaine (lundi → dimanche) est rattachée au mois de son dimanche, comme dans votre tableau actuel.</p>`,{submit:"Télécharger"});
+    if(r)exportPaie(r.data.month)});
   on("hPrev",()=>{S.hWeek=addDays(w,-7);render()});on("hNext",()=>{S.hWeek=addDays(w,7);render()});on("hNow",()=>{S.hWeek=null;render()});
   m.querySelectorAll(".hours-row[data-uid]").forEach(el=>el.onclick=async()=>{
     const p=person(el.dataset.uid),list=mine(p.id).filter(x=>new Date(x.start_at).getTime()<to);
     const fmt=ts=>new Date(ts).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
     const r=await modal(`Pointages de ${p.full_name}`,`<div class="list">${days.map(d=>{const dl=list.filter(x=>iso(new Date(x.start_at))===d);
-      return`<div class="row"><div class="tx"><b>${capital(fShort(d))}</b><small>${dl.map(x=>`${fmt(x.start_at)} → ${x.end_at?fmt(x.end_at):"en cours"}${x.corrected_by?" (corrigé)":""}`).join(" · ")||"—"}</small></div><b>${dl.length?fDur(ptHours(dl)):""}</b></div>`}).join("")}</div>
+      return`<div class="row"><div class="tx"><b>${capital(fShort(d))}</b><small>${dl.map(x=>`${x.kind==="ecole"?"🎓 cours ":""}${fmt(x.start_at)} → ${x.end_at?fmt(x.end_at):"en cours"}${x.corrected_by?" (corrigé)":""}`).join(" · ")||"—"}</small></div><b>${dl.length?fDur(ptHours(dl)):""}</b></div>`}).join("")}</div>
       <p class="hint" style="margin:0">Corriger ou ajouter un pointage oublié :</p>
       <div class="fgrid"><label class="f full">Pointage<select name="pid"><option value="">➕ Nouveau pointage</option>${list.map(x=>`<option value="${x.id}">${capital(fShort(iso(new Date(x.start_at))))} ${fmt(x.start_at)} → ${x.end_at?fmt(x.end_at):"en cours"}</option>`).join("")}</select></label>
       <label class="f">Jour<input type="date" name="day" value="${TODAY()<=days[6]&&TODAY()>=w?TODAY():w}" min="${w}" max="${days[6]}"></label><span></span>
-      <label class="f">Arrivée<input type="time" name="a" step="300"></label><label class="f">Départ<input type="time" name="b" step="300"></label>
+      ${p.apprenti?`<label class="f full">Type<select name="kind"><option value="travail">Travail au parc</option><option value="ecole">Cours CFA / IUT (temps de travail)</option></select></label>`:""}
+      <label class="f">Arrivée / début<input type="time" name="a" step="300"></label><label class="f">Départ / fin<input type="time" name="b" step="300"></label>
       <label class="f full">Motif<input name="note" placeholder="Oubli de pointage, erreur…" maxlength="120"></label></div>`,{submit:"Enregistrer la correction",danger:"Supprimer le pointage choisi"});
     if(!r)return;
     const sel=list.find(x=>x.id===+r.data.pid);
@@ -1110,6 +1168,7 @@ VIEWS.heures=async m=>{
     const day=sel&&!r.data.day?iso(new Date(sel.start_at)):r.data.day;
     const at=t=>t?new Date(`${day}T${t}:00`).toISOString():null;
     const row={start_at:r.data.a?at(r.data.a):sel?.start_at,end_at:r.data.b?at(r.data.b):(sel?sel.end_at:null),note:r.data.note};
+    if(r.data.kind)row.kind=r.data.kind;
     if(!row.start_at)return fail("Indiquez l'heure d'arrivée");if(row.end_at&&row.end_at<=row.start_at)return fail("Le départ doit être après l'arrivée");
     const{error}=sel?await S.sb.from("pointages").update(row).eq("id",sel.id):await S.sb.from("pointages").insert({...row,user_id:p.id});
     if(error)return fail(error);toast("Pointage corrigé");render()});
@@ -1137,17 +1196,21 @@ VIEWS.reglages=async m=>{
       <label class="f">Poste (facultatif)<input name="poste" value="${esc(p.poste||"")}" maxlength="40" placeholder="Animateur, accueil, snack…"></label>
       <label class="f">Contrat (heures / semaine)<input type="number" name="contrat_h" min="0" max="48" step="0.5" value="${p.contrat_h??""}" placeholder="35"></label>
       <label class="f">Couleur dans le planning<select name="color">${[["#c1daf3","Bleu"],["#e1ebbd","Vert"],["#ef818e","Rose"],["#f7d589","Jaune"],["#8ab5d7","Bleu foncé"],["#c8d68e","Vert foncé"],["#df6276","Rose foncé"],["#efc369","Jaune foncé"]].map(([v,l])=>`<option value="${v}" ${v===p.color?"selected":""}>${l}</option>`).join("")}</select></label>
+      <label class="check-row full"><input type="checkbox" name="apprenti" ${p.apprenti?"checked":""}> Contrat d'apprentissage (heures de cours comptées)</label>
+      <label class="check-row full"><input type="checkbox" name="mineur" ${p.mineur?"checked":""}> Salarié·e mineur·e (8 h/jour, 35 h/semaine maximum)</label>
+      <label class="check-row full"><input type="checkbox" name="modulation" ${p.modulation?"checked":""}> Contrat avec modulation du temps de travail</label>
       <label class="check-row full"><input type="checkbox" name="can_validate_planning" ${p.can_validate_planning?"checked":""}> Valide le planning (Alex) — réservé à la direction</label></div>`,
       {danger:p.id===S.user.id?null:(p.active?"Désactiver l'accès":"Réactiver")});
     if(!r)return;
-    const upd=r.action==="danger"?{active:!p.active}:{role:r.data.role,poste:r.data.poste,color:r.data.color,contrat_h:r.data.contrat_h===""?null:+r.data.contrat_h,can_validate_planning:!!r.data.can_validate_planning&&r.data.role==="direction"};
+    const upd=r.action==="danger"?{active:!p.active}:{role:r.data.role,poste:r.data.poste,color:r.data.color,contrat_h:r.data.contrat_h===""?null:+r.data.contrat_h,apprenti:!!r.data.apprenti,mineur:!!r.data.mineur,modulation:!!r.data.modulation,can_validate_planning:!!r.data.can_validate_planning&&r.data.role==="direction"};
     const{error}=await S.sb.from("profiles").update(upd).eq("id",p.id);if(error)return fail(error);toast("Enregistré");render();refreshBadges()});
   const ni=$("invNew");if(ni)ni.onclick=async()=>{const r=await modal("Pré-autoriser une adresse",`<div class="fgrid"><label class="f full">E-mail professionnel<input type="email" name="email" required placeholder="prenom.nom@palomano.com"></label>
       <label class="f">Rôle<select name="role">${opt({equipe:"Équipe",responsable:"Responsable",direction:"Direction"},"equipe")}</select></label>
       <label class="f">Poste<input name="poste" maxlength="40"></label>
       <label class="f">Contrat (h / semaine)<input type="number" name="contrat_h" min="0" max="48" step="0.5"></label>
-      <label class="f">Couleur<select name="color">${[["#c1daf3","Bleu"],["#e1ebbd","Vert"],["#ef818e","Rose"],["#f7d589","Jaune"],["#8ab5d7","Bleu foncé"],["#c8d68e","Vert foncé"],["#df6276","Rose foncé"],["#efc369","Jaune foncé"]].map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select></label></div>`,{submit:"Pré-autoriser"});
-    if(!r)return;const{error}=await S.sb.from("invitations").insert({email:r.data.email.trim().toLowerCase(),role:r.data.role,poste:r.data.poste,contrat_h:r.data.contrat_h===""?null:+r.data.contrat_h,color:r.data.color});
+      <label class="f">Couleur<select name="color">${[["#c1daf3","Bleu"],["#e1ebbd","Vert"],["#ef818e","Rose"],["#f7d589","Jaune"],["#8ab5d7","Bleu foncé"],["#c8d68e","Vert foncé"],["#df6276","Rose foncé"],["#efc369","Jaune foncé"]].map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select></label>
+      <label class="check-row full"><input type="checkbox" name="apprenti"> Contrat d'apprentissage</label><label class="check-row full"><input type="checkbox" name="mineur"> Mineur·e</label></div>`,{submit:"Pré-autoriser"});
+    if(!r)return;const{error}=await S.sb.from("invitations").insert({email:r.data.email.trim().toLowerCase(),role:r.data.role,poste:r.data.poste,contrat_h:r.data.contrat_h===""?null:+r.data.contrat_h,color:r.data.color,apprenti:!!r.data.apprenti,mineur:!!r.data.mineur});
     if(error)return fail(error.code==="23505"?"Cette adresse est déjà pré-autorisée":error);toast("Adresse pré-autorisée");render()};
   m.querySelectorAll("[data-delinv]").forEach(b=>b.onclick=async()=>{const{error}=await S.sb.from("invitations").delete().eq("email",b.dataset.delinv);if(error)return fail(error);render()});
   const ciForm=(i={})=>`<div class="fgrid"><label class="f">Moment<select name="moment">${opt({ouverture:"Ouverture",fermeture:"Fermeture"},i.moment||"ouverture")}</select></label>

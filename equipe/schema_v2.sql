@@ -101,7 +101,7 @@ begin
     if exists (select 1 from pointages where user_id = auth.uid() and end_at is null) then
       raise exception 'Vous avez déjà commencé : pointez d''abord la fin';
     end if;
-    new.user_id := auth.uid(); new.start_at := clock_timestamp(); new.end_at := null; new.corrected_by := null;
+    new.user_id := auth.uid(); new.start_at := clock_timestamp(); new.end_at := null; new.corrected_by := null; new.kind := 'travail';
   else
     if old.user_id <> auth.uid() or old.end_at is not null then raise exception 'Seul un responsable peut corriger un pointage terminé'; end if;
     new.user_id := old.user_id; new.start_at := old.start_at; new.end_at := greatest(clock_timestamp(), old.start_at + interval '1 second'); new.corrected_by := null;
@@ -159,3 +159,61 @@ insert into public.invitations (email, role, poste, color) values
   ('camille.pille@palomano.com', 'equipe', 'Groupes, écoles & privatisations', '#e1ebbd'),
   ('emma.digiovanni@palomano.com', 'equipe', 'Événements', '#f7d589')
 on conflict (email) do nothing;
+
+-- ───────────── Paie : type de contrat, apprentis, heures d'école ─────────────
+alter table public.profiles add column if not exists apprenti boolean not null default false;
+alter table public.profiles add column if not exists mineur boolean not null default false;
+alter table public.profiles add column if not exists modulation boolean not null default false;
+alter table public.invitations add column if not exists apprenti boolean not null default false;
+alter table public.invitations add column if not exists mineur boolean not null default false;
+-- « ecole » : heures de cours CFA / IUT d'une apprentie, saisies par un responsable (temps de travail, art. L6222-24)
+alter table public.pointages add column if not exists kind text not null default 'travail';
+do $$ begin
+  alter table public.pointages add constraint pointages_kind check (kind in ('travail','ecole'));
+exception when duplicate_object then null; end $$;
+
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare inv invitations%rowtype;
+begin
+  select * into inv from invitations where lower(email) = lower(new.email) and used_at is null;
+  insert into profiles (id, full_name, email, role, poste, contrat_h, color, apprenti, mineur, can_validate_planning)
+  values (new.id,
+          coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+          new.email,
+          coalesce(inv.role, case when not exists (select 1 from profiles where role = 'direction') then 'direction' end),
+          coalesce(inv.poste, ''), inv.contrat_h, coalesce(inv.color, '#c1daf3'),
+          coalesce(inv.apprenti, false), coalesce(inv.mineur, false), false)
+  on conflict (id) do nothing;
+  if inv.email is not null then update invitations set used_at = now() where email = inv.email; end if;
+  return new;
+end $$;
+
+update public.invitations set apprenti = true where email in ('camille.pille@palomano.com','emma.digiovanni@palomano.com');
+insert into public.invitations (email, role, poste, contrat_h, color) values
+  ('yasminesizine320@gmail.com', 'equipe', 'CDD saisonnier', 17, '#c8d68e')
+on conflict (email) do nothing;
+
+-- ───────────── Invitation de l'associé (validateur du planning) ─────────────
+alter table public.invitations add column if not exists can_validate_planning boolean not null default false;
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare inv invitations%rowtype;
+begin
+  select * into inv from invitations where lower(email) = lower(new.email) and used_at is null;
+  insert into profiles (id, full_name, email, role, poste, contrat_h, color, apprenti, mineur, can_validate_planning)
+  values (new.id,
+          coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+          new.email,
+          coalesce(inv.role, case when not exists (select 1 from profiles where role = 'direction') then 'direction' end),
+          coalesce(inv.poste, ''), inv.contrat_h, coalesce(inv.color, '#c1daf3'),
+          coalesce(inv.apprenti, false), coalesce(inv.mineur, false),
+          coalesce(inv.can_validate_planning and inv.role = 'direction', false))
+  on conflict (id) do nothing;
+  if inv.email is not null then update invitations set used_at = now() where email = inv.email; end if;
+  return new;
+end $$;
+insert into public.invitations (email, role, poste, color, can_validate_planning) values
+  ('alexandre.pelut@palomano.com', 'direction', 'Associé', '#8ab5d7', true)
+on conflict (email) do update set role = 'direction', poste = 'Associé', can_validate_planning = true;
+select email, role, poste, contrat_h, apprenti, can_validate_planning from public.invitations where used_at is null order by role, email;
