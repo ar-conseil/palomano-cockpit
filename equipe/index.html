@@ -203,6 +203,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .wk .who{display:flex;align-items:center;gap:10px;padding:10px 12px;border-left:0;position:sticky;left:0;background:var(--card);z-index:1}
 .wk .who b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wk .who small{display:block;font-size:11.5px;color:var(--muted)}
+.wk .who.click,.tl .who.click{cursor:pointer}.wk .who.click:hover b,.tl .who.click:hover b{text-decoration:underline}
 .wk .cell{padding:6px;min-height:64px;display:flex;flex-direction:column;gap:5px;position:relative}
 .wk .cell.today{background:rgba(247,213,137,.10)}
 .wk .cell.off{background:repeating-linear-gradient(135deg,rgba(239,129,142,.08) 0 8px,transparent 8px 16px)}
@@ -452,7 +453,8 @@ const isManager=()=>S.me&&["direction","responsable"].includes(S.me.role);
 const isDirection=()=>S.me&&S.me.role==="direction";
 const canValidate=()=>isDirection()&&S.me.can_validate_planning;
 const realDirection=()=>((S.real&&S.real.me)||S.me)?.role==="direction";
-const person=id=>S.byId.get(id)||{full_name:"—",color:"#9a9895"};
+const person=id=>S.byId.get(id)||(S.ext&&S.ext.get(id))||{full_name:"—",color:"#9a9895"};
+const INT_TYPE={animateur:"Animateur (intérim)",staffeur:"Staffeur (intérim)",salarie:"Salarié · compte pas encore créé",autre:"Renfort"};
 const firstName=id=>person(id).full_name.split(" ")[0];
 const avatar=(p,size=38)=>`<div class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.36)}px;background:${esc(p.color||"#c1daf3")}">${esc(initials(p.full_name))}</div>`;
 
@@ -595,6 +597,8 @@ async function loadPeople(){
   const{data,error}=await S.sb.from("profiles").select("*").order("full_name");
   if(error)return fail(error);
   S.people=data;S.byId=new Map(data.map(p=>[p.id,p]));
+  const{data:ext}=await S.sb.from("intervenants").select("*").order("full_name");   // intérimaires + invités sans compte
+  S.extAll=ext||[];S.ext=new Map(S.extAll.map(x=>[x.id,{...x,ext:true}]));
 }
 async function logout(){await S.sb.auth.signOut();showAuth("fLogin")}
 $("fLogin").onsubmit=async e=>{e.preventDefault();$("lErr").textContent="";
@@ -659,6 +663,7 @@ VIEWS.today=async m=>{
   const openPt=(myPt||[]).find(x=>!x.end_at);
   const wkH=ptHours(myPt||[]);
   const read=new Set((reads||[]).map(r=>r.post_id)),doneBy=new Map((done||[]).map(x=>[x.item_id,x]));
+  (shifts||[]).forEach(s=>{if(!s.user_id)s.user_id=s.intervenant_id});
   const mine=(shifts||[]).filter(s=>s.user_id===S.user.id),others=(shifts||[]).filter(s=>s.user_id!==S.user.id);
   const low=(stock||[]).filter(i=>i.current_qty<=i.min_qty);
   const hr=new Date().getHours();
@@ -730,10 +735,12 @@ VIEWS.planning=async m=>{
     S.sb.from("groupes").select("date,heure_arrivee,structure,nb_enfants,type").gte("date",w).lte("date",days[6]).neq("statut","annule"),
   ]);
   const st=pl?pl.status:null,editable=isManager()&&!!pl&&["brouillon","refuse"].includes(st);
-  const SH=(shifts||[]).map(s=>({...s,a:toMin(s.start_time),b:toMin(s.end_time)}));
+  const SH=(shifts||[]).map(s=>({...s,user_id:s.user_id||s.intervenant_id,a:toMin(s.start_time),b:toMin(s.end_time)}));
   const hrs={};SH.forEach(s=>{hrs[s.user_id]=(hrs[s.user_id]||0)+(s.b-s.a)/60});
   const offOn=(d,uid)=>(leaves||[]).some(l=>l.start_date<=d&&l.end_date>=d&&(!uid||l.user_id===uid));
-  const team=S.people.filter(p=>p.active&&p.role).sort((a,b)=>(a.role==="direction")-(b.role==="direction")||a.full_name.localeCompare(b.full_name));
+  const used=new Set(SH.map(s=>s.user_id)),EXT_ORD={salarie:0,animateur:1,staffeur:2,autre:3};
+  const team=[...S.people.filter(p=>p.active&&p.role).sort((a,b)=>(a.role==="direction")-(b.role==="direction")||a.full_name.localeCompare(b.full_name)),
+    ...[...S.ext.values()].filter(x=>x.active||used.has(x.id)).sort((a,b)=>EXT_ORD[a.type]-EXT_ORD[b.type]||a.full_name.localeCompare(b.full_name))];
   const resaOn=d=>[...(anniv||[]).filter(a=>a.date===d).map(a=>({t:a.heure,k:"anniv",l:`${fTime(a.heure)} anniv ${a.enfant}`})),...(grp||[]).filter(g=>g.date===d).map(g=>({t:g.heure_arrivee||"",k:g.type,l:`${fTime(g.heure_arrivee)} ${g.structure}`}))].sort((a,b)=>a.t.localeCompare(b.t));
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
   const acts=[
@@ -743,7 +750,7 @@ VIEWS.planning=async m=>{
     isDirection()&&pl&&["soumis","valide"].includes(st)?`<button class="btn ghost" id="pReopen">Rouvrir</button>`:"",
   ].join("");
   const sub=st?`<span class="pill ${PLAN_ST[st][0]}"><i></i>${PLAN_ST[st][1]}</span>${pl.comment&&isManager()?` &nbsp;💬 ${esc(pl.comment)}`:""}${st==="valide"&&pl.validated_at?` &nbsp;<span style="font-size:13px">par ${esc(firstName(pl.validated_by))} le ${fStamp(pl.validated_at)}</span>`:""}${st==="soumis"&&pl.submitted_at?` &nbsp;<span style="font-size:13px">envoyé par ${esc(firstName(pl.submitted_by))} le ${fStamp(pl.submitted_at)}</span>`:""}`:(isManager()?"Cette semaine n'est pas encore préparée.":"");
-  const who=p=>`<div class="who">${avatar(p,34)}<div style="min-width:0"><b>${esc(p.full_name)}</b><small>${esc(p.poste||ROLE[p.role])}</small></div></div>`;
+  const who=p=>`<div class="who ${p.ext&&isManager()?"click":""}" ${p.ext?`data-ext="${p.id}"`:""}>${avatar(p,34)}<div style="min-width:0"><b>${esc(p.full_name)}</b><small>${p.ext?esc(INT_TYPE[p.type]+(p.agence?" · "+p.agence:"")):esc(p.poste||ROLE[p.role])}</small></div></div>`;
   const shHtml=s=>`<div class="sh ${editable?"edit":""} ${s.user_id===S.user.id?"me":""}" data-id="${s.id}" style="--c:${esc(person(s.user_id).color||"#c1daf3")}"><b>${fTime(s.start_time)}–${fTime(s.end_time)}</b>${s.label?`<small>${esc(s.label)}</small>`:""}</div>`;
   const nbDay=d=>new Set(SH.filter(s=>s.day===d).map(s=>s.user_id)).size;
   const hDay=d=>SH.filter(s=>s.day===d).reduce((t,s)=>t+(s.b-s.a)/60,0);
@@ -753,7 +760,7 @@ VIEWS.planning=async m=>{
       <div class="hd">Total</div>
       ${team.map(p=>who(p)+days.map(d=>{const list=SH.filter(s=>s.user_id===p.id&&s.day===d).sort((a,b)=>a.a-b.a),off=offOn(d,p.id);
         return`<div class="cell ${d===today?"today":""} ${off?"off":""} ${editable?"edit":""}" data-uid="${p.id}" data-day="${d}">${off?'<small style="color:var(--rouge-f);font-weight:600">🌴 Congé</small>':""}${list.map(shHtml).join("")}${editable&&!list.length?`<button class="add" data-add>${ic("plus","sm")}</button>`:""}</div>`}).join("")
-        +`<div class="tot ${(hrs[p.id]||0)>35?"over":""}">${fNum(hrs[p.id]||0,1)} h</div>`).join("")}
+        +`<div class="tot ${!p.ext&&(hrs[p.id]||0)>35?"over":""}">${fNum(hrs[p.id]||0,1)} h</div>`).join("")}
       <div class="foot" style="text-align:left;padding-left:14px;font-weight:600">Présents</div>
       ${days.map(d=>`<div class="foot">${nbDay(d)} pers. · ${fNum(hDay(d),1)} h</div>`).join("")}
       <div class="foot" style="font-weight:700">${fNum(Object.values(hrs).reduce((a,b)=>a+b,0),1)} h</div>
@@ -768,7 +775,7 @@ VIEWS.planning=async m=>{
     </div></div>`;
   m.innerHTML=topbar("Planning",sub,acts)+
     `<div class="plan-bar"><button class="btn icon" id="wPrev" aria-label="Semaine précédente">${ic("left")}</button><span class="week">${wl}</span><button class="btn icon" id="wNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="wNow">Aujourd'hui</button>
-      <span class="sp"></span><div class="seg" id="vSeg"><button data-v="semaine" aria-pressed="${view==="semaine"}">Semaine</button><button data-v="jour" aria-pressed="${view==="jour"}">Jour</button></div></div>`+
+      <span class="sp"></span>${isManager()?`<button class="btn sm" id="pExt">${ic("plus","sm")} Intérimaire</button>`:""}<div class="seg" id="vSeg"><button data-v="semaine" aria-pressed="${view==="semaine"}">Semaine</button><button data-v="jour" aria-pressed="${view==="jour"}">Jour</button></div></div>`+
     (!isManager()&&!st?`<div class="card empty"><img src="assets/illu.svg" alt="">Le planning de cette semaine n'est pas encore publié.</div>`:
     (view==="jour"?`<div class="days-tabs" style="margin-bottom:14px">${days.map(d=>`<button data-day="${d}" class="${d===today?"today":""}" aria-pressed="${d===day}">${capital(fShort(d))}</button>`).join("")}</div>`+dayTimeline():weekGrid())+
     `<p class="plan-hint">${editable?(view==="jour"?"✋ Glissez une barre pour décaler l'horaire (ou vers une autre personne) · tirez ses bords pour changer le début ou la fin · dessinez sur la ligne d'une personne pour créer un service · cliquez pour modifier.":"✋ Glissez un service vers un autre jour ou une autre personne · cliquez sur une case vide pour en créer un · cliquez sur un service pour le modifier · passez en vue Jour pour ajuster les heures à la souris."):st==="soumis"?"Planning en attente de validation : il n'est plus modifiable sauf refus.":st==="valide"?"Planning validé : il est visible par toute l'équipe.":""}</p>
@@ -778,8 +785,9 @@ VIEWS.planning=async m=>{
       ${editable?`<button class="btn sm soft" style="margin-top:8px" data-addday="${d}">${ic("plus","sm")} Ajouter</button>`:""}</div>`}).join("")}</div>`);
 
   /* ── actions communes ── */
-  const save=async(id,row)=>{const{error}=await S.sb.from("shifts").update(row).eq("id",id);if(error){fail(error);render();return false}return true};
-  const shiftForm=(s={})=>`<div class="fgrid"><label class="f full">Salarié<select name="user_id" required>${peopleOptions(s.user_id,{empty:s.user_id?null:"Choisir…"})}</select></label>
+  const qui=row=>{if(!("user_id" in row))return row;const{user_id,...r}=row;return S.ext.has(user_id)?{...r,user_id:null,intervenant_id:user_id}:{...r,user_id,intervenant_id:null}};
+  const save=async(id,row)=>{const{error}=await S.sb.from("shifts").update(qui(row)).eq("id",id);if(error){fail(error);render();return false}return true};
+  const shiftForm=(s={})=>`<div class="fgrid"><label class="f full">Qui<select name="user_id" required>${peopleOptions(s.user_id,{empty:s.user_id?null:"Choisir…"})}${(()=>{const ex=[...S.ext.values()].filter(x=>x.active||x.id===s.user_id);return ex.length?`<optgroup label="Sans compte (intérim, invités)">${ex.map(x=>`<option value="${x.id}" ${x.id===s.user_id?"selected":""}>${esc(x.full_name)} — ${esc(INT_TYPE[x.type])}</option>`).join("")}</optgroup>`:""})()}</select></label>
     <label class="f full">Jour<select name="day">${days.map(d=>`<option value="${d}" ${d===s.day?"selected":""}>${capital(fDay(d))}</option>`).join("")}</select></label>
     <label class="f">Début<input type="time" name="start_time" step="900" value="${(s.start_time||"09:30").slice(0,5)}" required></label>
     <label class="f">Fin<input type="time" name="end_time" step="900" value="${(s.end_time||"18:30").slice(0,5)}" required></label>
@@ -787,7 +795,7 @@ VIEWS.planning=async m=>{
   const createShift=async(init)=>{
     const r=await modal("Nouveau service",shiftForm(init),{submit:"Ajouter"});if(!r)return;
     if(!r.data.user_id)return fail("Choisissez un salarié");if(r.data.end_time<=r.data.start_time)return fail("L'heure de fin doit être après le début");
-    const{error}=await S.sb.from("shifts").insert({week_start:w,user_id:r.data.user_id,day:r.data.day,start_time:r.data.start_time,end_time:r.data.end_time,label:r.data.label});
+    const{error}=await S.sb.from("shifts").insert(qui({week_start:w,user_id:r.data.user_id,day:r.data.day,start_time:r.data.start_time,end_time:r.data.end_time,label:r.data.label}));
     if(error)return fail(error);render()};
   const editShift=async s=>{
     const r=await modal(`Service de ${person(s.user_id).full_name}`,shiftForm({...s,start_time:toTime(s.a),end_time:toTime(s.b)}),{danger:"Supprimer"});
@@ -877,8 +885,20 @@ VIEWS.planning=async m=>{
   on("pCopy",async()=>{const{data:prev,error:e1}=await S.sb.from("shifts").select("*").eq("week_start",addDays(w,-7));if(e1)return fail(e1);
     if(!prev?.length)return toast("La semaine précédente est vide");
     const{error}=await S.sb.from("plannings").insert({week_start:w});if(error)return fail(error);
-    const{error:e2}=await S.sb.from("shifts").insert(prev.map(s=>({week_start:w,user_id:s.user_id,day:addDays(s.day,7),start_time:s.start_time,end_time:s.end_time,label:s.label})));
+    const{error:e2}=await S.sb.from("shifts").insert(prev.map(s=>({week_start:w,user_id:s.user_id,intervenant_id:s.intervenant_id,day:addDays(s.day,7),start_time:s.start_time,end_time:s.end_time,label:s.label})));
     if(e2)return fail(e2);toast(`${prev.length} services copiés`);render()});
+  const extForm=(x={})=>`<div class="fgrid"><label class="f full">Nom<input name="full_name" value="${esc(x.full_name||"")}" required maxlength="80" placeholder="Prénom Nom"></label>
+    ${x.type==="salarie"?`<input type="hidden" name="type" value="salarie"><p class="full" style="margin:0;font-size:13px;color:var(--ink-2)">Salarié invité (${esc(x.email||"")}) : dès qu'il crée son compte, ses services lui sont rattachés automatiquement.</p>`
+      :`<label class="f">Rôle<select name="type">${opt({animateur:"Animateur",staffeur:"Staffeur",autre:"Autre renfort"},x.type||"animateur")}</select></label>
+    <label class="f">Agence (facultatif)<input name="agence" value="${esc(x.agence||"")}" maxlength="60" placeholder="Ex. : Adecco"></label>`}
+    <label class="f">Couleur<input type="color" name="color" value="${esc(x.color||"#c8d68e")}"></label></div>`;
+  on("pExt",async()=>{const r=await modal("Ajouter un intérimaire",extForm(),{submit:"Ajouter au planning"});if(!r)return;
+    const{error}=await S.sb.from("intervenants").insert({full_name:r.data.full_name.trim(),type:r.data.type,agence:(r.data.agence||"").trim(),color:r.data.color});
+    if(error)return fail(error);await loadPeople();toast(`${r.data.full_name.trim()} ajouté au planning`);render()});
+  m.querySelectorAll("[data-ext]").forEach(el=>{if(!isManager())return;el.onclick=async()=>{const x=S.ext.get(el.dataset.ext);
+    const r=await modal(x.full_name,extForm(x),{danger:x.type==="salarie"?null:"Retirer du planning"});if(!r)return;
+    const upd=r.action==="danger"?{active:false}:{full_name:r.data.full_name.trim(),color:r.data.color,...(x.type==="salarie"?{}:{type:r.data.type,agence:(r.data.agence||"").trim()})};
+    const{error}=await S.sb.from("intervenants").update(upd).eq("id",x.id);if(error)return fail(error);await loadPeople();render()}});
   m.querySelectorAll("[data-addday]").forEach(b=>b.onclick=()=>createShift({day:b.dataset.addday,start_time:"09:30",end_time:"18:30"}));
   m.querySelectorAll(".mshift[data-shift]").forEach(el=>el.onclick=()=>editShift(SH.find(x=>x.id===+el.dataset.shift)));
   on("pSubmit",async()=>{if(!SH.length)return toast("Ajoutez au moins un service");if(!confirm("Envoyer ce planning à Alex pour validation ? Il ne sera plus modifiable sauf refus."))return;
