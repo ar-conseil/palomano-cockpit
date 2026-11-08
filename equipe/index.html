@@ -959,6 +959,8 @@ async function resaView(m,kind){
   const{data:stat}=isA?await S.sb.from("anniversaires").select("date,nb_enfants,statut").gte("date",m0<w0?m0:w0):await S.sb.from("groupes").select("date,nb_enfants,statut").eq("type",kind).gte("date",m0<w0?m0:w0);
   const live=(stat||[]).filter(r=>r.statut!=="annule"),wk=live.filter(r=>r.date>=w0&&r.date<=w1),mo=live.filter(r=>r.date.slice(0,7)===today.slice(0,7));
   const kids=l=>l.reduce((s,r)=>s+(r.nb_enfants||0),0);
+  // compteurs : seulement ce qui reste à venir (comme la liste), les jours déjà passés sont signalés à part
+  const up=l=>l.filter(r=>r.date>=today),done=l=>{const n=l.length-up(l).length;return n?` <small style="display:block;color:var(--muted)">+ ${n} déjà passé${n>1?"s":""}</small>`:""};
   const unpaid=S.resaUnpaid,shown=unpaid?(rows||[]).filter(r=>(r.paiement==="non_paye"||r.paiement==="acompte")&&r.statut!=="annule"):rows||[];
   const groups=new Map();shown.forEach(r=>{if(!groups.has(r.date))groups.set(r.date,[]);groups.get(r.date).push(r)});
   const ST=isA?ST_ANNIV:ST_GROUPE;
@@ -973,10 +975,10 @@ async function resaView(m,kind){
   m.innerHTML=topbar(conf.title,`${past?"Historique":"À venir"} · ${isA?"formules, salles, animateurs et allergies":"structures, effectifs, horaires et contacts"}`,
       `<div class="seg" id="rSeg"><button data-p="0" aria-pressed="${!past}">À venir</button><button data-p="1" aria-pressed="${past}">Passés</button></div><div class="seg" id="rPay"><button data-u="0" aria-pressed="${!unpaid}">Tous</button><button data-u="1" aria-pressed="${!!unpaid}">Non payés</button></div>${isManager()?`<button class="btn pri" id="rNew">${ic("plus","sm")} ${isA?"Nouvel anniversaire":kind==="centre"?"Nouveau centre":"Nouvelle école"}</button>`:""}`)+
     qwLine+`<div class="grid g4">
-      <div class="stat"><div class="tile-ic" style="background:var(${conf.col});color:${conf.fg}">${ic(conf.icon)}</div><div><b>${wk.length}</b><span>cette semaine</span></div></div>
-      <div class="stat"><div class="tile-ic" style="background:var(--bleu-c);color:var(--bleu-f)">${ic("users")}</div><div><b>${fNum(kids(wk))}</b><span>enfants attendus cette semaine</span></div></div>
-      <div class="stat"><div class="tile-ic" style="background:var(${conf.col});color:${conf.fg}">${ic("cal")}</div><div><b>${mo.length}</b><span>ce mois-ci</span></div></div>
-      <div class="stat"><div class="tile-ic" style="background:var(--vert-c);color:#9aab55">${ic("users")}</div><div><b>${fNum(kids(mo))}</b><span>enfants ce mois-ci</span></div></div>
+      <div class="stat"><div class="tile-ic" style="background:var(${conf.col});color:${conf.fg}">${ic(conf.icon)}</div><div><b>${up(wk).length}</b><span>à venir cette semaine${done(wk)}</span></div></div>
+      <div class="stat"><div class="tile-ic" style="background:var(--bleu-c);color:var(--bleu-f)">${ic("users")}</div><div><b>${fNum(kids(up(wk)))}</b><span>enfants attendus cette semaine</span></div></div>
+      <div class="stat"><div class="tile-ic" style="background:var(${conf.col});color:${conf.fg}">${ic("cal")}</div><div><b>${up(mo).length}</b><span>à venir ce mois-ci${done(mo)}</span></div></div>
+      <div class="stat"><div class="tile-ic" style="background:var(--vert-c);color:#9aab55">${ic("users")}</div><div><b>${fNum(kids(up(mo)))}</b><span>enfants attendus ce mois-ci</span></div></div>
     </div>
     ${groups.size?[...groups].map(([d,list])=>`<div class="day-group"><h4>${d===today?'<span class="pill bad"><i></i>Aujourd\'hui</span>':""}${capital(fDay(d))}<span class="pill"><i style="background:var(${conf.col})"></i>${list.length} · ${fNum(kids(list.filter(r=>r.statut!=="annule")))} enfants</span></h4>${list.map(card).join("")}</div>`).join("")
       :`<div class="card empty" style="margin-top:22px"><img src="assets/illu.svg" alt="">${unpaid?"Aucun "+conf.one+" en attente de paiement.":past?"Aucun "+conf.one+" passé.":"Aucun "+conf.one+" à venir pour l'instant."}</div>`}`;
