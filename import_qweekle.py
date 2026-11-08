@@ -16,6 +16,7 @@ Une réservation = plusieurs lignes (Enfant / Adulte, entrée + formule annivers
   (horodatage de création, inchangé si le créneau est déplacé).
 - Les champs de l'équipe (notes, salle, thème, animateur, référent, prénom de l'enfant)
   ne sont jamais écrasés ; aucun montant n'est importé.
+- État de paiement (colonne Statut) : payé, acompte versé, non payé, option. L'export n'a pas de montant.
 - Une réservation importée qui disparaît d'un export plus récent couvrant sa date
   (annulée dans Qweekle) passe en « annulé ».
 
@@ -43,9 +44,9 @@ SB_URL, SB_KEY = os.environ.get("SUPABASE_URL", "").rstrip("/"), os.environ.get(
 
 # Champs dont Qweekle est la source (mis à jour à chaque import). Tout le reste appartient à l'équipe.
 OWN_ANNIV = ["date", "heure", "nb_enfants", "formule", "parent_nom", "parent_tel", "parent_email",
-             "statut", "qweekle_note"]
+             "statut", "paiement", "qweekle_note"]
 OWN_GROUPE = ["type", "structure", "date", "heure_arrivee", "nb_enfants", "nb_encadrants", "contact_nom",
-              "contact_tel", "contact_email", "statut", "qweekle_note"]
+              "contact_tel", "contact_email", "statut", "paiement", "qweekle_note"]
 
 
 def sb(path, body=None, method="GET", prefer="return=minimal"):
@@ -129,6 +130,9 @@ def statut(state, origin, groupe):
     return "confirme"   # accepted, partially_paid, sold
 
 
+PAIEMENT = {"sold": "paye", "partially_paid": "acompte", "accepted": "non_paye", "proposal": "option"}
+
+
 def phone(v):
     s = str(v or "").split(".")[0].strip()
     return "0" + s if s.isdigit() and len(s) == 9 else s
@@ -180,7 +184,8 @@ def parse(data):
 
 def record(key, r):
     common = {"qweekle_id": key, "date": r["start"].date().isoformat(), "qweekle_note": r["note"],
-              "statut": statut(r["state"], r["origin"], r["kind"] != "anniv")}
+              "statut": statut(r["state"], r["origin"], r["kind"] != "anniv"),
+              "paiement": PAIEMENT.get(r["state"])}
     if r["kind"] == "anniv":
         return "anniversaires", {**common, "heure": r["start"].strftime("%H:%M"), "nb_enfants": r["kids"] or None,
                                  "formule": r["formule"], "parent_nom": r["client"], "parent_tel": r["tel"],

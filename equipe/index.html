@@ -833,6 +833,7 @@ VIEWS.planning=async m=>{
 
 /* ═════════ RÉSERVATIONS : anniversaires, centres, écoles ═════════ */
 const ST_ANNIV={option:["warn","Option"],confirme:["ok","Confirmé"],termine:["info","Terminé"],annule:["bad","Annulé"]};
+const PAY={paye:["ok","Payé"],acompte:["warn","Acompte versé"],non_paye:["bad","Non payé"],option:["","Pas encore réglé"]};
 const ST_GROUPE={devis:["info","Devis envoyé"],option:["warn","Option"],confirme:["ok","Confirmé"],termine:["info","Terminé"],annule:["bad","Annulé"]};
 async function resaView(m,kind){
   const isA=kind==="anniv",today=TODAY(),past=S.resaPast;
@@ -847,7 +848,8 @@ async function resaView(m,kind){
   const{data:stat}=isA?await S.sb.from("anniversaires").select("date,nb_enfants,statut").gte("date",m0<w0?m0:w0):await S.sb.from("groupes").select("date,nb_enfants,statut").eq("type",kind).gte("date",m0<w0?m0:w0);
   const live=(stat||[]).filter(r=>r.statut!=="annule"),wk=live.filter(r=>r.date>=w0&&r.date<=w1),mo=live.filter(r=>r.date.slice(0,7)===today.slice(0,7));
   const kids=l=>l.reduce((s,r)=>s+(r.nb_enfants||0),0);
-  const groups=new Map();(rows||[]).forEach(r=>{if(!groups.has(r.date))groups.set(r.date,[]);groups.get(r.date).push(r)});
+  const unpaid=S.resaUnpaid,shown=unpaid?(rows||[]).filter(r=>(r.paiement==="non_paye"||r.paiement==="acompte")&&r.statut!=="annule"):rows||[];
+  const groups=new Map();shown.forEach(r=>{if(!groups.has(r.date))groups.set(r.date,[]);groups.get(r.date).push(r)});
   const ST=isA?ST_ANNIV:ST_GROUPE;
   const card=r=>{const st=ST[r.statut]||["",r.statut];
     const when=isA?`${fTime(r.heure)}<small>${r.duree_min?Math.round(r.duree_min/60*10)/10+" h":""}</small>`:`${fTime(r.heure_arrivee)||"—"}<small>${r.heure_depart?"→ "+fTime(r.heure_depart):""}</small>`;
@@ -856,9 +858,9 @@ async function resaView(m,kind){
       :[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.nb_encadrants&&`${r.nb_encadrants} encadrants`,r.niveau&&`${ic(conf.icon,"sm")} ${esc(r.niveau)}`,r.formule&&esc(r.formule),r.referent&&`référent ${esc(firstName(r.referent))}`];
     return`<div class="resa" data-id="${r.id}" tabindex="0"><div class="when" style="background:var(${conf.col})">${when}</div>
       <div class="tx"><b>${title}</b><div class="meta">${meta.filter(Boolean).map(x=>`<span>${x}</span>`).join("")}</div>${isA&&r.allergies?`<div class="meta"><span class="alert">${ic("alert","sm")} ${esc(r.allergies)}</span></div>`:""}${r.qweekle_note?`<div class="meta"><span>${ic("alert","sm")} Note du client : ${esc(r.qweekle_note)}</span></div>`:""}</div>
-      <div class="side-r" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="pill ${st[0]}"><i></i>${st[1]}</span>${isManager()&&r.montant!=null?`<span style="font-size:13px;color:var(--ink-2)">${fEur(r.montant)}</span>`:""}</div></div>`};
+      <div class="side-r" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="pill ${st[0]}"><i></i>${st[1]}</span>${r.paiement&&PAY[r.paiement]&&r.statut!=="annule"?`<span class="pill ${PAY[r.paiement][0]}"><i></i>${PAY[r.paiement][1]}</span>`:""}${isManager()&&r.montant!=null?`<span style="font-size:13px;color:var(--ink-2)">${fEur(r.montant)}</span>`:""}</div></div>`};
   m.innerHTML=topbar(conf.title,`${past?"Historique":"À venir"} · ${isA?"formules, salles, animateurs et allergies":"structures, effectifs, horaires et contacts"}`,
-      `<div class="seg" id="rSeg"><button data-p="0" aria-pressed="${!past}">À venir</button><button data-p="1" aria-pressed="${past}">Passés</button></div>${isManager()?`<button class="btn pri" id="rNew">${ic("plus","sm")} ${isA?"Nouvel anniversaire":kind==="centre"?"Nouveau centre":"Nouvelle école"}</button>`:""}`)+
+      `<div class="seg" id="rSeg"><button data-p="0" aria-pressed="${!past}">À venir</button><button data-p="1" aria-pressed="${past}">Passés</button></div><div class="seg" id="rPay"><button data-u="0" aria-pressed="${!unpaid}">Tous</button><button data-u="1" aria-pressed="${!!unpaid}">Non payés</button></div>${isManager()?`<button class="btn pri" id="rNew">${ic("plus","sm")} ${isA?"Nouvel anniversaire":kind==="centre"?"Nouveau centre":"Nouvelle école"}</button>`:""}`)+
     qwLine+`<div class="grid g4">
       <div class="stat"><div class="tile-ic" style="background:var(${conf.col});color:${conf.fg}">${ic(conf.icon)}</div><div><b>${wk.length}</b><span>cette semaine</span></div></div>
       <div class="stat"><div class="tile-ic" style="background:var(--bleu-c);color:var(--bleu-f)">${ic("users")}</div><div><b>${fNum(kids(wk))}</b><span>enfants attendus cette semaine</span></div></div>
@@ -866,8 +868,9 @@ async function resaView(m,kind){
       <div class="stat"><div class="tile-ic" style="background:var(--vert-c);color:#9aab55">${ic("users")}</div><div><b>${fNum(kids(mo))}</b><span>enfants ce mois-ci</span></div></div>
     </div>
     ${groups.size?[...groups].map(([d,list])=>`<div class="day-group"><h4>${d===today?'<span class="pill bad"><i></i>Aujourd\'hui</span>':""}${capital(fDay(d))}<span class="pill"><i style="background:var(${conf.col})"></i>${list.length} · ${fNum(kids(list.filter(r=>r.statut!=="annule")))} enfants</span></h4>${list.map(card).join("")}</div>`).join("")
-      :`<div class="card empty" style="margin-top:22px"><img src="assets/illu.svg" alt="">${past?"Aucun "+conf.one+" passé.":"Aucun "+conf.one+" à venir pour l'instant."}</div>`}`;
+      :`<div class="card empty" style="margin-top:22px"><img src="assets/illu.svg" alt="">${unpaid?"Aucun "+conf.one+" en attente de paiement.":past?"Aucun "+conf.one+" passé.":"Aucun "+conf.one+" à venir pour l'instant."}</div>`}`;
   $("rSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.resaPast=b.dataset.p==="1";render()}};
+  $("rPay").onclick=e=>{const b=e.target.closest("button");if(b){S.resaUnpaid=b.dataset.u==="1";render()}};
   const form=(r={})=>isA?`<div class="fgrid">
       <label class="f">Prénom de l'enfant<input name="enfant" value="${esc(r.enfant||"")}" required maxlength="60"></label>
       <label class="f">Âge<input type="number" name="age" min="1" max="18" value="${r.age??""}"></label>
