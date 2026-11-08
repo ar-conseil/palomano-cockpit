@@ -232,8 +232,11 @@ def has_animateur(r, sales):
 
 
 def record(key, r):
+    st = statut(r["state"], r["origin"], r["kind"] != "anniv")
+    if st == "confirme" and r["start"].date() < dt.date.today():
+        st = "termine"                          # réservation passée (historique des derniers mois)
     common = {"qweekle_id": key, "date": r["start"].date().isoformat(), "qweekle_note": r["note"],
-              "statut": statut(r["state"], r["origin"], r["kind"] != "anniv"),
+              "statut": st,
               "paiement": PAIEMENT.get(r["state"])}
     if r["kind"] == "anniv":
         return "anniversaires", {**common, "heure": r["start"].strftime("%H:%M"), "nb_enfants": r["kids"] or None,
