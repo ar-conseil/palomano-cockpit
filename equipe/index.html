@@ -152,6 +152,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .borne-code{font-size:64px;font-weight:700;letter-spacing:.12em;font-variant-numeric:tabular-nums}
 .borne-bar{width:320px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}.borne-bar i{display:block;height:100%;background:var(--rouge-f);transition:width .9s linear}
 .borne-clock{color:var(--muted);font-size:16px;text-transform:capitalize}
+@media (max-height:560px),(max-width:520px){.borne{gap:6px;padding:10px}.borne-logo,.borne p{display:none}.borne h1{font-size:17px}.borne-code{font-size:38px}.borne-qr{padding:10px;margin-top:2px}.borne-bar{width:200px}.borne-clock{font-size:12px}}
 .betabar{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;margin-bottom:16px;border-radius:var(--radius);background:var(--jaune-c,#f9e2b4);box-shadow:inset 0 0 0 1.5px var(--jaune)}
 .betabar b{display:block;font-size:15px}.betabar span{display:block;font-size:13.5px;color:var(--ink-2);margin-top:2px}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--bg);white-space:nowrap}
@@ -622,9 +623,11 @@ async function borneMode(){
     document.getElementById("bBar").style.width=(data.reste/30*100)+"%";
     if(data.code!==last){last=data.code;document.getElementById("bCode").textContent=data.code.replace(/(\d{3})(\d{3})/,"$1 $2");
       const q=document.getElementById("bQr");q.innerHTML="";const url=location.origin+location.pathname.replace(/index\.html$/,"")+"#pointer="+data.code;
-      if(window.QRCode)new QRCode(q,{text:url,width:300,height:300,correctLevel:QRCode.CorrectLevel.M});else q.textContent=url}
+      const sz=Math.max(140,Math.min(300,Math.floor(Math.min(innerWidth,innerHeight)*.42)));   // s'adapte à une petite fenêtre dans un coin de l'écran
+      if(window.QRCode)new QRCode(q,{text:url,width:sz,height:sz,correctLevel:QRCode.CorrectLevel.M});else q.textContent=url}
   };
   await tick();setInterval(tick,3000);
+  addEventListener("resize",()=>{last=""});   // redessine le QR à la bonne taille
   try{await navigator.wakeLock?.request("screen")}catch(e){}
 }
 async function boot(){
