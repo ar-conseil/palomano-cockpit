@@ -17,8 +17,9 @@ Une réservation = plusieurs lignes (Enfant / Adulte, entrée + formule annivers
 - Les champs de l'équipe (notes, salle, thème, animateur, référent, prénom de l'enfant)
   ne sont jamais écrasés ; aucun montant n'est importé.
 - État de paiement (colonne Statut) : payé, acompte versé, non payé, option. L'export n'a pas de montant.
-- Option « Animateur » (produit ajouté à la commande, absent de l'export des réservations) : lue dans
-  l'export caisse téléchargé par fetch_sharepoint.py, rattachée par le nom du client et la date de vente.
+- Option « Animateur » : produit vendu sur place seulement (ni en ligne ni au planning), donc absent de
+  l'export des réservations. Lue dans l'export caisse, rattachée par le nom du client et la date de vente ;
+  l'import ne fait que cocher l'option (jamais la décocher), l'équipe peut la cocher à la main avant la fête.
 - Une réservation importée qui disparaît d'un export plus récent couvrant sa date
   (annulée dans Qweekle) passe en « annulé ».
 
@@ -297,8 +298,8 @@ def main():
             t, rec = record(key, r)
             if t != table:
                 continue
-            if t == "anniversaires" and sales is not None:
-                rec["option_animateur"] = has_animateur(r, sales)
+            if t == "anniversaires" and sales is not None and has_animateur(r, sales):
+                rec["option_animateur"] = True   # jamais remis à « non » : l'équipe peut cocher l'option à la main
             seen.add(key)
             cur = db.get(key)
             if not cur:
@@ -310,7 +311,7 @@ def main():
                 sb(table, rec, "POST")
                 created += 1
                 continue
-            patch = {k: rec[k] for k in own if not same(cur.get(k), rec.get(k))}
+            patch = {k: rec[k] for k in own if k in rec and not same(cur.get(k), rec.get(k))}
             if cur.get("statut") == "termine":
                 patch.pop("statut", None)
             if patch:
