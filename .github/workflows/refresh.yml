@@ -48,8 +48,19 @@ jobs:
           MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
           DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
           MS_TOKEN_DIR: .ms_token
+          MS_SCOPE: ${{ vars.MS_SCOPE }}
           PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
         run: python fetch_sharepoint.py
+
+      - name: Synchroniser la facturation écoles & centres (Excel ↔ espace équipe)
+        env:
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          MS_TOKEN_DIR: .ms_token
+          MS_SCOPE: ${{ vars.MS_SCOPE }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python sync_facturation.py || echo "::warning::Synchronisation facturation en échec"
+
 
       - name: Conserver la session Microsoft
         if: always() && hashFiles('.ms_token/refresh_token.enc') != ''

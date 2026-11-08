@@ -33,7 +33,8 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 HERE = Path(__file__).resolve().parent
 TENANT_ID = os.environ.get("MS_TENANT_ID", "bf94cc2f-302e-4f51-be78-91587215f19f")
 CLIENT_ID = os.environ.get("MS_CLIENT_ID", "a2d397f3-628b-4b0e-b17f-fb9b5c1f2d99")  # appli « Palomano Cockpit »
-SCOPE = "https://graph.microsoft.com/Files.Read.All offline_access"
+# MS_SCOPE passe à Files.ReadWrite.All quand l'écriture dans l'Excel de facturation est autorisée
+SCOPE = os.environ.get("MS_SCOPE") or "https://graph.microsoft.com/Files.Read.All offline_access"
 DRIVE_ID = os.environ.get("SP_DRIVE_ID", "b!bSAxO8uBfEadDgDaxczJN3YHKcBl_Z5DpNXmbSfpraw3VfTDsgUSQbsRyhS9FVHu")
 FOLDER = os.environ.get("SP_FOLDER", "PARC/SUIVI PARC")
 FILES = ["Objectifs Palomano Lille.xlsx", "PALOMANO_Objectifs_Yannika.xlsx", "Colorhisto_PALOMANO_Lille.xlsx"]

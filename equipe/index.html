@@ -429,6 +429,8 @@ const ICONS={
   copy:'<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>',
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
   moon:'<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>',
+  euro:'<path d="M17.5 6.5A6.5 6.5 0 1 0 17.5 17.5"/><path d="M4.5 10.5h9M4.5 13.5h9"/>',
+  file:'<path d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5A1.5 1.5 0 0 1 7.5 3.5z"/><path d="M14 3.5V8h4M9 13h6M9 16.5h4"/>',
   wrench:'<path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3z"/><path d="M14.5 6.5 17 4l3 3-2.5 2.5"/>',
 };
 const ic=(n,cls="")=>`<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]||""}</svg>`;
@@ -450,7 +452,7 @@ const NAV=[
   {h:"Réservations"},
   {t:"anniv",l:"Anniversaires",i:"cake"},{t:"centres",l:"Centres de loisirs",i:"tent"},{t:"ecoles",l:"Écoles",i:"school"},
   {h:"Équipe"},
-  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"objectifs",l:"Objectifs",i:"target"},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
+  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"objectifs",l:"Objectifs",i:"target"},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
 ];
 const BNAV=["today","planning","anniv","stocks"];
 const BADGES={};
@@ -475,7 +477,7 @@ document.addEventListener("click",e=>{
 });
 $("sheet").onclick=e=>{if(e.target.id==="sheet")$("sheet").classList.add("hidden")};
 function go(t){
-  if(!VIEWS[t]||(t==="reglages"&&!isManager())||(t==="heures"&&!isDirection()))t="today";
+  if(!VIEWS[t]||((t==="reglages"||t==="factu")&&!isManager())||(t==="heures"&&!isDirection()))t="today";
   S.tab=t;try{sessionStorage.setItem("palo.eq.tab",t)}catch(e){}
   renderNav();window.scrollTo(0,0);render();
 }
@@ -565,6 +567,8 @@ async function refreshBadges(){
       S.sb.from("plannings").select("week_start,status").gte("week_start",addDays(w,-7)),
       isDirection()?S.sb.from("profiles").select("id",{count:"exact",head:true}).is("role",null):Promise.resolve({count:0}),
     ]);
+    const{count:aPayer}=isDirection()?await S.sb.from("factures_fournisseurs").select("id",{count:"exact",head:true}).eq("statut","a_payer"):{count:0};
+    setBadge("bFac",aPayer||0);
     setBadge("bStock",(items||[]).filter(i=>i.current_qty<=i.min_qty).length);
     setBadge("bDem",(pend||[]).length+(inc||[]).length);
     setBadge("bPlan",(plans||[]).filter(p=>canValidate()?p.status==="soumis":isManager()?p.status==="refuse":false).length);
@@ -1173,6 +1177,115 @@ VIEWS.heures=async m=>{
     const{error}=sel?await S.sb.from("pointages").update(row).eq("id",sel.id):await S.sb.from("pointages").insert({...row,user_id:p.id});
     if(error)return fail(error);toast("Pointage corrigé");render()});
   clearInterval(S.hTick);S.hTick=setInterval(()=>{if(S.tab==="heures"&&document.visibilityState==="visible"&&!$("dlg").open)render();else if(S.tab!=="heures")clearInterval(S.hTick)},60000);
+};
+
+/* ═════════ FACTURATION ═════════ */
+const ST_FG={"Payé":"ok","À relancer":"bad","Annulée":"","":"warn"};
+const CAT_FF={animation:"Animateurs",staffing:"Staffing",jouets:"Jouets & boutique",autre:"Autre"};
+VIEWS.factu=async m=>{
+  const t=S.facTab||"groupes";
+  m.innerHTML=topbar("Facturation",t==="groupes"?"Écoles & centres · synchronisé avec l'Excel « Suivi facturation » sur SharePoint":"Factures fournisseurs · animateurs, staffeurs, jouets",
+    `<div class="seg" id="fSeg"><button data-t="groupes" aria-pressed="${t==="groupes"}">Écoles & centres</button><button data-t="fourn" aria-pressed="${t==="fourn"}">Factures fournisseurs</button></div>`)+'<div id="fBody"></div>';
+  $("fSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.facTab=b.dataset.t;render()}};
+  const body=$("fBody");
+  if(t==="groupes"){
+    const[{data:rows,error},{data:sync}]=await Promise.all([S.sb.from("factures_groupes").select("*").order("date_facture",{ascending:false}),S.sb.from("sync_state").select("*").eq("key","facturation").maybeSingle()]);
+    if(error)return fail(error);
+    const year=S.facYear||String(new Date().getFullYear()),years=[...new Set(rows.map(r=>String(r.annee)))].sort().reverse();
+    const ly=rows.filter(r=>String(r.annee)===year&&r.statut!=="Annulée"),age=r=>r.date_facture?Math.floor((Date.now()-parse(r.date_facture).getTime())/864e5):null;
+    const sum=l=>l.reduce((t,r)=>t+(+r.montant_ttc||0),0),paid=ly.filter(r=>r.statut==="Payé"),late=ly.filter(r=>r.statut==="À relancer"),late60=late.filter(r=>age(r)>60),todo=ly.filter(r=>!r.statut);
+    const prio=rows.filter(r=>r.statut==="À relancer").sort((a,b)=>(a.date_facture||"").localeCompare(b.date_facture||"")).slice(0,15);
+    const pend=rows.filter(r=>r.dirty).length;
+    const q=(S.facQ||"").toLowerCase(),fs=S.facSt||"";
+    const list=rows.filter(r=>String(r.annee)===year&&(!fs||(fs==="vide"?!r.statut:r.statut===fs))&&(!q||(r.organisme+" "+r.numero).toLowerCase().includes(q)));
+    body.innerHTML=`<div class="card" style="margin-bottom:18px;padding:14px 18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <span class="pill ${sync?(sync.ok?"ok":"warn"):""}"><i></i>${sync?`Synchronisé ${fStamp(sync.synced_at)}`:"Pas encore synchronisé"}</span>
+        <span style="font-size:13px;color:var(--ink-2);flex:1;min-width:200px">${sync?esc(sync.message):"La première synchronisation se fera à la prochaine actualisation (toutes les 30 min)."}${pend?` · <b>${pend} modification${pend>1?"s":""} du site en attente d'écriture dans l'Excel</b>`:""}</span>
+        <div class="seg" id="fYear">${years.map(y=>`<button data-y="${y}" aria-pressed="${y===year}">${y}</button>`).join("")}</div>
+        <button class="btn pri sm" id="fgNew">${ic("plus","sm")} Nouvelle facture</button></div>
+      <div class="grid g4">
+        <div class="stat"><div class="tile-ic" style="background:var(--bleu-c);color:var(--bleu-f)">${ic("file")}</div><div><b>${fEur(sum(ly))}</b><span>facturé en ${year} · ${ly.length} factures</span></div></div>
+        <div class="stat"><div class="tile-ic" style="background:var(--vert-c);color:#9aab55">${ic("check")}</div><div><b>${fEur(sum(paid))}</b><span>encaissé · ${ly.length?fNum(sum(paid)/sum(ly)*100,1):0} %</span></div></div>
+        <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("alert")}</div><div><b>${fEur(sum(late))}</b><span>à relancer · ${late.length} factures</span></div></div>
+        <div class="stat"><div class="tile-ic" style="background:var(--jaune-c);color:#c99a2e">${ic("clock")}</div><div><b>${fEur(sum(late60))}</b><span>dont plus de 60 jours · ${todo.length} statut${todo.length>1?"s":""} à renseigner</span></div></div>
+      </div>
+      <div class="grid g21" style="margin-top:18px">
+        <div class="card"><div class="card-head"><h3>${ic("file")} Factures ${year}</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><input class="search" id="fgQ" placeholder="Organisme, n°…" value="${esc(S.facQ||"")}"><select id="fgSt" style="width:auto"><option value="">Tous statuts</option>${["Payé","À relancer","Annulée"].map(x=>`<option ${x===fs?"selected":""}>${x}</option>`).join("")}<option value="vide" ${fs==="vide"?"selected":""}>À renseigner</option></select></div></div>
+          <div class="list">${list.map(r=>{const a=r.statut==="À relancer"?age(r):null;return`<div class="row click" data-num="${esc(r.numero)}"><div class="tx"><b>${esc(r.organisme)}</b><small>${r.date_facture?fDate(r.date_facture):"—"} · n° ${esc(r.numero)}${r.envoi_mail?" · mail ✓":""}${r.depot_chorus?" · Chorus ✓":""}${r.prochaine_action?" · ➜ "+esc(r.prochaine_action):""}${r.dirty?" · ⏳ en attente Excel":""}</small></div>
+            ${a!=null?`<span class="pill ${a>60?"bad":a>30?"warn":""}"><i></i>${a} j</span>`:""}<span class="pill ${ST_FG[r.statut]??""}"><i></i>${esc(r.statut||"À renseigner")}</span><b style="min-width:86px;text-align:right">${fEur(r.montant_ttc)}</b></div>`}).join("")||'<div class="empty">Aucune facture.</div>'}</div></div>
+        <div class="card"><h3 style="margin-bottom:10px">${ic("alert")} Priorités de relance</h3><p class="hint">Les 15 impayés les plus anciens (toutes années)</p>
+          <div class="list">${prio.map(r=>`<div class="row click" data-num="${esc(r.numero)}"><div class="tx"><b>${esc(r.organisme)}</b><small>${fDate(r.date_facture)} · ${r.relance1?"relancé le "+fDate(r.relance1):"jamais relancé"}${r.prochaine_action?" · ➜ "+esc(r.prochaine_action):""}</small></div><span class="pill ${age(r)>60?"bad":"warn"}"><i></i>${age(r)} j</span><b>${fEur(r.montant_ttc)}</b></div>`).join("")||'<div class="empty">✓ Aucun impayé.</div>'}
+          ${prio.length?`<div class="row"><div class="tx"><b>Total des impayés</b></div><b>${fEur(sum(rows.filter(r=>r.statut==="À relancer")))}</b></div>`:""}</div></div>
+      </div>`;
+    $("fYear").onclick=e=>{const b=e.target.closest("button");if(b){S.facYear=b.dataset.y;render()}};
+    $("fgQ").oninput=e=>{S.facQ=e.target.value;clearTimeout(S.fqT);S.fqT=setTimeout(render,300)};
+    $("fgSt").onchange=e=>{S.facSt=e.target.value;render()};
+    const dir=isDirection();
+    const form=(r={})=>`<p class="hint" style="margin:0">Colonnes de la directrice</p><div class="fgrid">
+      <label class="f">Date de facture<input type="date" name="date_facture" value="${r.date_facture||TODAY()}" required></label>
+      <label class="f">N° de facture<input name="numero" value="${esc(r.numero||"")}" required ${r.numero?"readonly":""}></label>
+      <label class="f full">Organisme<input name="organisme" value="${esc(r.organisme||"")}" required></label>
+      <label class="f">Montant TTC (€)<input type="number" step="0.01" name="montant_ttc" value="${r.montant_ttc??""}" required></label>
+      <label class="f">Envoi mail<select name="envoi_mail">${opt({"":"—","OK":"OK"},r.envoi_mail||"")}</select></label>
+      <label class="f">Dépôt Chorus<select name="depot_chorus">${opt({"":"—","OK":"OK"},r.depot_chorus||"")}</select></label>
+      <label class="f">1re relance<input type="date" name="relance1" value="${r.relance1||""}"></label>
+      <label class="f">2e relance<input type="date" name="relance2" value="${r.relance2||""}"></label>
+      <label class="f">Prochaine action<input name="prochaine_action" value="${esc(r.prochaine_action||"")}" placeholder="Relance tél., Chorus…"></label>
+      <label class="f full">Commentaire<input name="commentaire" value="${esc(r.commentaire||"")}"></label></div>
+      <p class="hint" style="margin:6px 0 0">Pointage bancaire ${dir?"(direction)":"— réservé à la direction"}</p><div class="fgrid">
+      <label class="f">Statut<select name="statut" ${dir?"":"disabled"}>${opt({"":"À renseigner","Payé":"Payé","À relancer":"À relancer","Annulée":"Annulée"},r.statut||"")}</select></label>
+      <label class="f">Date d'encaissement<input type="date" name="date_encaissement" value="${r.date_encaissement||""}" ${dir?"":"disabled"}></label>
+      <label class="f">Mode<select name="mode" ${dir?"":"disabled"}>${opt({"":"—","Virement":"Virement","Chèque":"Chèque","CB (TPE)":"CB (TPE)","Espèces":"Espèces"},r.mode||"")}</select></label>
+      <label class="f">Fiabilité<select name="fiabilite" ${dir?"":"disabled"}>${opt({"":"—","Certain":"Certain","Validé":"Validé","Probable":"Probable","À vérifier":"À vérifier","Suivi chèques":"Suivi chèques"},r.fiabilite||"")}</select></label>
+      <label class="f full">Libellé sur le relevé CIC<input name="libelle_releve" value="${esc(r.libelle_releve||"")}" ${dir?"":"disabled"}></label></div>`;
+    const clean=d=>{const o={};for(const[k,v]of Object.entries(d))o[k]=v===""?(["date_facture","date_encaissement","relance1","relance2","montant_ttc"].includes(k)?null:""):k==="montant_ttc"?+v:v.trim?v.trim():v;return o};
+    $("fgNew").onclick=async()=>{const r=await modal("Nouvelle facture école / centre",form(),{submit:"Ajouter"});if(!r)return;
+      const row=clean(r.data);row.annee=+row.date_facture.slice(0,4);if(!dir){delete row.statut;delete row.date_encaissement;delete row.mode;delete row.fiabilite;delete row.libelle_releve}
+      const{error}=await S.sb.from("factures_groupes").insert(row);if(error)return fail(error.code==="23505"?"Ce n° de facture existe déjà":error);toast("Facture ajoutée — elle sera écrite dans l'Excel à la prochaine synchronisation");render()};
+    body.querySelectorAll("[data-num]").forEach(el=>el.onclick=async()=>{const r=rows.find(x=>x.numero===el.dataset.num);
+      const res=await modal(`${r.organisme} · n° ${r.numero}`,form(r));if(!res)return;
+      const row=clean(res.data);delete row.numero;if(!dir){delete row.statut;delete row.date_encaissement;delete row.mode;delete row.fiabilite;delete row.libelle_releve}
+      const{error}=await S.sb.from("factures_groupes").update(row).eq("numero",r.numero);if(error)return fail(error);toast("Enregistré — l'Excel sera mis à jour à la prochaine synchronisation");render()});
+  }else{
+    const{data:ff,error}=await S.sb.from("factures_fournisseurs").select("*").order("created_at",{ascending:false}).limit(300);if(error)return fail(error);
+    const cat=S.ffCat||"",l=ff.filter(f=>!cat||f.categorie===cat),todo=l.filter(f=>f.statut==="a_payer"),done=l.filter(f=>f.statut!=="a_payer");
+    const sum=x=>x.reduce((t,f)=>t+(+f.montant_ttc||0),0);
+    const line=f=>`<div class="row click wrap" data-ff="${f.id}"><div class="tile-ic" style="width:40px;height:40px;background:var(${f.categorie==="jouets"?"--bleu-c":f.categorie==="staffing"?"--jaune-c":"--rouge-c"})">${ic("file","sm")}</div>
+      <div class="tx"><b>${esc(f.fournisseur)}${f.numero?` · n° ${esc(f.numero)}`:""}</b><small>${CAT_FF[f.categorie]} · ${f.periode?capital(parse(f.periode+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})):""}${f.date_facture?" · facture du "+fDate(f.date_facture):""}${f.echeance?" · échéance "+fDate(f.echeance):""} · déposée par ${esc(firstName(f.created_by))}${f.fichier_path?" · 📎 PDF":""}</small></div>
+      <span class="pill ${f.statut==="paye"?"ok":f.statut==="refusee"?"bad":"warn"}"><i></i>${f.statut==="paye"?"Payée"+(f.paye_le?" le "+fDate(f.paye_le):""):f.statut==="refusee"?"Refusée":"À payer"}</span><b style="min-width:86px;text-align:right">${fEur(f.montant_ttc)}</b></div>`;
+    body.innerHTML=`<div class="grid g4" style="margin-bottom:18px">
+        <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("clock")}</div><div><b>${fEur(sum(todo))}</b><span>à payer · ${todo.length} facture${todo.length>1?"s":""}</span></div></div>
+        ${["animation","staffing","jouets"].map(c=>`<div class="stat"><div class="tile-ic" style="background:var(--bg)">${ic("file")}</div><div><b>${fEur(sum(ff.filter(f=>f.categorie===c&&f.periode===iso(new Date()).slice(0,7))))}</b><span>${CAT_FF[c]} ce mois-ci</span></div></div>`).join("")}</div>
+      <div class="card"><div class="card-head"><h3>${ic("clock")} À payer</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><select id="ffCat" style="width:auto"><option value="">Toutes catégories</option>${opt(CAT_FF,cat)}</select><button class="btn pri sm" id="ffNew">${ic("plus","sm")} Déposer une facture</button></div></div>
+        <div class="list">${todo.map(line).join("")||'<div class="empty">✓ Aucune facture en attente.</div>'}</div></div>
+      <div class="card" style="margin-top:18px"><h3 style="margin-bottom:10px">${ic("check")} Traitées</h3><div class="list">${done.slice(0,40).map(line).join("")||'<div class="empty">Rien pour l\'instant.</div>'}</div></div>`;
+    $("ffCat").onchange=e=>{S.ffCat=e.target.value;render()};
+    $("ffNew").onclick=async()=>{const r=await modal("Déposer une facture fournisseur",`<div class="fgrid">
+        <label class="f">Catégorie<select name="categorie">${opt(CAT_FF,"animation")}</select></label>
+        <label class="f">Mois concerné<input type="month" name="periode" value="${iso(new Date()).slice(0,7)}" required></label>
+        <label class="f full">Fournisseur / prestataire<input name="fournisseur" required placeholder="Nom de l'animateur, StaffMe, Klein…"></label>
+        <label class="f">N° de facture<input name="numero"></label><label class="f">Date de facture<input type="date" name="date_facture" value="${TODAY()}"></label>
+        <label class="f">Montant HT (€)<input type="number" step="0.01" name="montant_ht"></label><label class="f">Montant TTC (€)<input type="number" step="0.01" name="montant_ttc" required></label>
+        <label class="f">Échéance<input type="date" name="echeance"></label><span></span>
+        <label class="f full">Facture (PDF ou photo)<input type="file" name="file" accept="application/pdf,image/*" required></label>
+        <label class="f full">Note pour la direction<input name="notes" maxlength="200"></label></div>`,{submit:"Envoyer à la direction"});
+      if(!r)return;const file=r.data.file;if(!file||!file.size)return fail("Ajoutez le fichier de la facture");if(file.size>10e6)return fail("Fichier trop lourd (10 Mo max)");
+      const path=`${r.data.periode}/${Date.now()}-${(file.name||"facture").replace(/[^\w.\-]+/g,"_")}`;
+      const{error:up}=await S.sb.storage.from("factures").upload(path,file,{contentType:file.type});if(up)return fail(up);
+      const{error}=await S.sb.from("factures_fournisseurs").insert({categorie:r.data.categorie,periode:r.data.periode,fournisseur:r.data.fournisseur,numero:r.data.numero,date_facture:r.data.date_facture||null,
+        montant_ht:r.data.montant_ht===""?null:+r.data.montant_ht,montant_ttc:+r.data.montant_ttc,echeance:r.data.echeance||null,notes:r.data.notes,fichier_path:path});
+      if(error)return fail(error);toast("Facture envoyée à la direction");render();refreshBadges()};
+    body.querySelectorAll("[data-ff]").forEach(el=>el.onclick=async()=>{const f=ff.find(x=>x.id===+el.dataset.ff);
+      let link="";if(f.fichier_path){const{data}=await S.sb.storage.from("factures").createSignedUrl(f.fichier_path,900);if(data)link=`<a class="btn soft" href="${esc(data.signedUrl)}" target="_blank" rel="noopener">${ic("file","sm")} Ouvrir la facture</a>`}
+      const dir=isDirection()&&f.statut==="a_payer";
+      const r=await modal(`${f.fournisseur} · ${fEur(f.montant_ttc)}`,`${link}<div class="list">${[["Catégorie",CAT_FF[f.categorie]],["Mois",f.periode],["N°",f.numero],["Date",f.date_facture&&fDate(f.date_facture)],["Montant HT",f.montant_ht!=null&&fEur(f.montant_ht)],["Montant TTC",fEur(f.montant_ttc)],["Échéance",f.echeance&&fDate(f.echeance)],["Déposée par",person(f.created_by).full_name+" le "+fStamp(f.created_at)],["Note",f.notes],["Décision",f.decision_note]].filter(([,v])=>v).map(([k,v])=>`<div class="row"><div class="tx"><small>${k}</small><b>${esc(v)}</b></div></div>`).join("")}</div>
+        ${dir?`<div class="fgrid"><label class="f">Payée le<input type="date" name="paye_le" value="${TODAY()}"></label><label class="f">Commentaire<input name="decision_note"></label></div>`:""}`,
+        dir?{submit:"✓ Marquer comme payée",danger:"Refuser"}:{readonly:true,danger:isDirection()?"Supprimer":null});
+      if(!r)return;
+      if(r.action==="danger"&&!dir){if(!confirm("Supprimer cette facture ?"))return;const{error}=await S.sb.from("factures_fournisseurs").delete().eq("id",f.id);if(error)return fail(error);return render()}
+      const upd=r.action==="danger"?{statut:"refusee",decision_note:r.data.decision_note||""}:{statut:"paye",paye_le:r.data.paye_le||TODAY(),decision_note:r.data.decision_note||""};
+      const{error}=await S.sb.from("factures_fournisseurs").update(upd).eq("id",f.id);if(error)return fail(error);toast(upd.statut==="paye"?"Facture marquée payée":"Facture refusée");render();refreshBadges()});
+  }
 };
 
 /* ═════════ RÉGLAGES ═════════ */

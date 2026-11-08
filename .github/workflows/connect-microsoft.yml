@@ -1,0 +1,30 @@
+name: Connexion Microsoft
+
+# À lancer à la main (Actions › Connexion Microsoft › Run workflow) si la session du robot expire
+# ou après un changement d'autorisation. Le code à saisir s'affiche dans le résumé du job.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  connect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install cryptography==44.0.2
+      - name: Connexion (saisir le code affiché sur microsoft.com/devicelogin)
+        env:
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          MS_TOKEN_DIR: .ms_token
+          MS_SCOPE: ${{ vars.MS_SCOPE }}
+        run: python connect_cloud.py
+      - name: Enregistrer la session pour l'actualisation
+        uses: actions/cache/save@v4
+        with:
+          path: .ms_token
+          key: ms-token-${{ github.run_id }}
