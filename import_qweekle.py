@@ -160,7 +160,7 @@ def parse(data):
         raise ValueError(f"colonnes absentes de l'export : {', '.join(missing)} (format Qweekle modifié ?)")
     g = lambda r, k: r[ix[k]] if k in ix and ix[k] < len(r) else None
 
-    resas, dates = {}, []
+    lines, dates = [], []
     for r in rows:
         if not r or str(g(r, "Actif") or "1") in ("0", "0.0"):
             continue
@@ -169,11 +169,27 @@ def parse(data):
             dates.append(start.date())
         kind = kind_of(act)
         client = g(r, "Client") or ""
-        if not kind or not start or not client:
-            continue
-        key = "qw-" + hashlib.sha1(f"{client}|{g(r, 'Réservé le')}".encode()).hexdigest()[:16]
+        if kind and start and client:
+            lines.append((client, str(g(r, "Réservé le") or ""), r, act, start, kind))
+
+    # Une réservation = les lignes d'un même client enregistrées à quelques secondes d'écart
+    # (Qweekle écrit parfois la ligne « Adulte » une seconde après la ligne « Enfant »).
+    # Clé stable : client + horodatage de la 1re ligne ; les autres horodatages sont des alias
+    # (anciennes clés de fragments, supprimés à l'import).
+    keyof = lambda c, b: "qw-" + hashlib.sha1(f"{c}|{b}".encode()).hexdigest()[:16]
+    resas, aliases, last = {}, set(), {}
+    for client, booked, r, act, start, kind in sorted(lines, key=lambda x: (x[0], x[1])):
+        b = to_dt(booked)
+        prev = last.get(client)
+        if prev and b and prev[1] and abs((b - prev[1]).total_seconds()) <= 120:
+            key = prev[0]
+            if keyof(client, booked) != key:
+                aliases.add(keyof(client, booked))
+        else:
+            key = keyof(client, booked)
+        last[client] = (key, b)
         res = resas.setdefault(key, {"kind": kind, "start": start, "client": client, "kids": 0, "adults": 0,
-                                     "booked": to_dt(g(r, "Réservé le")),
+                                     "booked": b,
                                      "formule": "", "email": g(r, "e-mail client") or "",
                                      "tel": phone(g(r, "téléphone client")), "note": clean_note(g(r, "Note en ligne")),
                                      "state": g(r, "Statut"), "origin": g(r, "Origine"), "label": act})
@@ -192,7 +208,7 @@ def parse(data):
             res["kids"] += n
             if low.startswith("groupe"):
                 res["groupe"] = True
-    return resas, (min(dates), max(dates)) if dates else (None, None)
+    return resas, (min(dates), max(dates)) if dates else (None, None), aliases
 
 
 # ───────────── Option « Animateur » : produit de la commande, visible seulement dans l'export caisse ─────────────
@@ -293,7 +309,7 @@ def main():
         state(False, f"aucun export Qweekle (« B-….xlsx ») dans {FOLDER}")
         return
     try:
-        resas, (d0, d1) = parse(data)
+        resas, (d0, d1), aliases = parse(data)
     except Exception as e:
         state(False, f"export « {item['name']} » illisible : {e}")
         sys.exit(1)
@@ -305,7 +321,7 @@ def main():
         sales, caisse = None, None
     own_anniv = OWN_ANNIV + (["option_animateur"] if sales is not None else [])
     now = dt.datetime.now(dt.timezone.utc).isoformat()
-    created = updated = cancelled = 0
+    created = updated = cancelled = merged = 0
     for table, own in (("anniversaires", own_anniv), ("groupes", OWN_GROUPE)):
         cols = ",".join(own + (["options"] if table == "anniversaires" else []))
         db = {r["qweekle_id"]: r for r in sb(f"{table}?qweekle_id=not.is.null&select=id,qweekle_id,{cols}", prefer="")}
@@ -341,8 +357,13 @@ def main():
                 updated += 1
         # Disparue d'un export qui couvre sa date : annulée dans Qweekle
         if d0 and d1:
-            gone = [c for k, c in db.items() if k not in seen and d0.isoformat() <= c["date"] <= d1.isoformat()
-                    and c["statut"] not in ("annule", "termine")]
+            # fragments d'une réservation découpée par erreur (même commande, autre seconde) : supprimés
+            for k, c in db.items():
+                if k in aliases and k not in seen:
+                    sb(f"{table}?id=eq.{c['id']}", method="DELETE")
+                    merged += 1
+            gone = [c for k, c in db.items() if k not in seen and k not in aliases
+                    and d0.isoformat() <= c["date"] <= d1.isoformat() and c["statut"] not in ("annule", "termine")]
             if len(gone) > max(5, len(seen) // 3):
                 print(f"::warning::{len(gone)} {table} absentes de l'export : export partiel ? annulation non appliquée")
             else:
@@ -358,7 +379,8 @@ def main():
         print(f"Qweekle : option animateur sur {n_anim} anniversaire(s) sur {n['anniv']} (caisse « {caisse} »)")
     msg = (f"{n['anniv']} anniversaires, {n['centre']} centres/groupes, {n['ecole']} écoles"
            + (f" du {d0:%d/%m/%Y} au {d1:%d/%m/%Y}" if d0 else "")
-           + f" · {created} ajoutées, {updated} mises à jour, {cancelled} annulées · « {item['name']} »")
+           + f" · {created} ajoutées, {updated} mises à jour, {cancelled} annulées"
+           + (f", {merged} doublons regroupés" if merged else "") + f" · « {item['name']} »")
     if age > STALE_DAYS:
         msg = f"export Qweekle vieux de {age} jours, à refaire · " + msg
     state(age <= STALE_DAYS, msg)
