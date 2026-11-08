@@ -24,6 +24,7 @@ Variables : SUPABASE_URL, SUPABASE_SERVICE_KEY, plus celles de fetch_sharepoint.
 """
 import datetime as dt
 import hashlib
+import html
 import io
 import json
 import os
@@ -133,6 +134,12 @@ def statut(state, origin, groupe):
 PAIEMENT = {"sold": "paye", "partially_paid": "acompte", "accepted": "non_paye", "proposal": "option"}
 
 
+def clean_note(v):
+    """Les notes en ligne Qweekle arrivent parfois en HTML (« <p>…</p> ») : texte simple."""
+    t = re.sub(r"<br\s*/?>|</p>\s*<p[^>]*>", "\n", str(v or ""), flags=re.I)
+    return re.sub(r"[ \t]+", " ", html.unescape(re.sub(r"<[^>]+>", "", t))).strip()
+
+
 def phone(v):
     s = str(v or "").split(".")[0].strip()
     return "0" + s if s.isdigit() and len(s) == 9 else s
@@ -162,7 +169,7 @@ def parse(data):
         key = "qw-" + hashlib.sha1(f"{client}|{g(r, 'Réservé le')}".encode()).hexdigest()[:16]
         res = resas.setdefault(key, {"kind": kind, "start": start, "client": client, "kids": 0, "adults": 0,
                                      "formule": "", "email": g(r, "e-mail client") or "",
-                                     "tel": phone(g(r, "téléphone client")), "note": g(r, "Note en ligne") or "",
+                                     "tel": phone(g(r, "téléphone client")), "note": clean_note(g(r, "Note en ligne")),
                                      "state": g(r, "Statut"), "origin": g(r, "Origine"), "label": act})
         n = int(float(g(r, "Nbre participants") or 0))
         res["start"] = min(res["start"], start)
