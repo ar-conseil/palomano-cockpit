@@ -72,7 +72,7 @@ jobs:
       # Espace équipe (app statique ; les données vivent dans Supabase, protégées par ses règles d'accès)
       - name: Ajouter l'espace équipe (racine du site) et la redirection de l'ancienne adresse
         run: |
-          cp equipe/index.html equipe/config.js site/
+          cp equipe/index.html equipe/config.js site/ && cp -r equipe/assets site/assets
           mkdir -p site/equipe && cp equipe/ancienne-adresse.html site/equipe/index.html
 
       - name: Publier les indicateurs pour l'équipe

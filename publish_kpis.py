@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """
-Publie quelques indicateurs du mois vers l'espace équipe (table Supabase kpi_feed),
-pour les objectifs suivis automatiquement. Volumes et pourcentages uniquement :
-aucun montant de CA n'est envoyé à l'équipe.
+Publie les indicateurs du mois vers l'espace équipe (table Supabase kpi_feed),
+pour les objectifs suivis automatiquement.
+- Indicateurs d'équipe : volumes et pourcentages uniquement, sans montant de CA.
+- Objectifs mensuels de la directrice (fichier « Objectifs Yannika ») : montants en € HT,
+  marqués « restricted » donc lisibles seulement par la direction et les responsables.
 
 Variables d'environnement : SUPABASE_URL, SUPABASE_SERVICE_KEY (secrets GitHub).
 Sans elles, le script ne fait rien.
@@ -59,7 +61,26 @@ def kpis(d):
          "target": anniv1 or None, "unit": "nb", "period": label},
         {"key": "note_google", "label": "Note Google", "value": round(note, 2) if note else None,
          "target": 4.8, "unit": "note", "period": d["avis"].get("releve", "")},
+    ] + yannika(d, k, rows, label)
+
+
+def yannika(d, k, rows, label):
+    """Réalisé du mois face aux objectifs mensuels du BP de la directrice (€ HT, sauf visiteurs)."""
+    if k not in BPM:
+        return []
+    i, R = BPM.index(k), d["bp"]["rows"]
+    tgt = lambda *keys: round(sum((R.get(x) or [0] * 12)[i] or 0 for x in keys)) or None
+    real = lambda *idx: round(sum(r[j] for r in rows for j in idx))
+    out = [  # (clé, libellé, réalisé, cible, unité)
+        ("yan_ca", "CA HT du mois (objectif Yannika)", real(8), tgt("ca"), "€"),
+        ("yan_visiteurs", "Visiteurs du mois (objectif Yannika)", real(9), tgt("vis"), "nb"),
+        ("yan_parc", "CA HT billetterie parc (objectif Yannika)", real(1), tgt("enfants", "adultes"), "€"),
+        ("yan_anniv", "CA HT anniversaires (objectif Yannika)", real(2), tgt("anniv"), "€"),
+        ("yan_groupes", "CA HT écoles & centres (objectif Yannika)", real(3, 4), tgt("ecole", "adl"), "€"),
+        ("yan_snack", "CA HT snack & boutique (objectif Yannika)", real(5, 6), tgt("snackbout"), "€"),
     ]
+    return [{"key": a, "label": b, "value": v, "target": t, "unit": u, "period": label, "restricted": True}
+            for a, b, v, t, u in out]
 
 
 def main():
@@ -69,7 +90,7 @@ def main():
         return
     d = json.loads((HERE / "data.json").read_text(encoding="utf-8"))
     now = dt.datetime.now(dt.timezone.utc).isoformat()
-    rows = [dict(r, updated_at=now) for r in kpis(d)]
+    rows = [dict({"restricted": False}, **r, updated_at=now) for r in kpis(d)]
     req = urllib.request.Request(
         url.rstrip("/") + "/rest/v1/kpi_feed?on_conflict=key", data=json.dumps(rows).encode(), method="POST",
         headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json",
@@ -79,6 +100,36 @@ def main():
     except urllib.error.HTTPError as e:
         sys.exit(f"Espace équipe : échec de publication des indicateurs (HTTP {e.code}) {e.read()[:200]!r}")
     print("Espace équipe : " + " · ".join(f"{r['key']}={r['value']}" for r in rows))
+    ensure_yannika_objectives(url, key, [r for r in rows if r["key"].startswith("yan_")])
+
+
+def rest(url, key, path, body=None, method="GET"):
+    req = urllib.request.Request(url.rstrip("/") + "/rest/v1/" + path, method=method,
+                                 data=json.dumps(body).encode() if body is not None else None,
+                                 headers={"apikey": key, "Authorization": f"Bearer {key}",
+                                          "Content-Type": "application/json", "Prefer": "return=minimal"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read() or "null")
+
+
+def ensure_yannika_objectives(url, key, yan):
+    """Crée une fois les objectifs mensuels de la directrice, dès qu'elle a un compte (yannika.zoa-tsama@palomano.com)."""
+    if not yan:
+        return
+    try:
+        who = rest(url, key, "profiles?select=id&email=eq.yannika.zoa-tsama@palomano.com&active=is.true")
+        if not who:
+            return
+        uid = who[0]["id"]
+        have = {o["kpi_key"] for o in rest(url, key, f"objectives?select=kpi_key&user_id=eq.{uid}&kpi_key=like.yan_*")}
+        new = [{"title": r["label"].replace(" (objectif Yannika)", ""), "scope": "individuel", "user_id": uid,
+                "kpi_key": r["key"], "unit": r["unit"], "description": "Objectif mensuel du BP, mis à jour chaque jour"}
+               for r in yan if r["key"] not in have]
+        if new:
+            rest(url, key, "objectives", new, "POST")
+            print(f"Espace équipe : {len(new)} objectifs mensuels créés pour Yannika")
+    except urllib.error.HTTPError as e:
+        print(f"::warning::Objectifs Yannika non créés (HTTP {e.code})")
 
 
 if __name__ == "__main__":
