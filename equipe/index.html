@@ -96,6 +96,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .me .who b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
 .me .who span{font-size:12px;color:var(--muted)}
 .main{min-width:0;padding:28px 36px 60px}
+/* Aperçu « voir comme » (direction) */
+.pv{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 36px;background:var(--jaune);color:var(--ink);font-size:14px;box-shadow:0 2px 10px -6px rgba(74,74,73,.5)}
+.pv b{font-weight:700}.pv .sp{flex:1}
+.pv select{width:auto;padding:6px 10px;border-radius:10px}
+.app:has(.pv:not(.hidden)) .main{padding-top:20px}
+@media (max-width:900px){.pv{padding:10px 16px;font-size:13px}}
 .topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
 .topbar h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-.015em;line-height:1.15}
 .topbar .sub{color:var(--ink-2);margin-top:4px}
@@ -366,6 +372,7 @@ th{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.
     <span class="sp"></span>
     <div class="avatar" id="meAvM" style="width:34px;height:34px;font-size:13px"></div>
   </div>
+  <div class="pv hidden" id="pvBar"></div>
   <main class="main" id="main"></main>
   <nav class="bnav" id="bNav"></nav>
 </div>
@@ -441,6 +448,7 @@ const S={sb:null,user:null,me:null,people:[],byId:new Map(),tab:"today",week:mon
 const isManager=()=>S.me&&["direction","responsable"].includes(S.me.role);
 const isDirection=()=>S.me&&S.me.role==="direction";
 const canValidate=()=>isDirection()&&S.me.can_validate_planning;
+const realDirection=()=>((S.real&&S.real.me)||S.me)?.role==="direction";
 const person=id=>S.byId.get(id)||{full_name:"—",color:"#9a9895"};
 const firstName=id=>person(id).full_name.split(" ")[0];
 const avatar=(p,size=38)=>`<div class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size*.36)}px;background:${esc(p.color||"#c1daf3")}">${esc(initials(p.full_name))}</div>`;
@@ -459,8 +467,9 @@ const BADGES={};
 function navLink(n){return`<a href="#" data-t="${n.t}" ${S.tab===n.t?'aria-current="page"':""}>${ic(n.i)}<span>${n.l}</span>${BADGES[n.b]?`<span class="badge">${BADGES[n.b]}</span>`:""}</a>`}
 function renderNav(){
   const items=NAV.filter(n=>(!n.mgr||isManager())&&(!n.dir||isDirection()));
+  const viewAs=realDirection()?`<a href="#" data-t="__viewas">${ic("users")}<span>Voir comme…</span></a>`:"";
   $("sideNav").innerHTML=items.map(n=>n.h?`<h6>${n.h}</h6>`:navLink(n)).join("")+
-    (isDirection()?`<h6>Pilotage</h6><a href="pilotage/">${ic("chart")}<span>Dashboard financier</span></a>`:"");
+    (isDirection()?`<h6>Pilotage</h6><a href="pilotage/">${ic("chart")}<span>Dashboard financier</span></a>`:realDirection()?`<h6>Pilotage</h6>`:"")+viewAs;
   const sum=["bDem","bReg"].reduce((s,k)=>s+(BADGES[k]||0),0);
   $("bNav").innerHTML=BNAV.map(t=>navLink(NAV.find(n=>n.t===t))).join("")+
     `<a href="#" data-t="__more" ${BNAV.includes(S.tab)?"":'aria-current="page"'}>${ic("more")}<span>Plus</span>${sum?`<span class="badge">${sum}</span>`:""}</a>`;
@@ -473,8 +482,55 @@ document.addEventListener("click",e=>{
   if(t==="__more"){$("sheet").classList.remove("hidden");return}
   $("sheet").classList.add("hidden");
   if(t==="__logout")return logout();
+  if(t==="__viewas")return pickPreview();
   go(t);
 });
+
+/* ───────────── aperçu « voir comme » (direction, lecture seule) ─────────────
+   La direction voit l'espace avec le rôle, le menu, les objectifs et le planning d'une autre personne.
+   Rien n'est modifiable : toute écriture est bloquée côté navigateur (et la session reste celle de la direction). */
+const PV_MSG="Aperçu en lecture seule : aucune modification n'est enregistrée";
+function roQuery(){const r={data:null,error:{message:PV_MSG},count:null};
+  const p=new Proxy(function(){},{get:(t,k)=>k==="then"?(ok)=>Promise.resolve(r).then(ok):()=>p,apply:()=>p});return p}
+function guardWrites(sb){
+  Object.defineProperty(sb,"storage",{value:sb.storage});   // supabase-js recrée le client storage à chaque accès : on le fige pour pouvoir le surveiller
+  const from=sb.from.bind(sb),rpc=sb.rpc.bind(sb),st=sb.storage.from.bind(sb.storage);
+  sb.from=t=>{const q=from(t);if(!S.real)return q;["insert","update","upsert","delete"].forEach(k=>q[k]=()=>roQuery());return q};
+  sb.rpc=(...a)=>S.real?roQuery():rpc(...a);
+  sb.storage.from=b=>{const s=st(b);if(S.real){s.upload=async()=>({data:null,error:{message:PV_MSG}});s.remove=s.upload}return s};
+}
+function paintMe(me){
+  $("meName").textContent=me.full_name;$("meRole").textContent=ROLE[me.role]+(me.poste?" · "+me.poste:"");
+  [$("meAv"),$("meAvM")].forEach(el=>{el.textContent=initials(me.full_name);el.style.background=me.color||"#c1daf3"});
+}
+const nameFromEmail=e=>e.split("@")[0].split(/[._]/).filter(Boolean).map(w=>w.split("-").map(capital).join("-")).join(" ");
+async function pickPreview(){
+  const self=(S.real&&S.real.me.id)||S.me.id;
+  const{data:invs}=await S.sb.from("invitations").select("*").is("used_at",null).order("created_at");
+  // identifiant fictif au format uuid (les requêtes filtrent sur des colonnes uuid) : aucune ligne ne lui correspond
+  S.pvInv=new Map((invs||[]).map((i,n)=>{const id="00000000-0000-4000-8000-"+String(n+1).padStart(12,"0");return[id,{id,email:i.email,full_name:nameFromEmail(i.email),role:i.role,poste:i.poste||"",color:i.color||"#c1daf3",
+    contrat_h:i.contrat_h,apprenti:i.apprenti,mineur:i.mineur,can_validate_planning:i.can_validate_planning,active:true,invite:true}]}));
+  const list=[...S.people.filter(p=>p.active&&p.role&&p.id!==self),...S.pvInv.values()];
+  if(!list.length)return toast("Personne d'autre n'a de compte ou d'invitation");
+  const yan=list.find(p=>/yannika/i.test(p.full_name+" "+(p.email||"")));
+  const r=await modal("Voir l'espace comme…",`<label class="f full">Personne<select name="id">${list.map(p=>`<option value="${esc(p.id)}" ${yan&&p.id===yan.id?"selected":""}>${esc(p.full_name)} — ${ROLE[p.role]}${p.poste?" · "+esc(p.poste):""}${p.invite?" (invitée, compte pas encore créé)":""}</option>`).join("")}</select></label>
+    <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">Vous verrez exactement son menu, son tableau du jour, son planning et ses objectifs. C'est un aperçu : rien ne peut être modifié, et la personne n'est pas prévenue.</p>`,{submit:"Voir son espace"});
+  if(r)startPreview(r.data.id);
+}
+function startPreview(id){
+  const p=S.byId.get(id)||(S.pvInv&&S.pvInv.get(id));if(!p)return;
+  if(p.invite)S.byId.set(p.id,p);
+  if(!S.real)S.real={user:S.user,me:S.me};
+  S.me=p;S.user={id:p.id,email:p.email};paintMe(p);
+  const bar=$("pvBar");bar.classList.remove("hidden");
+  bar.innerHTML=`${ic("users")}<span>Vous voyez l'espace de <b>${esc(p.full_name)}</b> (${ROLE[p.role]}) · lecture seule${p.invite?" · son compte n'est pas encore créé : ce qu'elle verra à sa première connexion":""}</span><span class="sp"></span><button class="btn sm" id="pvSwitch">Changer</button><button class="btn sm pri" id="pvExit">Revenir à mon espace</button>`;
+  $("pvExit").onclick=stopPreview;$("pvSwitch").onclick=pickPreview;
+  refreshBadges();go("today");
+}
+function stopPreview(){
+  if(!S.real)return;if(S.me.invite)S.byId.delete(S.me.id);S.user=S.real.user;S.me=S.real.me;S.real=null;paintMe(S.me);
+  $("pvBar").classList.add("hidden");refreshBadges();go("today");
+}
 $("sheet").onclick=e=>{if(e.target.id==="sheet")$("sheet").classList.add("hidden")};
 function go(t){
   if(!VIEWS[t]||((t==="reglages"||t==="factu")&&!isManager())||(t==="heures"&&!isDirection()))t="today";
@@ -508,6 +564,7 @@ function showAuth(which){
 async function boot(){
   if(!C.supabaseUrl||!C.supabaseAnonKey||!window.supabase){showAuth("vConfig");return}
   S.sb=supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  guardWrites(S.sb);
   S.sb.auth.onAuthStateChange(ev=>{
     if(ev==="PASSWORD_RECOVERY"){S.recovery=true;showAuth("fNewPw");return}
     if(ev==="SIGNED_OUT"){S.user=S.me=null;showAuth("fLogin")}
@@ -526,8 +583,7 @@ async function enter(user){
   if(!me||!me.role||!me.active){$("pendTxt").textContent=me&&!me.active?"Votre accès a été désactivé. Contactez la direction.":"Votre compte est créé. La direction doit maintenant vous donner accès ; revenez un peu plus tard.";showAuth("vPending");return}
   await loadPeople();
   $("vAuth").classList.add("hidden");$("vApp").classList.remove("hidden");
-  $("meName").textContent=me.full_name;$("meRole").textContent=ROLE[me.role]+(me.poste?" · "+me.poste:"");
-  [$("meAv"),$("meAvM")].forEach(el=>{el.textContent=initials(me.full_name);el.style.background=me.color||"#c1daf3"});
+  S.real=null;$("pvBar").classList.add("hidden");paintMe(me);
   $("logout").innerHTML=ic("out");
   let t="today";try{t=sessionStorage.getItem("palo.eq.tab")||"today"}catch(e){}
   await refreshBadges();go(t);
@@ -1045,6 +1101,8 @@ VIEWS.objectifs=async m=>{
   const[{data:objs,error},{data:kpis}]=await Promise.all([S.sb.from("objectives").select("*").eq("active",true).order("end_date",{nullsFirst:false}),S.sb.from("kpi_feed").select("*")]);
   if(error)return fail(error);
   const kp=new Map((kpis||[]).map(k=>[k.key,k]));
+  if(S.real&&S.me.invite&&/yannika/i.test(S.me.email))(kpis||[]).filter(k=>k.key.startsWith("yan_")).forEach(k=>objs.push({id:"pv-"+k.key,scope:"individuel",user_id:S.user.id,
+    title:k.label.replace(" (objectif Yannika)",""),kpi_key:k.key,unit:k.unit,description:"Objectif mensuel du BP, mis à jour chaque jour",active:true}));
   const team=objs.filter(o=>o.scope==="equipe"),mine=objs.filter(o=>o.scope==="individuel"&&o.user_id===S.user.id),others=objs.filter(o=>o.scope==="individuel"&&o.user_id!==S.user.id);
   const byPerson=new Map();others.forEach(o=>{if(!byPerson.has(o.user_id))byPerson.set(o.user_id,[]);byPerson.get(o.user_id).push(o)});
   const block=(list,edit)=>list.map(o=>`<div ${edit?`data-obj="${o.id}" class="row click" style="display:block"`:""}>${objLine(o,kp)}</div>`).join("");
