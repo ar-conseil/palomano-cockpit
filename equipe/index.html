@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#2a78d6">
+<title>Palomano Équipe</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f6f5f1;--surface:#fcfcfb;--surface-2:#f1f0eb;--ink:#0b0b0b;--ink-2:#52514e;--muted:#898781;
+  --grid:#e1e0d9;--ring:rgba(11,11,11,.10);--brand:#2a78d6;--brand-soft:#cde2fb;
+  --good:#0ca30c;--good-ink:#006300;--warn:#fab219;--crit:#d03b3b;--crit-ink:#b42323;
+  --s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s7:#6250d6;
+}
+@media (prefers-color-scheme:dark){:root{
+  color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--surface-2:#232321;--ink:#f0efec;--ink-2:#c3c2b7;--muted:#898781;
+  --grid:#2c2c2a;--ring:rgba(255,255,255,.10);--brand:#3987e5;--brand-soft:#184f95;
+  --good-ink:#0ca30c;--crit-ink:#e66767;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s7:#9085e9;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--page);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+/* ── écran de connexion ── */
+.auth{min-height:100vh;display:grid;place-items:center;padding:16px}
+.auth form,.auth .box{background:var(--surface);border:1px solid var(--ring);border-radius:18px;padding:26px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px}
+.logo{width:44px;height:44px;border-radius:12px;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:750}
+.auth h1{margin:0;font-size:20px}
+.auth p{margin:0;color:var(--ink-2);font-size:13.5px}
+.auth .links{display:flex;justify-content:space-between;font-size:13px}
+a,.link{color:var(--brand);cursor:pointer;background:none;border:0;padding:0;text-decoration:none}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink-2)}
+input,select,textarea{background:var(--page);border:1px solid var(--ring);border-radius:10px;padding:10px 12px;width:100%}
+textarea{min-height:80px;resize:vertical}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.btn{border:1px solid var(--ring);background:var(--surface);border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:hover{background:var(--surface-2)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.ok{background:var(--good);border-color:var(--good);color:#fff}
+.btn.bad{background:var(--crit);border-color:var(--crit);color:#fff}
+.btn.sm{padding:6px 10px;font-size:13px;border-radius:8px}
+.btn:disabled{opacity:.5;cursor:default}
+.err{color:var(--crit-ink);font-size:13px;min-height:1em}
+/* ── application ── */
+header.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--page) 90%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--ring);padding:calc(10px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 10px max(16px,env(safe-area-inset-left))}
+.hrow{max-width:960px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.hrow .who{display:flex;flex-direction:column;line-height:1.2;min-width:0}
+.hrow .who b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hrow .who span{font-size:12px;color:var(--muted)}
+.hrow .sp{flex:1}
+nav.tabs{max-width:960px;margin:10px auto 0;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+nav.tabs button{border:0;background:none;padding:8px 12px;border-radius:999px;cursor:pointer;color:var(--ink-2);font-weight:600;white-space:nowrap;position:relative}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--page)}
+nav.tabs .badge,.badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;margin-left:4px}
+main{max-width:960px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right)) calc(90px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+@media (max-width:720px){
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;margin:0;z-index:20;background:var(--surface);border-top:1px solid var(--ring);padding:6px 6px calc(6px + env(safe-area-inset-bottom));justify-content:space-around;gap:0}
+  nav.tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;padding:6px 4px;border-radius:10px;flex:1;min-width:0}
+  nav.tabs button .ic{font-size:19px;line-height:1}
+  nav.tabs .badge{position:absolute;top:0;right:calc(50% - 22px);margin:0}
+}
+@media (min-width:721px){nav.tabs .ic{margin-right:6px}}
+h2{font-size:20px;margin:6px 0 12px;letter-spacing:-.01em}
+h3{font-size:15px;margin:0 0 8px}
+.card{background:var(--surface);border:1px solid var(--ring);border-radius:16px;padding:16px;margin-bottom:14px}
+.hint{color:var(--muted);font-size:12.5px;margin:-4px 0 10px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media (max-width:720px){.grid2{grid-template-columns:1fr}}
+.list{display:flex;flex-direction:column}
+.li{display:flex;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--grid)}
+.li:first-child{border-top:0}
+.li .tx{flex:1;min-width:0}
+.li .tx b{display:block;font-weight:600}
+.li .tx small{color:var(--muted);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:650;padding:3px 9px;border-radius:999px;background:var(--surface-2);white-space:nowrap}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c,var(--muted))}
+.pill.good{--c:var(--good)}.pill.warn{--c:var(--warn)}.pill.crit{--c:var(--crit)}.pill.info{--c:var(--brand)}
+.check{width:30px;height:30px;border-radius:9px;border:2px solid var(--ring);display:grid;place-items:center;flex:none;cursor:pointer;background:var(--page);font-size:17px;color:#fff}
+.check.on{background:var(--good);border-color:var(--good)}
+.prog{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden;margin:6px 0 4px}
+.prog i{display:block;height:100%;border-radius:5px;background:var(--brand)}
+.big{font-size:26px;font-weight:700;letter-spacing:-.01em}
+.muted{color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--ring);border-radius:999px;padding:3px;gap:2px}
+.seg button{border:0;background:none;border-radius:999px;padding:6px 12px;cursor:pointer;color:var(--ink-2);font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--page)}
+.empty{color:var(--muted);text-align:center;padding:18px 8px;font-size:13.5px}
+.post{border-left:3px solid var(--grid);padding:4px 0 4px 12px;margin:10px 0}
+.post.imp{border-left-color:var(--crit)}
+.post.unread b::after{content:" • nouveau";color:var(--brand);font-size:11.5px;font-weight:700}
+.post p{margin:4px 0 0;white-space:pre-wrap;font-size:14px}
+/* planning */
+.wk{display:grid;grid-template-columns:repeat(7,minmax(118px,1fr));gap:8px;overflow-x:auto;padding-bottom:4px}
+.day{background:var(--surface-2);border-radius:12px;padding:8px;min-height:90px;display:flex;flex-direction:column;gap:6px}
+.day h4{margin:0 0 2px;font-size:12px;color:var(--ink-2);display:flex;justify-content:space-between}
+.day.today{outline:2px solid var(--brand)}
+.shift{background:var(--surface);border-radius:9px;padding:6px 8px;font-size:12.5px;border-left:4px solid var(--c);cursor:default}
+.shift b{display:block;font-size:12.5px}
+.shift.me{box-shadow:0 0 0 2px var(--brand) inset}
+.shift.edit{cursor:pointer}
+@media (max-width:720px){.wk{grid-template-columns:1fr}.day{min-height:0}}
+.tot{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tot span{font-size:12.5px;background:var(--surface-2);padding:4px 10px;border-radius:999px}
+/* stocks */
+.qty{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px;min-width:54px;text-align:right}
+.search{margin-bottom:10px}
+/* modale */
+dialog{border:0;border-radius:18px;padding:0;background:var(--surface);color:var(--ink);width:min(460px,calc(100vw - 24px));box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog form{padding:20px;display:flex;flex-direction:column;gap:12px}
+dialog h3{font-size:17px;margin:0}
+dialog .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--page);padding:10px 16px;border-radius:12px;font-size:14px;z-index:50;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+.toast.on{opacity:1}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--grid);text-align:left}
+th{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+</style>
+</head>
+<body>
+
+<!-- ═════════ CONNEXION ═════════ -->
+<div class="auth hidden" id="vAuth">
+  <form id="fLogin" autocomplete="on">
+    <div class="logo">PL</div>
+    <h1>Palomano · Espace équipe</h1>
+    <p>Connectez-vous avec votre compte personnel.</p>
+    <label class="f">E-mail<input type="email" id="lEmail" autocomplete="username" required></label>
+    <label class="f">Mot de passe<input type="password" id="lPw" autocomplete="current-password" required></label>
+    <button class="btn pri" type="submit">Se connecter</button>
+    <div class="err" id="lErr" role="alert"></div>
+    <div class="links"><button type="button" class="link" id="toSignup">Créer mon compte</button><button type="button" class="link" id="toReset">Mot de passe oublié</button></div>
+  </form>
+  <form id="fSignup" class="hidden" autocomplete="on">
+    <div class="logo">PL</div>
+    <h1>Créer mon compte</h1>
+    <p>La direction activera votre accès après l'inscription.</p>
+    <label class="f">Prénom et nom<input id="sName" autocomplete="name" required></label>
+    <label class="f">E-mail<input type="email" id="sEmail" autocomplete="username" required></label>
+    <label class="f">Mot de passe (8 caractères minimum)<input type="password" id="sPw" minlength="8" autocomplete="new-password" required></label>
+    <button class="btn pri" type="submit">Créer mon compte</button>
+    <div class="err" id="sErr" role="alert"></div>
+    <div class="links"><button type="button" class="link toLogin">← J'ai déjà un compte</button></div>
+  </form>
+  <form id="fReset" class="hidden">
+    <div class="logo">PL</div>
+    <h1>Mot de passe oublié</h1>
+    <p>Vous recevrez un lien par e-mail pour en choisir un nouveau.</p>
+    <label class="f">E-mail<input type="email" id="rEmail" required></label>
+    <button class="btn pri" type="submit">Envoyer le lien</button>
+    <div class="err" id="rErr" role="alert"></div>
+    <div class="links"><button type="button" class="link toLogin">← Retour</button></div>
+  </form>
+  <form id="fNewPw" class="hidden">
+    <div class="logo">PL</div>
+    <h1>Nouveau mot de passe</h1>
+    <label class="f">Nouveau mot de passe<input type="password" id="nPw" minlength="8" autocomplete="new-password" required></label>
+    <button class="btn pri" type="submit">Enregistrer</button>
+    <div class="err" id="nErr" role="alert"></div>
+  </form>
+  <div class="box hidden" id="vPending">
+    <div class="logo">PL</div>
+    <h1>Compte en attente</h1>
+    <p id="pendTxt">Votre compte est créé. La direction doit maintenant vous donner accès ; revenez un peu plus tard.</p>
+    <button class="btn" id="pendRetry">Vérifier à nouveau</button>
+    <button class="btn" id="pendOut">Se déconnecter</button>
+  </div>
+  <div class="box hidden" id="vConfig">
+    <div class="logo">PL</div>
+    <h1>Configuration en cours</h1>
+    <p>L'espace équipe n'est pas encore relié à sa base de données.</p>
+  </div>
+</div>
+
+<!-- ═════════ APPLICATION ═════════ -->
+<div class="hidden" id="vApp">
+  <header class="top">
+    <div class="hrow">
+      <div class="logo" style="width:36px;height:36px;border-radius:10px;font-size:13px">PL</div>
+      <div class="who"><b id="meName"></b><span id="meRole"></span></div>
+      <div class="sp"></div>
+      <a class="btn sm hidden" id="dashLink" href="../" title="Dashboard de pilotage">📊 Dashboard</a>
+      <button class="btn sm" id="logout" title="Se déconnecter">Sortir</button>
+    </div>
+    <nav class="tabs" id="tabs" role="tablist">
+      <button data-t="today" aria-selected="true"><span class="ic">☀️</span>Aujourd'hui</button>
+      <button data-t="planning"><span class="ic">🗓️</span>Planning<span class="badge hidden" id="bPlan"></span></button>
+      <button data-t="stocks"><span class="ic">📦</span>Stocks<span class="badge hidden" id="bStock"></span></button>
+      <button data-t="demandes"><span class="ic">📝</span>Demandes<span class="badge hidden" id="bDem"></span></button>
+      <button data-t="objectifs"><span class="ic">🎯</span>Objectifs</button>
+      <button data-t="reglages" class="hidden" id="tabReg"><span class="ic">⚙️</span>Réglages<span class="badge hidden" id="bReg"></span></button>
+    </nav>
+  </header>
+  <main id="main"></main>
+</div>
+
+<dialog id="dlg"><form method="dialog" id="dlgForm"></form></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ───────────── utilitaires ───────────── */
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const iso=d=>d.toLocaleDateString("sv-SE");                       // AAAA-MM-JJ (heure locale)
+const parse=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const addDays=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const monday=s=>{const d=parse(s);const w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return iso(d)};
+const TODAY=()=>iso(new Date());
+const fDay=s=>parse(s).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+const fShort=s=>parse(s).toLocaleDateString("fr-FR",{weekday:"short",day:"2-digit",month:"2-digit"});
+const fDate=s=>parse(s).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"numeric"});
+const fTime=t=>t?t.slice(0,5).replace(":","h"):"";
+const fStamp=ts=>new Date(ts).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"});
+const fNum=(v,d=0)=>v==null||!isFinite(v)?"—":Number(v).toLocaleString("fr-FR",{maximumFractionDigits:d,minimumFractionDigits:d});
+const hours=(a,b)=>{const[h1,m1]=a.split(":").map(Number),[h2,m2]=b.split(":").map(Number);return(h2*60+m2-h1*60-m1)/60};
+const ROLE={direction:"Direction",responsable:"Responsable",equipe:"Équipe"};
+const PLAN_ST={brouillon:["info","Brouillon"],soumis:["warn","En attente de validation"],valide:["good","Validé"],refuse:["crit","Refusé — à corriger"]};
+function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove("on"),2600)}
+function fail(e){console.error(e);toast("⚠️ "+(e?.message||e||"Erreur"));}
+
+/* ───────────── état ───────────── */
+const C=window.PALO_CONFIG||{};
+const S={sb:null,user:null,me:null,people:[],byId:new Map(),tab:"today",week:monday(TODAY()),stockKind:"snack",demTab:"conges"};
+const isManager=()=>S.me&&["direction","responsable"].includes(S.me.role);
+const isDirection=()=>S.me&&S.me.role==="direction";
+const canValidate=()=>isDirection()&&S.me.can_validate_planning;
+const person=id=>S.byId.get(id)||{full_name:"—",color:"#898781"};
+
+/* ───────────── modale générique ───────────── */
+function modal(title,fieldsHtml,{submit="Enregistrer",danger=null,extra=""}={}){
+  return new Promise(res=>{
+    const d=$("dlg"),f=$("dlgForm");
+    f.innerHTML=`<h3>${esc(title)}</h3>${fieldsHtml}<div class="err" id="dlgErr"></div>
+      <div class="acts">${danger?`<button class="btn bad" value="danger" formnovalidate type="submit">${esc(danger)}</button>`:""}${extra}<span style="flex:1"></span>
+      <button class="btn" value="cancel" formnovalidate type="submit">Annuler</button><button class="btn pri" value="ok" type="submit">${esc(submit)}</button></div>`;
+    const done=e=>{const v=e.submitter?.value||"cancel";if(v==="ok"&&!f.checkValidity()){e.preventDefault();f.reportValidity();return}
+      const data=Object.fromEntries(new FormData(f));d.close();f.onsubmit=null;res(v==="cancel"?null:{action:v,data})};
+    f.onsubmit=done;d.oncancel=()=>res(null);d.showModal();
+    const first=f.querySelector("input,select,textarea");if(first&&matchMedia("(min-width:721px)").matches)first.focus();
+  });
+}
+const peopleOptions=(sel,filter=p=>p.role)=>S.people.filter(p=>p.active&&filter(p)).map(p=>`<option value="${p.id}" ${p.id===sel?"selected":""}>${esc(p.full_name)}</option>`).join("");
+
+/* ───────────── démarrage & connexion ───────────── */
+function showAuth(which){
+  $("vApp").classList.add("hidden");$("vAuth").classList.remove("hidden");
+  ["fLogin","fSignup","fReset","fNewPw","vPending","vConfig"].forEach(id=>$(id).classList.toggle("hidden",id!==which));
+}
+async function boot(){
+  if(!C.supabaseUrl||!C.supabaseAnonKey||!window.supabase){showAuth("vConfig");return}
+  S.sb=supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  S.sb.auth.onAuthStateChange((ev,session)=>{
+    if(ev==="PASSWORD_RECOVERY"){showAuth("fNewPw");return}
+    if(ev==="SIGNED_OUT"){S.user=S.me=null;showAuth("fLogin")}
+  });
+  const{data:{session}}=await S.sb.auth.getSession();
+  if(session)await enter(session.user);else showAuth("fLogin");
+}
+async function enter(user){
+  S.user=user;
+  const{data:me,error}=await S.sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
+  if(error){fail(error);showAuth("fLogin");return}
+  S.me=me;
+  if(!me||!me.role||!me.active){$("pendTxt").textContent=me&&!me.active?"Votre accès a été désactivé. Contactez la direction.":"Votre compte est créé. La direction doit maintenant vous donner accès ; revenez un peu plus tard.";showAuth("vPending");return}
+  await loadPeople();
+  $("vAuth").classList.add("hidden");$("vApp").classList.remove("hidden");
+  $("meName").textContent=me.full_name;$("meRole").textContent=ROLE[me.role]+(me.poste?" · "+me.poste:"")+(canValidate()?" · valide le planning":"");
+  $("tabReg").classList.toggle("hidden",!isManager());
+  $("dashLink").classList.toggle("hidden",!isDirection());
+  let t="today";try{t=sessionStorage.getItem("palo.eq.tab")||"today"}catch(e){}
+  go(t);refreshBadges();
+}
+async function loadPeople(){
+  const{data,error}=await S.sb.from("profiles").select("*").order("full_name");
+  if(error)return fail(error);
+  S.people=data;S.byId=new Map(data.map(p=>[p.id,p]));
+}
+$("fLogin").onsubmit=async e=>{e.preventDefault();$("lErr").textContent="";
+  const{data,error}=await S.sb.auth.signInWithPassword({email:$("lEmail").value.trim(),password:$("lPw").value});
+  if(error){$("lErr").textContent=error.message.includes("Invalid")?"E-mail ou mot de passe incorrect.":error.message;return}
+  enter(data.user)};
+$("fSignup").onsubmit=async e=>{e.preventDefault();$("sErr").textContent="";
+  const{data,error}=await S.sb.auth.signUp({email:$("sEmail").value.trim(),password:$("sPw").value,options:{data:{full_name:$("sName").value.trim()}}});
+  if(error){$("sErr").textContent=error.message;return}
+  if(data.session)enter(data.user);else{$("pendTxt").textContent="Compte créé. Confirmez votre e-mail si un message vous a été envoyé, puis connectez-vous : la direction activera votre accès.";showAuth("vPending")}};
+$("fReset").onsubmit=async e=>{e.preventDefault();
+  const{error}=await S.sb.auth.resetPasswordForEmail($("rEmail").value.trim(),{redirectTo:location.href.split("#")[0]});
+  $("rErr").textContent=error?error.message:"C'est envoyé : regardez votre boîte mail."};
+$("fNewPw").onsubmit=async e=>{e.preventDefault();
+  const{data,error}=await S.sb.auth.updateUser({password:$("nPw").value});
+  if(error){$("nErr").textContent=error.message;return}toast("Mot de passe modifié");enter(data.user)};
+$("toSignup").onclick=()=>showAuth("fSignup");$("toReset").onclick=()=>showAuth("fReset");
+document.querySelectorAll(".toLogin").forEach(b=>b.onclick=()=>showAuth("fLogin"));
+$("pendRetry").onclick=async()=>{const{data:{user}}=await S.sb.auth.getUser();if(user)enter(user);else showAuth("fLogin")};
+$("pendOut").onclick=$("logout").onclick=async()=>{await S.sb.auth.signOut();showAuth("fLogin")};
+
+/* ───────────── navigation ───────────── */
+const VIEWS={};
+$("tabs").onclick=e=>{const b=e.target.closest("button");if(b)go(b.dataset.t)};
+function go(t){
+  if(!VIEWS[t]||(t==="reglages"&&!isManager()))t="today";
+  S.tab=t;try{sessionStorage.setItem("palo.eq.tab",t)}catch(e){}
+  document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.t===t));
+  render();
+}
+async function render(){const m=$("main");try{await VIEWS[S.tab](m)}catch(e){fail(e)}}
+function setBadge(id,n){const b=$(id);b.textContent=n;b.classList.toggle("hidden",!n)}
+async function refreshBadges(){
+  try{
+    const w=monday(TODAY());
+    const[{data:low},{data:pend},{data:inc},{data:plans},{count:wait}]=await Promise.all([
+      S.sb.from("stock_items").select("id,current_qty,min_qty").eq("active",true),
+      isManager()?S.sb.from("leaves").select("id").eq("status","en_attente"):Promise.resolve({data:[]}),
+      S.sb.from("incidents").select("id").neq("status","resolu"),
+      S.sb.from("plannings").select("week_start,status").gte("week_start",addDays(w,-7)),
+      isDirection()?S.sb.from("profiles").select("id",{count:"exact",head:true}).is("role",null):Promise.resolve({count:0}),
+    ]);
+    setBadge("bStock",(low||[]).filter(i=>i.current_qty<=i.min_qty).length);
+    setBadge("bDem",(isDirection()?(pend||[]).length:0)+(isManager()?(inc||[]).length:0));
+    setBadge("bPlan",(plans||[]).filter(p=>canValidate()?p.status==="soumis":isManager()?p.status==="refuse":false).length);
+    setBadge("bReg",wait||0);
+  }catch(e){console.error(e)}
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&S.me){render();refreshBadges()}});
+
+/* ═════════ AUJOURD'HUI ═════════ */
+VIEWS.today=async m=>{
+  const d=TODAY(),w=monday(d);
+  const[{data:myShifts},{data:posts},{data:reads},{data:items},{data:done},{data:stock},{data:objs},{data:kpis}]=await Promise.all([
+    S.sb.from("shifts").select("*").eq("day",d).order("start_time"),
+    S.sb.from("posts").select("*").gte("day",addDays(d,-2)).order("important",{ascending:false}).order("created_at",{ascending:false}),
+    S.sb.from("post_reads").select("post_id").eq("user_id",S.user.id),
+    S.sb.from("checklist_items").select("*").eq("active",true).order("position"),
+    S.sb.from("checklist_done").select("*").eq("day",d),
+    S.sb.from("stock_items").select("id,name,kind,current_qty,min_qty,unit").eq("active",true),
+    S.sb.from("objectives").select("*").eq("active",true).eq("scope","equipe").limit(4),
+    S.sb.from("kpi_feed").select("*"),
+  ]);
+  const read=new Set((reads||[]).map(r=>r.post_id)),doneBy=new Map((done||[]).map(x=>[x.item_id,x]));
+  const mine=(myShifts||[]).filter(s=>s.user_id===S.user.id),others=(myShifts||[]).filter(s=>s.user_id!==S.user.id);
+  const low=(stock||[]).filter(i=>i.current_qty<=i.min_qty);
+  const hr=new Date().getHours();
+  const cl=mom=>{const its=(items||[]).filter(i=>i.moment===mom),n=its.filter(i=>doneBy.has(i.id)).length;
+    return`<div class="card"><div class="row" style="justify-content:space-between"><h3>${mom==="ouverture"?"🌅 Ouverture":"🌙 Fermeture"}</h3><span class="pill ${n===its.length&&its.length?"good":n?"warn":""}">${n}/${its.length}</span></div>
+      <div class="list">${its.map(i=>{const x=doneBy.get(i.id);return`<div class="li"><button class="check ${x?"on":""}" data-cl="${i.id}" aria-label="${x?"Décocher":"Cocher"} : ${esc(i.label)}">${x?"✓":""}</button>
+        <div class="tx"><b style="font-weight:${x?500:600}">${esc(i.label)}</b>${x?`<small>${esc(person(x.done_by).full_name)} · ${fStamp(x.done_at).slice(-5)}</small>`:""}</div></div>`}).join("")||'<div class="empty">Aucun point défini.</div>'}</div></div>`};
+  const kp=new Map((kpis||[]).map(k=>[k.key,k]));
+  m.innerHTML=`<h2>${hr<12?"Bonjour":hr<18?"Bon après-midi":"Bonsoir"} ${esc(S.me.full_name.split(" ")[0])} 👋</h2>
+    <p class="hint" style="margin-top:-8px">${fDay(d)}</p>
+    <div class="grid2">
+      <div class="card"><h3>🕘 Mon planning du jour</h3>${mine.length?mine.map(s=>`<div class="big">${fTime(s.start_time)} → ${fTime(s.end_time)}</div><div class="muted">${esc(s.label||"")}</div>`).join(""):'<div class="muted">Pas de service prévu aujourd\'hui (ou planning pas encore validé).</div>'}
+        ${others.length?`<p class="hint" style="margin:12px 0 4px">Avec vous aujourd'hui</p><div class="row">${others.map(s=>`<span class="pill" style="--c:${esc(person(s.user_id).color)}">${esc(person(s.user_id).full_name.split(" ")[0])} ${fTime(s.start_time)}–${fTime(s.end_time)}</span>`).join("")}</div>`:""}</div>
+      <div class="card"><div class="row" style="justify-content:space-between"><h3>📣 Consignes</h3>${isManager()?'<button class="btn sm" id="newPost">+ Consigne</button>':""}</div>
+        ${(posts||[]).length?(posts||[]).map(p=>`<div class="post ${p.important?"imp":""} ${read.has(p.id)?"":"unread"}" data-post="${p.id}"><b>${p.important?"⚠️ ":""}${esc(p.title)}</b>
+          <small class="muted"> · ${p.day===d?"aujourd'hui":fShort(p.day)} · ${esc(person(p.author).full_name)}</small>${p.body?`<p>${esc(p.body)}</p>`:""}
+          <div class="row" style="margin-top:6px">${read.has(p.id)?'<small class="muted">✓ Lu</small>':`<button class="btn sm" data-read="${p.id}">J'ai lu</button>`}${isManager()?`<button class="btn sm" data-reads="${p.id}">Qui a lu ?</button>`:""}${p.author===S.user.id||isDirection()?`<button class="btn sm" data-delpost="${p.id}">Supprimer</button>`:""}</div></div>`).join(""):'<div class="empty">Pas de consigne récente.</div>'}</div>
+    </div>
+    <div class="grid2">${cl("ouverture")}${cl("fermeture")}</div>
+    <div class="grid2">
+      <div class="card"><div class="row" style="justify-content:space-between"><h3>📦 Stocks à surveiller</h3><button class="link" data-go="stocks">Voir les stocks →</button></div>
+        ${low.length?`<div class="list">${low.slice(0,8).map(i=>`<div class="li"><div class="tx"><b>${esc(i.name)}</b><small>${i.kind==="snack"?"Snack":"Jouets"} · seuil ${fNum(i.min_qty)}</small></div><span class="qty" style="color:var(--crit-ink)">${fNum(i.current_qty)}</span></div>`).join("")}</div>`:'<div class="empty">✓ Aucun article sous le seuil.</div>'}</div>
+      <div class="card"><div class="row" style="justify-content:space-between"><h3>🎯 Objectifs d'équipe</h3><button class="link" data-go="objectifs">Tout voir →</button></div>
+        ${(objs||[]).length?(objs||[]).map(o=>objLine(o,kp)).join(""):'<div class="empty">Aucun objectif en cours.</div>'}</div>
+    </div>`;
+  m.querySelectorAll("[data-cl]").forEach(b=>b.onclick=async()=>{
+    const id=+b.dataset.cl,x=doneBy.get(id);
+    const{error}=x?await S.sb.from("checklist_done").delete().eq("id",x.id):await S.sb.from("checklist_done").insert({day:d,item_id:id,done_by:S.user.id});
+    if(error)return fail(error.code==="42501"?"Seul·e l'auteur·rice ou un·e responsable peut décocher.":error);render()});
+  m.querySelectorAll("[data-read]").forEach(b=>b.onclick=async()=>{const{error}=await S.sb.from("post_reads").insert({post_id:+b.dataset.read,user_id:S.user.id});if(error&&error.code!=="23505")return fail(error);render()});
+  m.querySelectorAll("[data-reads]").forEach(b=>b.onclick=async()=>{const{data}=await S.sb.from("post_reads").select("user_id,read_at").eq("post_id",+b.dataset.reads);
+    const r=new Map((data||[]).map(x=>[x.user_id,x.read_at]));const act=S.people.filter(p=>p.active&&p.role);
+    await modal("Lecture de la consigne",`<div class="list">${act.map(p=>`<div class="li"><div class="tx"><b>${esc(p.full_name)}</b></div>${r.has(p.id)?`<span class="pill good">Lu ${fStamp(r.get(p.id))}</span>`:'<span class="pill">Pas encore lu</span>'}</div>`).join("")}</div>`,{submit:"Fermer"})});
+  m.querySelectorAll("[data-delpost]").forEach(b=>b.onclick=async()=>{if(!confirm("Supprimer cette consigne ?"))return;const{error}=await S.sb.from("posts").delete().eq("id",+b.dataset.delpost);if(error)return fail(error);render()});
+  m.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  const np=$("newPost");if(np)np.onclick=async()=>{
+    const r=await modal("Nouvelle consigne",`<label class="f">Titre<input name="title" required maxlength="120"></label>
+      <label class="f">Détail<textarea name="body" maxlength="2000"></textarea></label>
+      <label class="f">Pour le<input type="date" name="day" value="${d}" required></label>
+      <label class="row" style="font-size:14px"><input type="checkbox" name="important" style="width:auto"> Important (affiché en rouge)</label>`,{submit:"Publier"});
+    if(!r)return;const{error}=await S.sb.from("posts").insert({title:r.data.title,body:r.data.body,day:r.data.day,important:!!r.data.important,author:S.user.id});
+    if(error)return fail(error);toast("Consigne publiée");render()};
+};
+
+/* ═════════ PLANNING ═════════ */
+VIEWS.planning=async m=>{
+  const w=S.week,days=[...Array(7)].map((_,i)=>addDays(w,i)),today=TODAY();
+  const[{data:pl},{data:shifts},{data:leaves}]=await Promise.all([
+    S.sb.from("plannings").select("*").eq("week_start",w).maybeSingle(),
+    S.sb.from("shifts").select("*").eq("week_start",w).order("start_time"),
+    isManager()?S.sb.from("leaves").select("*").eq("status","acceptee").lte("start_date",days[6]).gte("end_date",w):Promise.resolve({data:[]}),
+  ]);
+  const st=pl?pl.status:null,editable=isManager()&&(!pl||["brouillon","refuse"].includes(st));
+  const hrs={};(shifts||[]).forEach(s=>{hrs[s.user_id]=(hrs[s.user_id]||0)+hours(s.start_time,s.end_time)});
+  const offOn=d=>(leaves||[]).filter(l=>l.start_date<=d&&l.end_date>=d);
+  const end=parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"long"});
+  m.innerHTML=`<h2>Planning</h2>
+    <div class="card"><div class="row" style="justify-content:space-between">
+      <div class="row"><button class="btn sm" id="wPrev" aria-label="Semaine précédente">←</button><b>Semaine du ${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"long"})} au ${end}</b><button class="btn sm" id="wNext" aria-label="Semaine suivante">→</button><button class="btn sm" id="wNow">Cette semaine</button></div>
+      ${st?`<span class="pill ${PLAN_ST[st][0]}">${PLAN_ST[st][1]}</span>`:isManager()?'<span class="pill">Pas encore commencé</span>':""}</div>
+      ${pl&&pl.comment&&isManager()?`<p class="hint" style="margin:10px 0 0">💬 ${st==="refuse"?"Motif du refus":"Commentaire"} : ${esc(pl.comment)}</p>`:""}
+      ${pl&&pl.validated_at&&st==="valide"?`<p class="hint" style="margin:10px 0 0">Validé par ${esc(person(pl.validated_by).full_name)} le ${fStamp(pl.validated_at)}</p>`:""}
+      ${pl&&st==="soumis"?`<p class="hint" style="margin:10px 0 0">Soumis par ${esc(person(pl.submitted_by).full_name)} le ${fStamp(pl.submitted_at)}</p>`:""}
+      <div class="row" style="margin-top:12px">
+        ${isManager()&&!pl?'<button class="btn pri" id="pStart">Commencer le planning</button><button class="btn" id="pCopy">Copier la semaine précédente</button>':""}
+        ${editable&&pl?'<button class="btn" id="pAdd">+ Ajouter un service</button><button class="btn pri" id="pSubmit">Soumettre à Alex pour validation</button>':""}
+        ${canValidate()&&st==="soumis"?'<button class="btn ok" id="pOk">✓ Valider le planning</button><button class="btn bad" id="pKo">Refuser</button>':""}
+        ${isDirection()&&pl&&["soumis","valide"].includes(st)?'<button class="btn" id="pReopen">Rouvrir pour modification</button>':""}
+      </div></div>
+    ${!isManager()&&!st?'<div class="card empty">Le planning de cette semaine n\'est pas encore publié.</div>':`<div class="wk">${days.map(d=>{const sh=(shifts||[]).filter(s=>s.day===d),off=offOn(d);
+      return`<div class="day ${d===today?"today":""}"><h4><span>${fShort(d)}</span><span>${sh.length?sh.length+" pers.":""}</span></h4>
+        ${sh.map(s=>`<div class="shift ${s.user_id===S.user.id?"me":""} ${editable?"edit":""}" style="--c:${esc(person(s.user_id).color)}" ${editable?`data-shift="${s.id}"`:""}><b>${esc(person(s.user_id).full_name)}</b>${fTime(s.start_time)} – ${fTime(s.end_time)}${s.label?` · ${esc(s.label)}`:""}</div>`).join("")}
+        ${off.map(l=>`<div class="shift" style="--c:var(--muted);opacity:.7"><b>${esc(person(l.user_id).full_name)}</b>En congé</div>`).join("")}
+        ${editable&&pl?`<button class="btn sm" data-addday="${d}">+</button>`:""}</div>`}).join("")}</div>
+      ${Object.keys(hrs).length?`<div class="tot">${Object.entries(hrs).sort((a,b)=>b[1]-a[1]).map(([u,h])=>`<span><b>${esc(person(u).full_name)}</b> ${fNum(h,1)} h</span>`).join("")}</div>`:""}`}`;
+  const shiftForm=(s={},day)=>`<label class="f">Salarié<select name="user_id" required>${peopleOptions(s.user_id)}</select></label>
+    <label class="f">Jour<select name="day">${days.map(d=>`<option value="${d}" ${d===(s.day||day)?"selected":""}>${fDay(d)}</option>`).join("")}</select></label>
+    <div class="row"><label class="f" style="flex:1">Début<input type="time" name="start_time" value="${(s.start_time||"09:30").slice(0,5)}" required></label>
+    <label class="f" style="flex:1">Fin<input type="time" name="end_time" value="${(s.end_time||"18:30").slice(0,5)}" required></label></div>
+    <label class="f">Poste / note (facultatif)<input name="label" value="${esc(s.label||"")}" placeholder="Accueil, snack, anniversaires…" maxlength="60"></label>`;
+  const save=async(r,id)=>{if(!r)return;if(r.data.end_time<=r.data.start_time)return fail("L'heure de fin doit être après le début");
+    const row={week_start:w,user_id:r.data.user_id,day:r.data.day,start_time:r.data.start_time,end_time:r.data.end_time,label:r.data.label};
+    const{error}=id?await S.sb.from("shifts").update(row).eq("id",id):await S.sb.from("shifts").insert(row);if(error)return fail(error);render()};
+  const on=(id,f)=>{const el=$(id);if(el)el.onclick=f};
+  on("wPrev",()=>{S.week=addDays(w,-7);render()});on("wNext",()=>{S.week=addDays(w,7);render()});on("wNow",()=>{S.week=monday(today);render()});
+  on("pStart",async()=>{const{error}=await S.sb.from("plannings").insert({week_start:w});if(error)return fail(error);render()});
+  on("pCopy",async()=>{const{data:prev,error:e1}=await S.sb.from("shifts").select("*").eq("week_start",addDays(w,-7));if(e1)return fail(e1);
+    if(!prev?.length)return toast("La semaine précédente est vide");
+    const{error}=await S.sb.from("plannings").insert({week_start:w});if(error)return fail(error);
+    const{error:e2}=await S.sb.from("shifts").insert(prev.map(s=>({week_start:w,user_id:s.user_id,day:addDays(s.day,7),start_time:s.start_time,end_time:s.end_time,label:s.label})));
+    if(e2)return fail(e2);toast(`${prev.length} services copiés`);render()});
+  on("pAdd",async()=>save(await modal("Ajouter un service",shiftForm({},days[0]))));
+  m.querySelectorAll("[data-addday]").forEach(b=>b.onclick=async()=>save(await modal("Ajouter un service",shiftForm({},b.dataset.addday))));
+  m.querySelectorAll("[data-shift]").forEach(el=>el.onclick=async()=>{const s=shifts.find(x=>x.id===+el.dataset.shift);
+    const r=await modal("Modifier le service",shiftForm(s),{danger:"Supprimer"});if(!r)return;
+    if(r.action==="danger"){const{error}=await S.sb.from("shifts").delete().eq("id",s.id);if(error)return fail(error);return render()}save(r,s.id)});
+  on("pSubmit",async()=>{if(!(shifts||[]).length)return toast("Ajoutez au moins un service");if(!confirm("Envoyer ce planning à Alex pour validation ? Il ne sera plus modifiable sauf refus."))return;
+    const{error}=await S.sb.rpc("submit_planning",{w});if(error)return fail(error);toast("Planning soumis");render();refreshBadges()});
+  on("pOk",async()=>{const{error}=await S.sb.rpc("decide_planning",{w,ok:true,note:""});if(error)return fail(error);toast("Planning validé : l'équipe le voit");render();refreshBadges()});
+  on("pKo",async()=>{const r=await modal("Refuser le planning",`<label class="f">Ce qu'il faut corriger<textarea name="note" required></textarea></label>`,{submit:"Renvoyer pour correction"});if(!r)return;
+    const{error}=await S.sb.rpc("decide_planning",{w,ok:false,note:r.data.note});if(error)return fail(error);toast("Planning renvoyé");render();refreshBadges()});
+  on("pReopen",async()=>{if(!confirm("Rouvrir ce planning ? Il disparaîtra de la vue de l'équipe jusqu'à sa nouvelle validation."))return;
+    const{error}=await S.sb.rpc("reopen_planning",{w});if(error)return fail(error);render()});
+};
+
+/* ═════════ STOCKS ═════════ */
+VIEWS.stocks=async m=>{
+  const k=S.stockKind;
+  const{data:items,error}=await S.sb.from("stock_items").select("*").eq("kind",k).eq("active",true).order("category").order("name");
+  if(error)return fail(error);
+  const low=items.filter(i=>i.current_qty<=i.min_qty).length;
+  m.innerHTML=`<h2>Stocks</h2>
+    <div class="row" style="justify-content:space-between;margin-bottom:12px"><div class="seg" id="kSeg"><button data-k="snack" aria-pressed="${k==="snack"}">🍪 Snack</button><button data-k="jouets" aria-pressed="${k==="jouets"}">🧸 Jouets & boutique</button></div>
+      ${isManager()?'<button class="btn" id="iAdd">+ Article</button>':""}</div>
+    <div class="card"><input class="search" id="q" placeholder="Rechercher un article…" type="search">
+      <p class="hint">${items.length} articles · ${low?`<b style="color:var(--crit-ink)">${low} sous le seuil de réassort</b>`:"aucun sous le seuil"} · touchez un article pour compter, entrer ou sortir du stock</p>
+      <div class="list" id="iList">${items.map(i=>{const lo=i.current_qty<=i.min_qty;
+        return`<div class="li" data-item="${i.id}" data-name="${esc((i.name+" "+i.category).toLowerCase())}" style="cursor:pointer"><div class="tx"><b>${esc(i.name)}</b><small>${esc(i.category||"")}${i.category?" · ":""}seuil ${fNum(i.min_qty)} ${esc(i.unit)} · maj ${fStamp(i.updated_at)}</small></div>
+          ${lo?'<span class="pill crit">À commander</span>':""}<span class="qty" style="${lo?"color:var(--crit-ink)":""}">${fNum(i.current_qty,1)}</span></div>`}).join("")||'<div class="empty">Aucun article. '+(isManager()?"Ajoutez-en avec « + Article ».":"La direction doit d\'abord créer la liste.")+"</div>"}</div></div>`;
+  $("kSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.stockKind=b.dataset.k;render()}};
+  $("q").oninput=e=>{const q=e.target.value.toLowerCase().trim();m.querySelectorAll("[data-item]").forEach(li=>li.classList.toggle("hidden",q&&!li.dataset.name.includes(q)))};
+  const itemForm=(i={})=>`<label class="f">Nom<input name="name" value="${esc(i.name||"")}" required maxlength="80"></label>
+    <label class="f">Catégorie<input name="category" value="${esc(i.category||"")}" placeholder="${k==="snack"?"Boissons, sucré, glaces…":"Palo-Feu, Palo-Police, chaussettes…"}" maxlength="40"></label>
+    <div class="row"><label class="f" style="flex:1">Unité<input name="unit" value="${esc(i.unit||"pièce")}" maxlength="20"></label>
+    <label class="f" style="flex:1">Seuil de réassort<input type="number" name="min_qty" value="${i.min_qty??0}" min="0" step="any" required></label></div>
+    ${i.id?"":`<label class="f">Stock actuel<input type="number" name="current_qty" value="0" min="0" step="any"></label>`}`;
+  const ia=$("iAdd");if(ia)ia.onclick=async()=>{const r=await modal("Nouvel article",itemForm());if(!r)return;
+    const{data:it,error}=await S.sb.from("stock_items").insert({kind:k,name:r.data.name,category:r.data.category,unit:r.data.unit,min_qty:+r.data.min_qty}).select().single();if(error)return fail(error);
+    if(+r.data.current_qty>0){const{error:e2}=await S.sb.from("stock_moves").insert({item_id:it.id,move:"comptage",qty:+r.data.current_qty,note:"Stock initial"});if(e2)return fail(e2)}
+    render();refreshBadges()};
+  m.querySelectorAll("[data-item]").forEach(li=>li.onclick=async()=>{
+    const it=items.find(x=>x.id===+li.dataset.item);
+    const{data:hist}=await S.sb.from("stock_moves").select("*").eq("item_id",it.id).order("created_at",{ascending:false}).limit(6);
+    const MV={comptage:"Comptage",entree:"Entrée (livraison)",sortie:"Sortie / vente",casse:"Casse / perte"};
+    const r=await modal(it.name,`<p class="hint" style="margin:0">Stock actuel : <b>${fNum(it.current_qty,1)} ${esc(it.unit)}</b> · seuil ${fNum(it.min_qty)}</p>
+      <label class="f">Action<select name="move">${Object.entries(MV).map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select></label>
+      <label class="f">Quantité (pour un comptage : ce que vous comptez en rayon)<input type="number" name="qty" min="0" step="any" required inputmode="decimal"></label>
+      <label class="f">Note (facultatif)<input name="note" maxlength="120"></label>
+      ${hist?.length?`<p class="hint" style="margin:6px 0 0">Derniers mouvements</p><table>${hist.map(h=>`<tr><td>${fStamp(h.created_at)}</td><td>${MV[h.move].split(" ")[0]}</td><td style="text-align:right">${h.delta>0?"+":""}${fNum(h.delta,1)}</td><td class="muted">${esc(person(h.user_id).full_name.split(" ")[0])}</td></tr>`).join("")}</table>`:""}`,
+      {danger:isManager()?"Modifier l'article":null});
+    if(!r)return;
+    if(r.action==="danger"){const e=await modal("Modifier l'article",itemForm(it),{danger:"Archiver"});if(!e)return;
+      const upd=e.action==="danger"?{active:false}:{name:e.data.name,category:e.data.category,unit:e.data.unit,min_qty:+e.data.min_qty};
+      const{error}=await S.sb.from("stock_items").update(upd).eq("id",it.id);if(error)return fail(error);return render()}
+    const{error}=await S.sb.from("stock_moves").insert({item_id:it.id,move:r.data.move,qty:+r.data.qty,note:r.data.note});
+    if(error)return fail(error);toast("Stock mis à jour");render();refreshBadges()});
+};
+
+/* ═════════ DEMANDES (congés & incidents) ═════════ */
+VIEWS.demandes=async m=>{
+  const t=S.demTab;
+  m.innerHTML=`<h2>Demandes</h2><div class="seg" id="dSeg" style="margin-bottom:12px"><button data-t="conges" aria-pressed="${t==="conges"}">🌴 Congés</button><button data-t="incidents" aria-pressed="${t==="incidents"}">🛠️ Incidents & maintenance</button></div><div id="dBody"></div>`;
+  $("dSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.demTab=b.dataset.t;render()}};
+  const body=$("dBody");
+  if(t==="conges"){
+    const{data:lv,error}=await S.sb.from("leaves").select("*").order("start_date",{ascending:false}).limit(80);if(error)return fail(error);
+    const KIND={conges:"Congés payés",recup:"Récupération",absence:"Absence",autre:"Autre"},ST={en_attente:["warn","En attente"],acceptee:["good","Acceptée"],refusee:["crit","Refusée"]};
+    const line=l=>`<div class="li"><div class="tx"><b>${isManager()?esc(person(l.user_id).full_name)+" · ":""}${KIND[l.kind]}</b><small>du ${fDate(l.start_date)} au ${fDate(l.end_date)}${l.comment?" · "+esc(l.comment):""}${l.decision_note?" · 💬 "+esc(l.decision_note):""}</small></div>
+      <span class="pill ${ST[l.status][0]}">${ST[l.status][1]}</span>
+      ${isDirection()&&l.status==="en_attente"?`<button class="btn sm ok" data-ok="${l.id}">Accepter</button><button class="btn sm bad" data-ko="${l.id}">Refuser</button>`:""}
+      ${l.user_id===S.user.id&&l.status==="en_attente"?`<button class="btn sm" data-del="${l.id}">Annuler</button>`:""}</div>`;
+    const pend=lv.filter(l=>l.status==="en_attente"),past=lv.filter(l=>l.status!=="en_attente");
+    body.innerHTML=`<div class="card"><div class="row" style="justify-content:space-between"><h3>${isManager()?"Demandes en attente":"Mes demandes en attente"}</h3><button class="btn pri" id="lNew">+ Demander un congé</button></div>
+      <div class="list">${pend.map(line).join("")||'<div class="empty">Aucune demande en attente.</div>'}</div></div>
+      <div class="card"><h3>Historique</h3><div class="list">${past.map(line).join("")||'<div class="empty">Rien pour l\'instant.</div>'}</div></div>`;
+    $("lNew").onclick=async()=>{const r=await modal("Demande de congé",`<label class="f">Type<select name="kind">${Object.entries(KIND).map(([v,l])=>`<option value="${v}">${l}</option>`).join("")}</select></label>
+      <div class="row"><label class="f" style="flex:1">Du<input type="date" name="start_date" required min="${TODAY()}"></label><label class="f" style="flex:1">Au (inclus)<input type="date" name="end_date" required min="${TODAY()}"></label></div>
+      <label class="f">Commentaire (facultatif)<input name="comment" maxlength="200"></label>`,{submit:"Envoyer la demande"});
+      if(!r)return;if(r.data.end_date<r.data.start_date)return fail("La date de fin est avant la date de début");
+      const{error}=await S.sb.from("leaves").insert({user_id:S.user.id,kind:r.data.kind,start_date:r.data.start_date,end_date:r.data.end_date,comment:r.data.comment});if(error)return fail(error);toast("Demande envoyée à la direction");render()};
+    body.querySelectorAll("[data-ok],[data-ko]").forEach(b=>b.onclick=async()=>{const ok=!!b.dataset.ok,id=+(b.dataset.ok||b.dataset.ko);let note="";
+      if(!ok){const r=await modal("Refuser la demande",`<label class="f">Motif (visible par le salarié)<input name="note" required></label>`,{submit:"Refuser"});if(!r)return;note=r.data.note}
+      const{error}=await S.sb.rpc("decide_leave",{lid:id,ok,note});if(error)return fail(error);render();refreshBadges()});
+    body.querySelectorAll("[data-del]").forEach(b=>b.onclick=async()=>{const{error}=await S.sb.from("leaves").delete().eq("id",+b.dataset.del);if(error)return fail(error);render()});
+  }else{
+    const{data:inc,error}=await S.sb.from("incidents").select("*").order("created_at",{ascending:false}).limit(80);if(error)return fail(error);
+    const SEV={faible:["info","Faible"],moyenne:["warn","Moyenne"],urgente:["crit","Urgente"]},ST={ouvert:["crit","Ouvert"],en_cours:["warn","En cours"],resolu:["good","Résolu"]};
+    const line=i=>`<div class="li" data-inc="${i.id}" style="cursor:pointer"><div class="tx"><b>${esc(i.title)}</b><small>${esc(i.location||"")}${i.location?" · ":""}${esc(person(i.reported_by).full_name)} · ${fStamp(i.created_at)}${i.assigned_to?" · pour "+esc(person(i.assigned_to).full_name):""}${i.photo_path?" · 📷":""}</small></div>
+      <span class="pill ${SEV[i.severity][0]}">${SEV[i.severity][1]}</span><span class="pill ${ST[i.status][0]}">${ST[i.status][1]}</span></div>`;
+    const open=inc.filter(i=>i.status!=="resolu"),closed=inc.filter(i=>i.status==="resolu").slice(0,15);
+    body.innerHTML=`<div class="card"><div class="row" style="justify-content:space-between"><h3>À traiter</h3><button class="btn pri" id="iNew">+ Signaler un problème</button></div>
+      <div class="list">${open.map(line).join("")||'<div class="empty">✓ Aucun incident en cours.</div>'}</div></div>
+      <div class="card"><h3>Résolus récemment</h3><div class="list">${closed.map(line).join("")||'<div class="empty">Rien pour l\'instant.</div>'}</div></div>`;
+    $("iNew").onclick=async()=>{const r=await modal("Signaler un problème",`<label class="f">Quoi ?<input name="title" required maxlength="100" placeholder="Ex. : filet déchiré au toboggan"></label>
+      <label class="f">Où ?<input name="location" maxlength="60" placeholder="Univers, salle, snack…"></label>
+      <label class="f">Urgence<select name="severity"><option value="faible">Faible — peut attendre</option><option value="moyenne" selected>Moyenne — à traiter cette semaine</option><option value="urgente">Urgente — sécurité / bloquant</option></select></label>
+      <label class="f">Détail<textarea name="description" maxlength="1000"></textarea></label>
+      <label class="f">Photo (facultatif)<input type="file" name="photo" accept="image/*" capture="environment"></label>`,{submit:"Envoyer"});
+      if(!r)return;let photo_path=null;const file=r.data.photo;
+      if(file&&file.size){if(file.size>8e6)return fail("Photo trop lourde (8 Mo max)");photo_path=`${S.user.id}/${Date.now()}.${(file.name.split(".").pop()||"jpg").toLowerCase()}`;
+        const{error:up}=await S.sb.storage.from("photos").upload(photo_path,file,{contentType:file.type});if(up)return fail(up)}
+      const{error}=await S.sb.from("incidents").insert({title:r.data.title,location:r.data.location,severity:r.data.severity,description:r.data.description,photo_path,reported_by:S.user.id});
+      if(error)return fail(error);toast("Merci, c'est signalé");render();refreshBadges()};
+    body.querySelectorAll("[data-inc]").forEach(li=>li.onclick=async()=>{const i=inc.find(x=>x.id===+li.dataset.inc);
+      let img="";if(i.photo_path){const{data}=await S.sb.storage.from("photos").createSignedUrl(i.photo_path,600);if(data)img=`<img src="${esc(data.signedUrl)}" alt="Photo de l'incident" style="width:100%;border-radius:10px;max-height:260px;object-fit:cover">`}
+      const can=isManager()||i.assigned_to===S.user.id;
+      const r=await modal(i.title,`${img}<p class="hint" style="margin:0">${esc(i.location||"")} · signalé par ${esc(person(i.reported_by).full_name)} le ${fStamp(i.created_at)}</p>
+        ${i.description?`<p style="margin:0;white-space:pre-wrap">${esc(i.description)}</p>`:""}
+        ${can?`<label class="f">Statut<select name="status">${Object.entries(ST).map(([v,[,l]])=>`<option value="${v}" ${v===i.status?"selected":""}>${l}</option>`).join("")}</select></label>
+        ${isManager()?`<label class="f">Confié à<select name="assigned_to"><option value="">—</option>${peopleOptions(i.assigned_to)}</select></label>`:""}
+        <label class="f">Ce qui a été fait<textarea name="resolution">${esc(i.resolution||"")}</textarea></label>`:(i.resolution?`<p class="hint">✓ ${esc(i.resolution)}</p>`:"")}`,{submit:can?"Enregistrer":"Fermer",danger:isDirection()?"Supprimer":null});
+      if(!r||!can&&r.action!=="danger")return;
+      if(r.action==="danger"){if(!confirm("Supprimer définitivement ?"))return;const{error}=await S.sb.from("incidents").delete().eq("id",i.id);if(error)return fail(error);return render()}
+      const upd={status:r.data.status,resolution:r.data.resolution,updated_at:new Date().toISOString(),resolved_at:r.data.status==="resolu"?(i.resolved_at||new Date().toISOString()):null};
+      if(isManager())upd.assigned_to=r.data.assigned_to||null;
+      const{error}=await S.sb.from("incidents").update(upd).eq("id",i.id);if(error)return fail(error);render();refreshBadges()});
+  }
+};
+
+/* ═════════ OBJECTIFS ═════════ */
+function objLine(o,kp){
+  const k=o.kpi_key?kp.get(o.kpi_key):null,cur=k?k.value:o.current,tgt=k&&k.target!=null?k.target:o.target,unit=k?k.unit:o.unit;
+  const r=tgt?cur/tgt:NaN,w=isFinite(r)?Math.min(r,1)*100:0,col=!isFinite(r)?"var(--muted)":r>=1?"var(--good)":r>=.9?"var(--warn)":"var(--brand)";
+  const fv=v=>unit==="%"?fNum(v,0)+" %":unit==="€"?fNum(v,2)+" €":unit==="note"?fNum(v,2):fNum(v,0)+(unit&&unit!=="nb"?" "+esc(unit):"");
+  return`<div style="margin:10px 0"><div class="row" style="justify-content:space-between"><b>${esc(o.title)}</b><span>${fv(cur)} <span class="muted">/ ${fv(tgt)}</span></span></div>
+    <div class="prog"><i style="width:${w}%;background:${col}"></i></div>
+    <small class="muted">${isFinite(r)?fNum(r*100,0)+" % de l'objectif":"—"}${o.end_date?" · jusqu'au "+fDate(o.end_date):""}${k?" · mis à jour automatiquement "+fStamp(k.updated_at):""}${o.description?" · "+esc(o.description):""}</small></div>`;
+}
+VIEWS.objectifs=async m=>{
+  const[{data:objs,error},{data:kpis}]=await Promise.all([S.sb.from("objectives").select("*").eq("active",true).order("end_date",{nullsFirst:false}),S.sb.from("kpi_feed").select("*")]);
+  if(error)return fail(error);
+  const kp=new Map((kpis||[]).map(k=>[k.key,k]));
+  const team=objs.filter(o=>o.scope==="equipe"),mine=objs.filter(o=>o.scope==="individuel"&&o.user_id===S.user.id),others=objs.filter(o=>o.scope==="individuel"&&o.user_id!==S.user.id);
+  const block=(list,edit)=>list.map(o=>`<div ${edit?`data-obj="${o.id}" style="cursor:pointer"`:""}>${objLine(o,kp)}</div>`).join("");
+  m.innerHTML=`<h2>Objectifs</h2>
+    ${isManager()?'<div class="row" style="margin-bottom:12px"><button class="btn pri" id="oNew">+ Nouvel objectif</button></div>':""}
+    <div class="card"><h3>🎯 Objectifs d'équipe</h3><p class="hint">Ce qu'on vise tous ensemble${isManager()?" · touchez un objectif pour le modifier":""}</p>${block(team,isManager())||'<div class="empty">Aucun objectif d\'équipe pour l\'instant.</div>'}</div>
+    <div class="card"><h3>⭐ Mes objectifs</h3>${block(mine,isManager())||'<div class="empty">Pas d\'objectif personnel en cours.</div>'}</div>
+    ${isManager()&&others.length?`<div class="card"><h3>Objectifs individuels de l'équipe</h3>${others.map(o=>`<div data-obj="${o.id}" style="cursor:pointer"><small class="muted">${esc(person(o.user_id).full_name)}</small>${objLine(o,kp)}</div>`).join("")}</div>`:""}`;
+  const form=(o={})=>`<label class="f">Objectif<input name="title" value="${esc(o.title||"")}" required maxlength="100" placeholder="Ex. : 4,8 de note Google, 30 anniversaires en décembre…"></label>
+    <label class="f">Pour<select name="who"><option value="">Toute l'équipe</option>${peopleOptions(o.user_id)}</select></label>
+    <label class="f">Suivi automatique depuis le dashboard<select name="kpi_key"><option value="">Non — saisie manuelle</option>${(kpis||[]).map(k=>`<option value="${k.key}" ${k.key===o.kpi_key?"selected":""}>${esc(k.label)}</option>`).join("")}</select></label>
+    <div class="row"><label class="f" style="flex:1">Valeur actuelle<input type="number" step="any" name="current" value="${o.current??0}"></label>
+    <label class="f" style="flex:1">Cible<input type="number" step="any" name="target" value="${o.target??""}"></label>
+    <label class="f" style="flex:1">Unité<input name="unit" value="${esc(o.unit||"")}" placeholder="nb, %, note…" maxlength="12"></label></div>
+    <label class="f">Échéance<input type="date" name="end_date" value="${o.end_date||""}"></label>
+    <label class="f">Précision (facultatif)<input name="description" value="${esc(o.description||"")}" maxlength="160"></label>`;
+  const save=async(r,id)=>{if(!r)return;
+    if(r.action==="danger"){const{error}=await S.sb.from("objectives").update({active:false}).eq("id",id);if(error)return fail(error);return render()}
+    const row={title:r.data.title,description:r.data.description,scope:r.data.who?"individuel":"equipe",user_id:r.data.who||null,kpi_key:r.data.kpi_key||null,
+      current:r.data.current===""?0:+r.data.current,target:r.data.target===""?null:+r.data.target,unit:r.data.unit,end_date:r.data.end_date||null,updated_at:new Date().toISOString()};
+    const{error}=id?await S.sb.from("objectives").update(row).eq("id",id):await S.sb.from("objectives").insert(row);if(error)return fail(error);render()};
+  const on=$("oNew");if(on)on.onclick=async()=>save(await modal("Nouvel objectif",form()));
+  if(isManager())m.querySelectorAll("[data-obj]").forEach(el=>el.onclick=async()=>{const o=objs.find(x=>x.id===+el.dataset.obj);save(await modal("Modifier l'objectif",form(o),{danger:"Archiver"}),o.id)});
+};
+
+/* ═════════ RÉGLAGES (direction / responsable) ═════════ */
+VIEWS.reglages=async m=>{
+  await loadPeople();
+  const{data:items}=await S.sb.from("checklist_items").select("*").order("moment").order("position");
+  const pend=S.people.filter(p=>!p.role&&p.active),act=S.people.filter(p=>p.role||!p.active);
+  m.innerHTML=`<h2>Réglages</h2>
+    ${isDirection()?`<div class="card"><h3>👋 Comptes en attente</h3><p class="hint">Les salariés créent leur compte depuis la page de connexion, puis vous leur donnez un rôle ici.</p>
+      <div class="list">${pend.map(p=>`<div class="li"><div class="tx"><b>${esc(p.full_name)}</b><small>${esc(p.email||"")} · inscrit le ${fStamp(p.created_at)}</small></div><button class="btn sm pri" data-person="${p.id}">Donner accès</button></div>`).join("")||'<div class="empty">Aucun compte en attente.</div>'}</div></div>`:""}
+    <div class="card"><h3>👥 Équipe</h3><div class="list">${act.map(p=>`<div class="li" ${isDirection()?`data-person="${p.id}" style="cursor:pointer"`:""}><span class="pill" style="--c:${esc(p.color)}"></span><div class="tx"><b>${esc(p.full_name)}${p.active?"":" (désactivé)"}</b><small>${esc(p.email||"")}${p.poste?" · "+esc(p.poste):""}</small></div>
+      <span class="pill ${p.role==="direction"?"info":""}">${p.role?ROLE[p.role]:"—"}${p.can_validate_planning?" · valide le planning":""}</span></div>`).join("")}</div></div>
+    <div class="card"><div class="row" style="justify-content:space-between"><h3>✅ Checklists</h3><button class="btn sm" id="cNew">+ Point</button></div>
+      ${["ouverture","fermeture"].map(mo=>`<p class="hint" style="margin:10px 0 4px">${mo==="ouverture"?"Ouverture":"Fermeture"}</p><div class="list">${(items||[]).filter(i=>i.moment===mo).map(i=>`<div class="li" data-ci="${i.id}" style="cursor:pointer;${i.active?"":"opacity:.5"}"><span class="muted">${i.position}</span><div class="tx"><b>${esc(i.label)}</b></div>${i.active?"":'<span class="pill">masqué</span>'}</div>`).join("")}</div>`).join("")}</div>`;
+  m.querySelectorAll("[data-person]").forEach(el=>el.onclick=async()=>{const p=S.byId.get(el.dataset.person);
+    const r=await modal(p.full_name,`<label class="f">Rôle<select name="role"><option value="equipe" ${p.role==="equipe"?"selected":""}>Équipe</option><option value="responsable" ${p.role==="responsable"?"selected":""}>Responsable</option><option value="direction" ${p.role==="direction"?"selected":""}>Direction</option></select></label>
+      <label class="f">Poste (facultatif)<input name="poste" value="${esc(p.poste||"")}" maxlength="40" placeholder="Animateur, accueil, snack…"></label>
+      <label class="f">Couleur dans le planning<input type="color" name="color" value="${esc(p.color||"#2a78d6")}" style="height:44px;padding:4px"></label>
+      <label class="row" style="font-size:14px"><input type="checkbox" name="can_validate_planning" ${p.can_validate_planning?"checked":""} style="width:auto"> Valide le planning (Alex) — réservé à la direction</label>`,
+      {danger:p.id===S.user.id?null:(p.active?"Désactiver l'accès":"Réactiver")});
+    if(!r)return;
+    const upd=r.action==="danger"?{active:!p.active}:{role:r.data.role,poste:r.data.poste,color:r.data.color,can_validate_planning:!!r.data.can_validate_planning&&r.data.role==="direction"};
+    const{error}=await S.sb.from("profiles").update(upd).eq("id",p.id);if(error)return fail(error);toast("Enregistré");render();refreshBadges()});
+  const ciForm=(i={})=>`<label class="f">Moment<select name="moment"><option value="ouverture" ${i.moment==="ouverture"?"selected":""}>Ouverture</option><option value="fermeture" ${i.moment==="fermeture"?"selected":""}>Fermeture</option></select></label>
+    <label class="f">Point à vérifier<input name="label" value="${esc(i.label||"")}" required maxlength="120"></label>
+    <label class="f">Ordre<input type="number" name="position" value="${i.position??((items||[]).length+1)}" min="0"></label>`;
+  $("cNew").onclick=async()=>{const r=await modal("Nouveau point de checklist",ciForm());if(!r)return;
+    const{error}=await S.sb.from("checklist_items").insert({moment:r.data.moment,label:r.data.label,position:+r.data.position});if(error)return fail(error);render()};
+  m.querySelectorAll("[data-ci]").forEach(el=>el.onclick=async()=>{const i=items.find(x=>x.id===+el.dataset.ci);
+    const r=await modal("Point de checklist",ciForm(i),{danger:i.active?"Masquer":"Réafficher"});if(!r)return;
+    const upd=r.action==="danger"?{active:!i.active}:{moment:r.data.moment,label:r.data.label,position:+r.data.position};
+    const{error}=await S.sb.from("checklist_items").update(upd).eq("id",i.id);if(error)return fail(error);render()});
+};
+
+boot();
+setInterval(()=>{if(S.me&&document.visibilityState==="visible")refreshBadges()},120000);
+</script>
+</body>
+</html>

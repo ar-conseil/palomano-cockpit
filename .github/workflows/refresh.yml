@@ -69,6 +69,16 @@ jobs:
           DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
         run: python encrypt_page.py
 
+      # Espace équipe (app statique ; les données vivent dans Supabase, protégées par ses règles d'accès)
+      - name: Ajouter l'espace équipe
+        run: mkdir -p site/equipe && cp equipe/index.html equipe/config.js site/equipe/
+
+      - name: Publier les indicateurs pour l'équipe
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python publish_kpis.py || echo "::warning::Indicateurs équipe non publiés"
+
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

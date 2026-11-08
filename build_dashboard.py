@@ -33,6 +33,7 @@ GEO = HERE / "cp_geo.json"  # code postal → [commune, lat, lon] (geo.api.gouv.
 TEMPLATE = HERE / "template.html"
 OUT = HERE / "Palomano_Dashboard.html"
 OUT_ARTIFACT = HERE / "palomano-cockpit.html"
+DATA_JSON = HERE / "data.json"
 
 MONTHS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
              "août", "septembre", "octobre", "novembre", "décembre"]
@@ -306,6 +307,7 @@ def main():
     html = TEMPLATE.read_text(encoding="utf-8").replace(
         "/*__DATA__*/null", json.dumps(data, ensure_ascii=False, separators=(",", ":")))
     OUT.write_text(html, encoding="utf-8")
+    DATA_JSON.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")  # pour publish_kpis.py
 
     # Version « Artifact » (claude.ai ajoute lui-même doctype/html/head/body)
     head = re.search(r"<head>(.*?)</head>", html, re.S).group(1)
