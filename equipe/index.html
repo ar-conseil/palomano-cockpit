@@ -921,14 +921,15 @@ VIEWS.planning=async m=>{
   m.querySelectorAll("[data-ann]").forEach(b=>b.onclick=async()=>{if(!isManager())return;const a=(anniv||[]).find(x=>x.id===+b.dataset.ann);if(!a)return;
     const a0=toMin(a.heure),a1=a0+(a.duree_min||120),fin=toTime(Math.min(a1,23*60+45));
     const r=await modal(`Anniversaire de ${a.enfant}`,`<p style="margin:0 0 10px;font-size:15px"><b>${capital(fDay(a.date))}</b> · ${fTime(a.heure)} – ${fTime(fin)}${a.nb_enfants?` · ${a.nb_enfants} enfants`:""}${a.age?` · ${a.age} ans`:""}${a.salle?` · ${esc(a.salle)}`:""}</p>
-      <label class="f full">Animateur·rice<select name="who">${whoOptions(animOf(a),{empty:"— à prévoir —"})}</select></label>
+      <label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="opt" ${a.option_animateur?"checked":""} style="width:auto"> Option animateur prise (vendue sur place sur Qweekle)</label>
+      <label class="f full">Animateur·rice<select name="who">${whoOptions(animOf(a),{empty:"—"})}</select></label>
       ${editable?`<label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="shift" checked style="width:auto"> Ajouter aussi son service au planning (${fTime(a.heure)} – ${fTime(fin)}) s'il n'est pas déjà prévu</label>`
         :`<p style="font-size:13px;color:var(--ink-2);margin:6px 0 0">${pl?"Le planning de la semaine n'est plus modifiable : pensez à vérifier ses horaires.":"Le planning de cette semaine n'est pas encore commencé : son service n'y sera pas ajouté."}</p>`}`,{submit:"Enregistrer"});
     if(!r)return;const who=r.data.who||null;
-    const{error}=await S.sb.from("anniversaires").update({...animCols(who),updated_at:new Date().toISOString()}).eq("id",a.id);if(error)return fail(error);
+    const{error}=await S.sb.from("anniversaires").update({...animCols(who),option_animateur:r.data.opt==="on",updated_at:new Date().toISOString()}).eq("id",a.id);if(error)return fail(error);
     if(who&&editable&&r.data.shift&&!SH.some(s=>s.user_id===who&&s.day===a.date&&s.a<=a0&&s.b>=a1)){
       const{error:e2}=await S.sb.from("shifts").insert(qui({week_start:w,user_id:who,day:a.date,start_time:a.heure,end_time:fin,label:`Anniv ${a.enfant}`.slice(0,60)}));if(e2)return fail(e2)}
-    toast(who?`${person(who).full_name.split(" ")[0]} anime l'anniversaire de ${a.enfant}`:"Animateur retiré");render()});
+    toast(who?`${person(who).full_name.split(" ")[0]} anime l'anniversaire de ${a.enfant}`:r.data.opt==="on"?"Option animateur notée : animateur à prévoir":"Enregistré");render()});
   m.querySelectorAll("[data-addday]").forEach(b=>b.onclick=()=>createShift({day:b.dataset.addday,start_time:"09:30",end_time:"18:30"}));
   m.querySelectorAll(".mshift[data-shift]").forEach(el=>el.onclick=()=>editShift(SH.find(x=>x.id===+el.dataset.shift)));
   on("pSubmit",async()=>{if(!SH.length)return toast("Ajoutez au moins un service");if(!confirm("Envoyer ce planning à Alex pour validation ? Il ne sera plus modifiable sauf refus."))return;
@@ -990,7 +991,8 @@ async function resaView(m,kind){
       <label class="f">Formule<input name="formule" list="formules" value="${esc(r.formule||"")}" placeholder="Palo-Fiesta, Goûter Palomano…"><datalist id="formules"><option>Palo-Fiesta</option><option>Goûter Palomano</option><option>Goûter non compris</option><option>Découverte</option></datalist></label>
       <label class="f">Salle<input name="salle" value="${esc(r.salle||"")}" placeholder="Salle 1, Salle 2…"></label>
       <label class="f">Thème<input name="theme" value="${esc(r.theme||"")}" maxlength="60"></label>
-      <label class="f">Animateur·rice<select name="animateur">${whoOptions(animOf(r),{empty:"— à prévoir —"})}</select></label>
+      <label class="f">Animateur·rice<select name="animateur">${whoOptions(animOf(r),{empty:"—"})}</select></label>
+      <label class="f" style="flex-direction:row;align-items:center;gap:8px;align-self:end;padding-bottom:10px"><input type="checkbox" name="option_animateur" ${r.option_animateur?"checked":""} style="width:auto"> Option animateur prise</label>
       <label class="f full">Allergies / régimes<input name="allergies" value="${esc(r.allergies||"")}" placeholder="Ex. : arachides (Léon), sans gluten (2 enfants)"></label>
       <label class="f">Parent<input name="parent_nom" value="${esc(r.parent_nom||"")}"></label>
       <label class="f">Téléphone<input type="tel" name="parent_tel" value="${esc(r.parent_tel||"")}"></label>
@@ -1017,7 +1019,7 @@ async function resaView(m,kind){
       <label class="f full">Montant (€)<input type="number" step="0.01" name="montant" value="${r.montant??""}"></label>
       <label class="f full">Notes<textarea name="notes">${esc(r.notes||"")}</textarea></label></div>`;
   const NUM=["age","nb_enfants","nb_encadrants","duree_min","montant","acompte"];
-  const clean=d=>{const o={};for(const[k,v]of Object.entries(d))o[k]=v===""?null:NUM.includes(k)?+v:v;if(isA&&"animateur" in d)Object.assign(o,animCols(d.animateur));return o};
+  const clean=d=>{const o={};for(const[k,v]of Object.entries(d))o[k]=v===""?null:NUM.includes(k)?+v:v;if(isA){if("animateur" in d)Object.assign(o,animCols(d.animateur));o.option_animateur=d.option_animateur==="on"}return o};
   const table=isA?"anniversaires":"groupes";
   const nb=$("rNew");if(nb)nb.onclick=async()=>{const r=await modal(isA?"Nouvel anniversaire":kind==="centre"?"Nouveau centre de loisirs":"Nouvelle sortie scolaire",form(),{submit:"Ajouter"});if(!r)return;
     const row=clean(r.data);if(!isA)row.type=kind;const{error}=await S.sb.from(table).insert(row);if(error)return fail(error);toast("Réservation ajoutée");render()};
