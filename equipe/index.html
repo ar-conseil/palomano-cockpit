@@ -146,6 +146,12 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 @media (max-width:700px){.stat{padding:12px}.stat b{font-size:20px}.stat .tile-ic{width:36px;height:36px}}
 .beta{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:var(--jaune);color:var(--ink);margin-left:6px}
 .bnav .beta{display:none}
+.borne{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:var(--bg);gap:14px}
+.borne-logo{width:220px}.borne h1{margin:8px 0 0;font-size:30px}.borne p{margin:0;color:var(--ink-2);font-size:18px}
+.borne-qr{background:#fff;padding:18px;border-radius:24px;box-shadow:var(--shadow);margin-top:10px;line-height:0;width:fit-content}
+.borne-code{font-size:64px;font-weight:700;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.borne-bar{width:320px;height:8px;border-radius:4px;background:var(--line);overflow:hidden}.borne-bar i{display:block;height:100%;background:var(--rouge-f);transition:width .9s linear}
+.borne-clock{color:var(--muted);font-size:16px;text-transform:capitalize}
 .betabar{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;margin-bottom:16px;border-radius:var(--radius);background:var(--jaune-c,#f9e2b4);box-shadow:inset 0 0 0 1.5px var(--jaune)}
 .betabar b{display:block;font-size:15px}.betabar span{display:block;font-size:13.5px;color:var(--ink-2);margin-top:2px}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--bg);white-space:nowrap}
@@ -595,8 +601,37 @@ function showAuth(which){
   $("vApp").classList.add("hidden");$("vAuth").classList.remove("hidden");
   ["fLogin","fSignup","fReset","fNewPw","vPending","vConfig"].forEach(id=>$(id).classList.toggle("hidden",id!==which));
 }
+/* ═════════ BORNE DE POINTAGE (tablette à l'accueil) ═════════
+   La tablette garde une clé d'activation (créée par la direction) ; elle affiche un code qui change
+   toutes les 30 s, en chiffres et en QR code (lien …/#pointer=CODE, ouvert par l'appareil photo du téléphone). */
+const BORNE_KEY="palo.borne.key";
+async function borneMode(){
+  document.body.innerHTML=`<div class="borne"><img src="assets/logo.svg" alt="Palomano" class="borne-logo"><div id="bBody"></div></div>`;
+  const sb=supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:false}});
+  let key=null;try{key=localStorage.getItem(BORNE_KEY)}catch(e){}
+  const body=document.getElementById("bBody");
+  if(!key){body.innerHTML=`<h1>Borne de pointage</h1><p>Cette tablette n'est pas encore activée.<br>Un membre de la direction l'active depuis l'espace équipe : <b>Réglages › Borne de pointage › Activer cette tablette</b>.</p>`;return}
+  if(!window.QRCode)await new Promise(r=>{const sc=document.createElement("script");sc.src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";sc.onload=r;sc.onerror=r;document.head.appendChild(sc)});
+  body.innerHTML=`<h1>Pointez votre arrivée ou votre départ</h1><p>Scannez avec l'appareil photo de votre téléphone<br>ou tapez le code dans l'espace équipe.</p>
+    <div id="bQr" class="borne-qr"></div><div id="bCode" class="borne-code">······</div><div class="borne-bar"><i id="bBar"></i></div><div id="bClock" class="borne-clock"></div>`;
+  let last="";
+  const tick=async()=>{
+    document.getElementById("bClock").textContent=new Date().toLocaleString("fr-FR",{weekday:"long",day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"});
+    const{data,error}=await sb.rpc("borne_code",{k:key});
+    if(error||!data||!data.ok){body.innerHTML=`<h1>Borne désactivée</h1><p>${error?"Pas de connexion internet : nouvel essai dans quelques secondes.":"Cette tablette a été désactivée par la direction."}</p>`;if(error)setTimeout(()=>borneMode(),15000);return}
+    document.getElementById("bBar").style.width=(data.reste/30*100)+"%";
+    if(data.code!==last){last=data.code;document.getElementById("bCode").textContent=data.code.replace(/(\d{3})(\d{3})/,"$1 $2");
+      const q=document.getElementById("bQr");q.innerHTML="";const url=location.origin+location.pathname.replace(/index\.html$/,"")+"#pointer="+data.code;
+      if(window.QRCode)new QRCode(q,{text:url,width:300,height:300,correctLevel:QRCode.CorrectLevel.M});else q.textContent=url}
+  };
+  await tick();setInterval(tick,3000);
+  try{await navigator.wakeLock?.request("screen")}catch(e){}
+}
 async function boot(){
   if(!C.supabaseUrl||!C.supabaseAnonKey||!window.supabase){showAuth("vConfig");return}
+  if(/^#borne/.test(location.hash))return borneMode();
+  // code scanné sur la borne : mis de côté le temps de se connecter (le lien de récupération de mot de passe n'est pas concerné)
+  const pm=location.hash.match(/pointer=(\d{6})/);if(pm){try{sessionStorage.setItem("palo.pointer",JSON.stringify({code:pm[1],at:Date.now()}))}catch(e){}history.replaceState(null,"",location.pathname)}
   S.sb=supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   guardWrites(S.sb);
   S.sb.auth.onAuthStateChange(ev=>{
@@ -622,6 +657,22 @@ async function enter(user){
   $("logout").innerHTML=ic("out");
   let t="today";try{t=sessionStorage.getItem("palo.eq.tab")||"today"}catch(e){}
   await refreshBadges();go(t);
+  const pc=pendingPointer();if(pc&&!S.real)pointerCode(pc);
+}
+/* Pointage avec le code de la borne (saisi, ou reçu par le QR code : …/#pointer=123456) */
+async function pointerCode(code){
+  code=String(code||"").replace(/\D/g,"");if(code.length!==6)return fail("Le code fait 6 chiffres");
+  const{data,error}=await S.sb.rpc("pointer",{code});
+  if(error)return fail(error);
+  const t=ts=>new Date(ts).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+  toast(data.action==="fin"?`Fin de journée pointée à ${t(data.end_at)} · bonne soirée !`:`Arrivée pointée à ${t(data.start_at)} · bonne journée !`);
+  if(S.tab==="today")render();
+}
+function pendingPointer(){
+  const m=location.hash.match(/pointer=(\d{6})/);
+  if(m){try{sessionStorage.setItem("palo.pointer",JSON.stringify({code:m[1],at:Date.now()}))}catch(e){}history.replaceState(null,"",location.pathname)}
+  let p=null;try{p=JSON.parse(sessionStorage.getItem("palo.pointer")||"null");sessionStorage.removeItem("palo.pointer")}catch(e){}
+  return p&&Date.now()-p.at<90000?p.code:null;   // le code n'est valable que quelques dizaines de secondes
 }
 async function loadPeople(){
   const{data,error}=await S.sb.from("profiles").select("*").order("full_name");
@@ -728,8 +779,10 @@ VIEWS.today=async m=>{
         ${(objs||[]).length?(objs||[]).map(o=>objLine(o,kp)).join(""):'<div class="empty">Aucun objectif en cours.</div>'}</div>
     </div>`;
   $("clockBtn").onclick=async()=>{
-    const{error}=openPt?await S.sb.from("pointages").update({end_at:new Date().toISOString()}).eq("id",openPt.id):await S.sb.from("pointages").insert({user_id:S.user.id});
-    if(error)return fail(error);toast(openPt?"Bonne fin de journée !":"C'est noté, bonne journée !");render()};
+    const r=await modal(openPt?"Je termine ma journée":"Je commence ma journée",`<p style="margin:0 0 6px">Scannez le QR code de la <b>borne de l'accueil</b> avec l'appareil photo de votre téléphone, ou tapez le code à 6 chiffres affiché dessous.</p>
+      <label class="f full">Code de la borne<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required placeholder="123456" style="font-size:24px;letter-spacing:.3em;text-align:center"></label>
+      <p class="hint" style="margin:0">Le code change toutes les 30 secondes : on ne peut pointer que sur place.</p>`,{submit:openPt?"Pointer la fin":"Pointer l'arrivée"});
+    if(r)pointerCode(r.data.code)};
   if(openPt){clearInterval(S.tick);S.tick=setInterval(()=>{const el=$("clockSub");if(!el){clearInterval(S.tick);return}el.textContent=`en poste depuis ${new Date(openPt.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} · ${fDur(ptHours([openPt]))}`},30000)}
   m.querySelectorAll("[data-cl]").forEach(b=>b.onclick=async()=>{
     const id=+b.dataset.cl,x=doneBy.get(id);
@@ -764,7 +817,7 @@ VIEWS.planning=async m=>{
     S.sb.from("anniversaires").select("*").gte("date",w).lte("date",days[6]).neq("statut","annule"),
     S.sb.from("groupes").select("date,heure_arrivee,structure,nb_enfants,type").gte("date",w).lte("date",days[6]).neq("statut","annule"),
   ]);
-  const st=pl?pl.status:null,editable=isManager()&&!!pl&&["brouillon","refuse"].includes(st);
+  const st=pl?pl.status:null,editable=isManager()&&!!pl&&(["brouillon","refuse"].includes(st)||(st==="valide"&&isDirection()));
   const SH=(shifts||[]).map(s=>({...s,user_id:s.user_id||s.intervenant_id,a:toMin(s.start_time),b:toMin(s.end_time)}));
   const hrs={};SH.forEach(s=>{hrs[s.user_id]=(hrs[s.user_id]||0)+(s.b-s.a)/60});
   const offOn=(d,uid)=>(leaves||[]).some(l=>l.start_date<=d&&l.end_date>=d&&(!uid||l.user_id===uid));
@@ -808,7 +861,7 @@ VIEWS.planning=async m=>{
       <span class="sp"></span>${isManager()?`<button class="btn sm" id="pExt">${ic("plus","sm")} Intérimaire</button>`:""}<div class="seg" id="vSeg"><button data-v="semaine" aria-pressed="${view==="semaine"}">Semaine</button><button data-v="jour" aria-pressed="${view==="jour"}">Jour</button></div></div>`+
     (!isManager()&&!st?`<div class="card empty"><img src="assets/illu.svg" alt="">Le planning de cette semaine n'est pas encore publié.</div>`:
     (view==="jour"?`<div class="days-tabs" style="margin-bottom:14px">${days.map(d=>`<button data-day="${d}" class="${d===today?"today":""}" aria-pressed="${d===day}">${capital(fShort(d))}</button>`).join("")}</div>`+dayTimeline():weekGrid())+
-    `<p class="plan-hint">${editable?(view==="jour"?"✋ Glissez une barre pour décaler l'horaire (ou vers une autre personne) · tirez ses bords pour changer le début ou la fin · dessinez sur la ligne d'une personne pour créer un service · cliquez pour modifier.":"✋ Glissez un service vers un autre jour ou une autre personne · cliquez sur une case vide pour en créer un · cliquez sur un service pour le modifier · passez en vue Jour pour ajuster les heures à la souris."):st==="soumis"?"Planning en attente de validation : il n'est plus modifiable sauf refus.":st==="valide"?"Planning validé : il est visible par toute l'équipe.":""}</p>
+    `<p class="plan-hint">${editable&&st==="valide"?"<b>Planning validé : vos changements sont visibles tout de suite par l'équipe.</b> ":""}${editable?(view==="jour"?"✋ Glissez une barre pour décaler l'horaire (ou vers une autre personne) · tirez ses bords pour changer le début ou la fin · dessinez sur la ligne d'une personne pour créer un service · cliquez pour modifier.":"✋ Glissez un service vers un autre jour ou une autre personne · cliquez sur une case vide pour en créer un · cliquez sur un service pour le modifier · passez en vue Jour pour ajuster les heures à la souris."):st==="soumis"?"Planning en attente de validation : il n'est plus modifiable sauf refus.":st==="valide"?"Planning validé : il est visible par toute l'équipe.":""}</p>
     <div class="mplan">${days.map(d=>{const sh=SH.filter(s=>s.day===d).sort((a,b)=>a.a-b.a);return`<div class="mday ${d===today?"today":""}"><h4><span>${capital(fShort(d))}</span><span style="color:var(--muted);font-weight:500">${sh.length?nbDay(d)+" pers.":""}</span></h4>
       ${sh.map(s=>`<div class="mshift" style="--c:${esc(person(s.user_id).color)}" ${editable?`data-shift="${s.id}"`:""}>${avatar(person(s.user_id),28)}<div style="flex:1"><b>${esc(person(s.user_id).full_name)}</b><div style="font-size:13px;color:var(--ink-2)">${fTime(s.start_time)} – ${fTime(s.end_time)}${s.label?" · "+esc(s.label):""}</div></div></div>`).join("")||'<div style="color:var(--muted);font-size:13.5px">Personne</div>'}
       ${(leaves||[]).filter(l=>l.start_date<=d&&l.end_date>=d).map(l=>`<div style="font-size:13px;color:var(--rouge-f);margin-top:6px">🌴 ${esc(person(l.user_id).full_name)} en congé</div>`).join("")}
@@ -1060,7 +1113,7 @@ VIEWS.annivplan=async m=>{
     S.sb.from("shifts").select("*").eq("week_start",w),
   ]);
   if(error)return fail(error);
-  const editable=isManager()&&!!pl&&["brouillon","refuse"].includes(pl.status);
+  const editable=isManager()&&!!pl&&(["brouillon","refuse"].includes(pl.status)||(pl.status==="valide"&&isDirection()));
   const SH=(shifts||[]).map(s=>({...s,user_id:s.user_id||s.intervenant_id,a:toMin(s.start_time),b:toMin(s.end_time)}));
   const qui=row=>{const{user_id,...r}=row;return S.ext.has(user_id)?{...r,user_id:null,intervenant_id:user_id}:{...r,user_id,intervenant_id:null}};
   const list=anniv||[],todo=list.filter(a=>needAnim(a)&&!animOf(a)),withA=list.filter(a=>animOf(a));
@@ -1297,6 +1350,21 @@ VIEWS.objectifs=async m=>{
    - apprentis : les heures de cours (CFA/IUT) sont du temps de travail (art. L6222-24) et comptent dans le total ;
    - apprentis mineurs : 8 h/jour et 35 h/semaine maximum, cours compris (art. L3162-1) : tout dépassement est signalé ;
    - alertes générales : plus de 10 h dans une journée, plus de 48 h dans la semaine. */
+const TOL_MIN=15;
+function planCount(list,shifts,uid){
+  const eff=[],hors=[];let horsH=0;
+  for(const x of list){
+    const a=new Date(x.start_at).getTime(),b=x.end_at?new Date(x.end_at).getTime():Date.now();if(b<=a)continue;
+    if(x.kind==="ecole"||x.hors_ok){eff.push(x);continue}
+    const d=iso(new Date(x.start_at));
+    const win=(shifts||[]).filter(s=>s.user_id===uid&&s.day===d).map(s=>[new Date(`${d}T${s.start_time}`).getTime()-TOL_MIN*6e4,new Date(`${d}T${s.end_time}`).getTime()+TOL_MIN*6e4]).sort((u,v)=>u[0]-v[0]);
+    let kept=0;
+    for(const[w0,w1]of win){const s0=Math.max(a,w0),s1=Math.min(b,w1);if(s1>s0){eff.push({...x,start_at:new Date(s0).toISOString(),end_at:new Date(s1).toISOString()});kept+=s1-s0}}
+    const out=(b-a-kept)/36e5;
+    if(out>1/60){horsH+=out;hors.push({x,h:out,noPlan:!win.length})}
+  }
+  return{eff,hors,horsH};
+}
 function payWeek(p,list,from,to){
   const day={};let work=0,school=0;
   for(const x of list){const h=ptHours([x],from,to);if(!h)continue;const d=iso(new Date(x.start_at));day[d]=(day[d]||0)+h;if(x.kind==="ecole")school+=h;else work+=h}
@@ -1323,18 +1391,20 @@ async function exportPaie(month){
   const from=parse(weeks[0]).getTime(),to=parse(addDays(weeks[weeks.length-1],7)).getTime();
   const{data:pts,error}=await S.sb.from("pointages").select("*").gte("start_at",new Date(from-864e5).toISOString()).lt("start_at",new Date(to).toISOString());
   if(error)return fail(error);
+  const{data:shAll}=await S.sb.from("shifts").select("user_id,day,start_time,end_time").gte("day",weeks[0]).lt("day",addDays(weeks[weeks.length-1],7));
   const team=S.people.filter(p=>p.active&&p.role&&(p.contrat_h||p.apprenti));
   const hh=h=>{const m=Math.round(h*60);return`${Math.floor(m/60)}:${String(m%60).padStart(2,"0")}`};
   const q=v=>`"${String(v).replace(/"/g,'""')}"`;
-  const rows=[["Salarié(e)","Contrat","Durée contractuelle (h/sem)","Semaine","Du","Au","Heures travaillées","dont cours CFA/IUT","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Alertes"]];
-  const recap=[["Salarié(e)","Contrat","Total heures","dont cours","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Semaines sans pointage","Alertes"]];
-  for(const p of team){const T={tot:0,school:0,hs25:0,hs50:0,hc10:0,hc25:0},al=new Set();let empty=0;
-    for(const w of weeks){const a=parse(w).getTime(),b=parse(addDays(w,7)).getTime(),list=(pts||[]).filter(x=>x.user_id===p.id);
-      const r=payWeek(p,list,a,b);if(!r.tot)empty++;r.alerts.forEach(x=>al.add(x));for(const k in T)T[k]+=r[k];
-      rows.push([p.full_name,contratLabel(p),+p.contrat_h||35,"S"+isoWeekNum(w),fDate(w),fDate(addDays(w,6)),hh(r.tot),hh(r.school),hh(r.hs25),hh(r.hs50),hh(r.hc10),hh(r.hc25),r.alerts.join(" · ")])}
-    recap.push([p.full_name,contratLabel(p),hh(T.tot),hh(T.school),hh(T.hs25),hh(T.hs50),hh(T.hc10),hh(T.hc25),empty,[...al].join(" · ")])}
+  const rows=[["Salarié(e)","Contrat","Durée contractuelle (h/sem)","Semaine","Du","Au","Heures travaillées","dont cours CFA/IUT","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Hors planning non validées (non comptées)","Alertes"]];
+  const recap=[["Salarié(e)","Contrat","Total heures","dont cours","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Hors planning non validées (non comptées)","Semaines sans pointage","Alertes"]];
+  for(const p of team){const T={tot:0,school:0,hs25:0,hs50:0,hc10:0,hc25:0},al=new Set();let empty=0,horsT=0;
+    for(const w of weeks){const a=parse(w).getTime(),b=parse(addDays(w,7)).getTime(),list=(pts||[]).filter(x=>x.user_id===p.id&&new Date(x.start_at).getTime()>=a&&new Date(x.start_at).getTime()<b);
+      const pc=planCount(list,shAll,p.id),r=payWeek(p,pc.eff,a,b);horsT+=pc.horsH;if(!r.tot)empty++;r.alerts.forEach(x=>al.add(x));for(const k in T)T[k]+=r[k];
+      rows.push([p.full_name,contratLabel(p),+p.contrat_h||35,"S"+isoWeekNum(w),fDate(w),fDate(addDays(w,6)),hh(r.tot),hh(r.school),hh(r.hs25),hh(r.hs50),hh(r.hc10),hh(r.hc25),hh(pc.horsH),r.alerts.join(" · ")])}
+    if(horsT>1/60)al.add(`${hh(horsT)} pointées hors planning non validées par la direction : non comptées`);
+    recap.push([p.full_name,contratLabel(p),hh(T.tot),hh(T.school),hh(T.hs25),hh(T.hs50),hh(T.hc10),hh(T.hc25),hh(horsT),empty,[...al].join(" · ")])}
   const label=parse(month+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
-  const csv="﻿"+[[`PALOMANO LILLE – Heures pour la paie de ${label}`],[`Semaines civiles rattachées au mois de leur dimanche · cours CFA/IUT inclus (art. L6222-24) · généré le ${new Date().toLocaleString("fr-FR")}`],[],["RÉCAPITULATIF À TRANSMETTRE À LA GESTIONNAIRE DE PAIE"],...recap,[],["DÉTAIL PAR SEMAINE"],...rows,[],
+  const csv="﻿"+[[`PALOMANO LILLE – Heures pour la paie de ${label}`],[`Semaines civiles rattachées au mois de leur dimanche · cours CFA/IUT inclus (art. L6222-24) · seules les heures pointées pendant les créneaux du planning (à ${TOL_MIN} min près) ou validées par la direction sont comptées · généré le ${new Date().toLocaleString("fr-FR")}`],[],["RÉCAPITULATIF À TRANSMETTRE À LA GESTIONNAIRE DE PAIE"],...recap,[],["DÉTAIL PAR SEMAINE"],...rows,[],
     ["Règles : temps plein et apprentis majeurs +25 % de la 36e à la 43e h, +50 % au-delà · temps partiel +10 % jusqu'à 1/10 du contrat, +25 % au-delà, plafond 1/3 · apprentis mineurs 35 h/sem et 8 h/jour max (art. L3162-1) · taux conventionnels IDCC 1790 à confirmer par la gestionnaire."]]
     .map(r=>r.map(q).join(";")).join("\r\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`Palomano_heures_paie_${month}.csv`;document.body.appendChild(a);a.click();a.remove();
@@ -1351,11 +1421,12 @@ VIEWS.heures=async m=>{
     S.sb.from("shifts").select("user_id,day,start_time,end_time").eq("week_start",w),
   ]);
   if(error)return fail(error);
+  const{data:logs}=await S.sb.from("pointages_log").select("*").gte("at",new Date(from-7*864e5).toISOString()).order("at",{ascending:false}).limit(300);
   const team=S.people.filter(p=>p.active&&p.role);
   const plan=uid=>(shifts||[]).filter(s=>s.user_id===uid).reduce((t,s)=>t+(toMin(s.end_time)-toMin(s.start_time))/60,0);
   const mine=uid=>(pts||[]).filter(p=>p.user_id===uid);
   const open=uid=>mine(uid).find(p=>!p.end_at);
-  const rows=team.map(p=>({p,done:ptHours(mine(p.id),from,to),plan:plan(p.id),open:open(p.id),pay:payWeek(p,mine(p.id),from,to)}));
+  const rows=team.map(p=>{const pc=planCount(mine(p.id),shifts,p.id);return{p,done:ptHours(mine(p.id),from,to),plan:plan(p.id),open:open(p.id),pc,pay:payWeek(p,pc.eff,from,to)}});
   const tot=k=>rows.reduce((t,r)=>t+(r[k]||0),0),nOn=rows.filter(r=>r.open).length;
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
   m.innerHTML=topbar("Heures de l'équipe",`Pointages en temps réel · ${nOn?`<span class="live">${nOn} en poste maintenant</span>`:"personne en poste en ce moment"}`,
@@ -1372,8 +1443,8 @@ VIEWS.heures=async m=>{
           <span class="num opt" style="font-weight:500">${r.p.contrat_h?fNum(+r.p.contrat_h,0)+" h":"—"}</span><span class="num opt" style="font-weight:500">${fDur(r.plan)}</span><span class="num">${fDur(r.done)}</span>
           <span class="num opt" style="color:${Math.abs(ec)<.25?"var(--muted)":ec>0?"var(--rouge-f)":"var(--bleu-f)"}">${r.plan||r.done?(ec>=0?"+":"−")+fDur(Math.abs(ec)):"—"}</span>
           <span class="opt" style="font-size:12.5px;line-height:1.35">${(()=>{const y=r.pay,parts=[y.hs25&&`+25 % ${fDur(y.hs25)}`,y.hs50&&`+50 % ${fDur(y.hs50)}`,y.hc10&&`compl. +10 % ${fDur(y.hc10)}`,y.hc25&&`compl. +25 % ${fDur(y.hc25)}`].filter(Boolean);
-            return(parts.length?`<b>${parts.join(" · ")}</b><br>`:"")+(y.school?`<span style="color:var(--ink-2)">dont cours ${fDur(y.school)}</span><br>`:"")+(y.alerts.length?`<span style="color:var(--bad);font-weight:600">⚠ ${esc(y.alerts[0])}${y.alerts.length>1?` (+${y.alerts.length-1})`:""}</span><br>`:"")+(r.open?`<span class="live">en poste depuis ${new Date(r.open.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>`:"")})()||'<span style="color:var(--muted)">—</span>'}</span></div>`}).join("")}
-      <p class="hint" style="margin:12px 8px 0">Heures sup. et complémentaires calculées à la semaine civile selon le contrat ; pour les apprenties, les heures de cours saisies (CFA/IUT) sont incluses. Écart = pointé − prévu au planning. Les heures en cours comptent jusqu'à maintenant. Touchez une ligne pour voir le détail et corriger un oubli de pointage. Le contrat se règle dans Réglages.</p></div>`;
+            return(parts.length?`<b>${parts.join(" · ")}</b><br>`:"")+(y.school?`<span style="color:var(--ink-2)">dont cours ${fDur(y.school)}</span><br>`:"")+(r.pc.horsH>1/60?`<span style="color:var(--rouge-f);font-weight:700">⏱ ${fDur(r.pc.horsH)} hors planning à valider</span><br>`:"")+(y.alerts.length?`<span style="color:var(--bad);font-weight:600">⚠ ${esc(y.alerts[0])}${y.alerts.length>1?` (+${y.alerts.length-1})`:""}</span><br>`:"")+(r.open?`<span class="live">en poste depuis ${new Date(r.open.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>`:"")})()||'<span style="color:var(--muted)">—</span>'}</span></div>`}).join("")}
+      <p class="hint" style="margin:12px 8px 0">Heures sup. et complémentaires calculées à la semaine civile selon le contrat ; pour les apprenties, les heures de cours saisies (CFA/IUT) sont incluses. Écart = pointé − prévu au planning. Seules les heures pointées pendant les créneaux du planning (à ${TOL_MIN} min près) comptent pour la paie : les heures en dehors restent « à valider » tant que la direction ne les a pas validées. Touchez une ligne pour voir le détail, valider ou corriger (motif obligatoire, tout est historisé). Le contrat se règle dans Réglages.</p></div>`;
   const on=(id,f)=>{const el=$(id);if(el)el.onclick=f};
   on("hExport",async()=>{const now=new Date(),cur=iso(now).slice(0,7),prev=iso(new Date(now.getFullYear(),now.getMonth()-1,1)).slice(0,7);
     const r=await modal("Export pour la paie",`<p style="margin:0">Fichier prêt à transmettre à la gestionnaire de paie : récapitulatif du mois et détail par semaine (heures, cours, heures sup. et complémentaires, alertes légales). S'ouvre dans Excel.</p>
@@ -1384,22 +1455,27 @@ VIEWS.heures=async m=>{
   m.querySelectorAll(".hours-row[data-uid]").forEach(el=>el.onclick=async()=>{
     const p=person(el.dataset.uid),list=mine(p.id).filter(x=>new Date(x.start_at).getTime()<to);
     const fmt=ts=>new Date(ts).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    const pcx=planCount(list,shifts,p.id),horsOf=x=>pcx.hors.find(h=>h.x.id===x.id);
+    const plOf=d=>(shifts||[]).filter(s=>s.user_id===p.id&&s.day===d).map(s=>`${fTime(s.start_time)}–${fTime(s.end_time)}`).join(", ");
+    const lg=(logs||[]).filter(l=>l.user_id===p.id&&list.some(x=>x.id===l.pointage_id)||(l.user_id===p.id&&l.action==="suppression"&&l.old_start&&new Date(l.old_start).getTime()>=from&&new Date(l.old_start).getTime()<to));
     const r=await modal(`Pointages de ${p.full_name}`,`<div class="list">${days.map(d=>{const dl=list.filter(x=>iso(new Date(x.start_at))===d);
-      return`<div class="row"><div class="tx"><b>${capital(fShort(d))}</b><small>${dl.map(x=>`${x.kind==="ecole"?"🎓 cours ":""}${fmt(x.start_at)} → ${x.end_at?fmt(x.end_at):"en cours"}${x.corrected_by?" (corrigé)":""}`).join(" · ")||"—"}</small></div><b>${dl.length?fDur(ptHours(dl)):""}</b></div>`}).join("")}</div>
+      return`<div class="row"><div class="tx"><b>${capital(fShort(d))}</b><small>${plOf(d)?"prévu "+plOf(d):"rien de prévu au planning"}</small><small>${dl.map(x=>{const h=horsOf(x);return`${x.kind==="ecole"?"🎓 cours ":""}${fmt(x.start_at)} → ${x.end_at?fmt(x.end_at):"en cours"}${x.via_borne?" · borne":""}${x.corrected_by?" · <b>corrigé</b>":""}${x.hors_ok?" · ✓ heures en plus validées":""}${h?` · <span style="color:var(--rouge-f);font-weight:700">${fDur(h.h)} ${h.noPlan?"sans service prévu":"hors planning"}</span> <button type="submit" formnovalidate class="btn sm soft" value="horsok:${x.id}">Valider</button>`:""}`}).join("<br>")||"—"}</small></div><b>${dl.length?fDur(ptHours(dl)):""}</b></div>`}).join("")}</div>
+      ${lg.length?`<details style="margin:8px 0"><summary style="cursor:pointer;font-weight:600">Historique des corrections (${lg.length})</summary><div class="list">${lg.map(l=>`<div class="row"><div class="tx"><b>${esc(capital(l.action))} par ${esc(person(l.by_user).full_name)}</b><small>${fStamp(l.at)}${l.old_start?` · avant ${fmt(l.old_start)} → ${l.old_end?fmt(l.old_end):"…"}`:""}${l.new_start?` · après ${fmt(l.new_start)} → ${l.new_end?fmt(l.new_end):"…"}`:""}${l.motif?" · « "+esc(l.motif)+" »":""}</small></div></div>`).join("")}</div></details>`:""}
       <p class="hint" style="margin:0">Corriger ou ajouter un pointage oublié :</p>
       <div class="fgrid"><label class="f full">Pointage<select name="pid"><option value="">➕ Nouveau pointage</option>${list.map(x=>`<option value="${x.id}">${capital(fShort(iso(new Date(x.start_at))))} ${fmt(x.start_at)} → ${x.end_at?fmt(x.end_at):"en cours"}</option>`).join("")}</select></label>
       <label class="f">Jour<input type="date" name="day" value="${TODAY()<=days[6]&&TODAY()>=w?TODAY():w}" min="${w}" max="${days[6]}"></label><span></span>
       ${p.apprenti?`<label class="f full">Type<select name="kind"><option value="travail">Travail au parc</option><option value="ecole">Cours CFA / IUT (temps de travail)</option></select></label>`:""}
       <label class="f">Arrivée / début<input type="time" name="a" step="300"></label><label class="f">Départ / fin<input type="time" name="b" step="300"></label>
-      <label class="f full">Motif<input name="note" placeholder="Oubli de pointage, erreur…" maxlength="120"></label></div>`,{submit:"Enregistrer la correction",danger:"Supprimer le pointage choisi"});
+      <label class="f full">Motif (obligatoire, gardé dans l'historique)<input name="note" placeholder="Oubli de pointage, erreur…" maxlength="120"></label></div>`,{submit:"Enregistrer la correction",danger:"Supprimer le pointage choisi"});
     if(!r)return;
+    if(String(r.action).startsWith("horsok:")){const{error}=await S.sb.from("pointages").update({hors_ok:true}).eq("id",+r.action.split(":")[1]);if(error)return fail(error);toast("Heures en plus validées : elles comptent pour la paie");return render()}
     const sel=list.find(x=>x.id===+r.data.pid);
     if(r.action==="danger"){if(!sel)return toast("Choisissez d'abord un pointage");if(!confirm("Supprimer ce pointage ?"))return;const{error}=await S.sb.from("pointages").delete().eq("id",sel.id);if(error)return fail(error);return render()}
     const day=sel&&!r.data.day?iso(new Date(sel.start_at)):r.data.day;
     const at=t=>t?new Date(`${day}T${t}:00`).toISOString():null;
     const row={start_at:r.data.a?at(r.data.a):sel?.start_at,end_at:r.data.b?at(r.data.b):(sel?sel.end_at:null),note:r.data.note};
     if(r.data.kind)row.kind=r.data.kind;
-    if(!row.start_at)return fail("Indiquez l'heure d'arrivée");if(row.end_at&&row.end_at<=row.start_at)return fail("Le départ doit être après l'arrivée");
+    if(!row.start_at)return fail("Indiquez l'heure d'arrivée");if(!(r.data.note||"").trim())return fail("Indiquez le motif de la correction");if(row.end_at&&row.end_at<=row.start_at)return fail("Le départ doit être après l'arrivée");
     const{error}=sel?await S.sb.from("pointages").update(row).eq("id",sel.id):await S.sb.from("pointages").insert({...row,user_id:p.id});
     if(error)return fail(error);toast("Pointage corrigé");render()});
   clearInterval(S.hTick);S.hTick=setInterval(()=>{if(S.tab==="heures"&&document.visibilityState==="visible"&&!$("dlg").open)render();else if(S.tab!=="heures")clearInterval(S.hTick)},60000);
@@ -1515,8 +1591,20 @@ VIEWS.factu=async m=>{
 };
 
 /* ═════════ RÉGLAGES ═════════ */
+async function borneSettings(){
+  const el=$("borneList");if(!el)return;
+  const{data,error}=await S.sb.rpc("bornes_liste");
+  if(error){el.innerHTML=`<div class="empty">${esc(/function|schema/.test(error.message)?"La mise à jour v10 n'est pas encore installée dans Supabase.":error.message)}</div>`;return}
+  el.innerHTML=(data||[]).map(b=>`<div class="row"><div class="tx"><b>${esc(b.nom)}</b><small>activée le ${fStamp(b.created_at)}${b.last_seen?` · vue ${fStamp(b.last_seen)}`:""}</small></div>${b.active?`<span class="pill ok"><i></i>Active</span><button class="btn sm ghost" data-borneoff="${b.id}">Désactiver</button>`:'<span class="pill"><i></i>Désactivée</span>'}</div>`).join("")||'<div class="empty">Aucune borne pour l\'instant.</div>';
+  el.querySelectorAll("[data-borneoff]").forEach(b=>b.onclick=async()=>{if(!confirm("Désactiver cette borne ? Elle n'affichera plus de code."))return;const{error}=await S.sb.rpc("borne_revoquer",{p_id:b.dataset.borneoff});if(error)return fail(error);borneSettings()});
+  const on=$("borneOn");if(on)on.onclick=async()=>{
+    const r=await modal("Activer cette tablette comme borne",`<label class="f full">Nom de la borne<input name="nom" value="Accueil" maxlength="40"></label><p class="hint" style="margin:0">À faire sur la tablette qui restera à l'accueil. Vous serez ensuite déconnecté et la tablette affichera le code de pointage en continu.</p>`,{submit:"Activer"});
+    if(!r)return;const{data:k,error}=await S.sb.rpc("borne_activer",{p_nom:r.data.nom});if(error)return fail(error);
+    try{localStorage.setItem(BORNE_KEY,k)}catch(e){return fail("Le navigateur de cette tablette bloque le stockage : impossible d'en faire une borne")}
+    await S.sb.auth.signOut();location.hash="borne";location.reload()};
+}
 VIEWS.reglages=async m=>{
-  await loadPeople();
+  await loadPeople();setTimeout(borneSettings,0);
   const{data:items}=await S.sb.from("checklist_items").select("*").order("moment").order("position");
   const{data:invs}=isDirection()?await S.sb.from("invitations").select("*").is("used_at",null).order("created_at"):{data:[]};
   const pend=S.people.filter(p=>!p.role&&p.active),act=S.people.filter(p=>p.role||!p.active);
@@ -1526,6 +1614,9 @@ VIEWS.reglages=async m=>{
     <div class="card" style="margin-bottom:18px"><div class="card-head"><h3>✉️ Invitations</h3><button class="btn sm soft" id="invNew">${ic("plus","sm")} Pré-autoriser une adresse</button></div>
       <p class="hint">La personne crée son compte avec cette adresse sur www.palomano-dashboard.com et reçoit directement son rôle, sans attente.</p>
       <div class="list">${(invs||[]).map(i=>`<div class="row"><div class="avatar" style="width:36px;height:36px;background:${esc(i.color||"#c1daf3")}">✉</div><div class="tx"><b>${esc(i.email)}</b><small>${ROLE[i.role]}${i.poste?" · "+esc(i.poste):""} · pas encore inscrit·e</small></div><button class="btn sm ghost" data-delinv="${esc(i.email)}">Retirer</button></div>`).join("")||'<div class="empty">Aucune invitation en attente.</div>'}</div></div>`:""}
+    ${isDirection()?`<div class="card" style="margin-bottom:18px"><div class="card-head"><h3>${ic("clock")} Borne de pointage</h3><button class="btn sm soft" id="borneOn">${ic("plus","sm")} Activer cette tablette comme borne</button></div>
+      <p class="hint">Posez une tablette à l'accueil, ouvrez www.palomano-dashboard.com dessus, connectez-vous, puis cliquez sur « Activer cette tablette ». Elle affichera un code qui change toutes les 30 secondes : l'équipe pointe en le scannant, impossible de pointer depuis chez soi. Vous serez déconnecté de la tablette.</p>
+      <div class="list" id="borneList"><div class="empty">Chargement…</div></div></div>`:""}
     <div class="grid g2"><div class="card"><h3 style="margin-bottom:8px">${ic("users")} Équipe</h3><div class="list">${act.map(p=>`<div class="row ${isDirection()?"click":""}" ${isDirection()?`data-person="${p.id}"`:""} style="${p.active?"":"opacity:.5"}">${avatar(p,36)}<div class="tx"><b>${esc(p.full_name)}${p.active?"":" (désactivé)"}</b><small>${esc(p.email||"")}${p.poste?" · "+esc(p.poste):""}</small></div>
       <span class="pill ${p.role==="direction"?"info":""}"><i></i>${p.role?ROLE[p.role]:"—"}${p.can_validate_planning?" · valide le planning":""}</span></div>`).join("")}</div></div>
     <div class="card"><div class="card-head"><h3>${ic("check")} Checklists</h3><button class="btn sm soft" id="cNew">${ic("plus","sm")} Point</button></div>
