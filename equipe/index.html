@@ -1493,8 +1493,8 @@ const ST_FG={"Payé":"ok","À relancer":"bad","Annulée":"","":"warn"};
 const CAT_FF={animation:"Animateurs",staffing:"Staffing",jouets:"Jouets & boutique",autre:"Autre"};
 VIEWS.factu=async m=>{
   const t=S.facTab||"groupes";
-  m.innerHTML=topbar("Facturation",t==="groupes"?"Écoles & centres · synchronisé avec l'Excel « Suivi facturation » sur SharePoint":"Factures fournisseurs · animateurs, staffeurs, jouets",
-    `<div class="seg" id="fSeg"><button data-t="groupes" aria-pressed="${t==="groupes"}">Écoles & centres</button><button data-t="fourn" aria-pressed="${t==="fourn"}">Factures fournisseurs</button></div>`)+'<div id="fBody"></div>';
+  m.innerHTML=topbar("Facturation",t==="groupes"?"Écoles & centres · synchronisé avec l'Excel « Suivi facturation » sur SharePoint":"Animateurs & prestataires · factures des animateurs, staffeurs, jouets…",
+    `<div class="seg" id="fSeg"><button data-t="groupes" aria-pressed="${t==="groupes"}">Écoles & centres</button><button data-t="fourn" aria-pressed="${t==="fourn"}">Animateurs & prestataires</button></div>`)+'<div id="fBody"></div>';
   $("fSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.facTab=b.dataset.t;render()}};
   const body=$("fBody");
   if(t==="groupes"){
@@ -1569,10 +1569,10 @@ VIEWS.factu=async m=>{
         <div class="list">${todo.map(line).join("")||'<div class="empty">✓ Aucune facture en attente.</div>'}</div></div>
       <div class="card" style="margin-top:18px"><h3 style="margin-bottom:10px">${ic("check")} Traitées</h3><div class="list">${done.slice(0,40).map(line).join("")||'<div class="empty">Rien pour l\'instant.</div>'}</div></div>`;
     $("ffCat").onchange=e=>{S.ffCat=e.target.value;render()};
-    $("ffNew").onclick=async()=>{const r=await modal("Déposer une facture fournisseur",`<div class="fgrid">
+    $("ffNew").onclick=async()=>{const r=await modal("Déposer une facture (animateur ou prestataire)",`<div class="fgrid">
         <label class="f">Catégorie<select name="categorie">${opt(CAT_FF,"animation")}</select></label>
         <label class="f">Mois concerné<input type="month" name="periode" value="${iso(new Date()).slice(0,7)}" required></label>
-        <label class="f full">Fournisseur / prestataire<input name="fournisseur" required placeholder="Nom de l'animateur, StaffMe, Klein…"></label>
+        <label class="f full">Animateur / prestataire<input name="fournisseur" required placeholder="Nom de l'animateur, StaffMe, Klein…"></label>
         <label class="f">N° de facture<input name="numero"></label><label class="f">Date de facture<input type="date" name="date_facture" value="${TODAY()}"></label>
         <label class="f">Montant HT (€)<input type="number" step="0.01" name="montant_ht"></label><label class="f">Montant TTC (€)<input type="number" step="0.01" name="montant_ttc" required></label>
         <label class="f">Échéance<input type="date" name="echeance"></label><span></span>
