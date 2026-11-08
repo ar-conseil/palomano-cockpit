@@ -948,6 +948,9 @@ VIEWS.planning=async m=>{
 
 /* ═════════ RÉSERVATIONS : anniversaires, centres, écoles ═════════ */
 const ST_ANNIV={option:["warn","Option"],confirme:["ok","Confirmé"],termine:["info","Terminé"],annule:["bad","Annulé"]};
+const ANNIV_OPTS=["Gâteau au chocolat","Gâteau aux pommes","Pochette goodies","Soft Oasis","Bonbons végétariens","Bonbons non végétariens"];
+const optBoxes=r=>`<div class="f full">Options<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px">${ANNIV_OPTS.map((o,i)=>`<label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" name="opt:${i}" ${(r.options||[]).includes(o)?"checked":""} style="width:auto">${esc(o)}</label>`).join("")}</div></div>`;
+const optsOf=d=>ANNIV_OPTS.filter((_,i)=>d["opt:"+i]==="on");
 const PAY={paye:["ok","Payé"],acompte:["warn","Acompte versé"],non_paye:["bad","Non payé"],option:["","Pas encore réglé"]};
 const ST_GROUPE={devis:["info","Devis envoyé"],option:["warn","Option"],confirme:["ok","Confirmé"],termine:["info","Terminé"],annule:["bad","Annulé"]};
 async function resaView(m,kind){
@@ -969,7 +972,7 @@ async function resaView(m,kind){
   const card=r=>{const st=ST[r.statut]||["",r.statut];
     const when=isA?`${fTime(r.heure)}<small>${r.duree_min?Math.round(r.duree_min/60*10)/10+" h":""}</small>`:`${fTime(r.heure_arrivee)||"—"}<small>${r.heure_depart?"→ "+fTime(r.heure_depart):""}</small>`;
     const title=isA?`${esc(r.enfant)}${r.age?` <span style="font-weight:500;color:var(--ink-2)">· ${r.age} ans</span>`:""}`:`${esc(r.structure)}${r.ville?` <span style="font-weight:500;color:var(--ink-2)">· ${esc(r.ville)}</span>`:""}`;
-    const meta=isA?[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.formule&&`${ic("cake","sm")} ${esc(r.formule)}`,r.salle&&`${ic("pin","sm")} ${esc(r.salle)}`,animOf(r)?`${ic("clock","sm")} ${esc(firstName(animOf(r)))}`:isManager()&&needAnim(r)&&r.statut!=="annule"?`<span style="color:var(--rouge-f);font-weight:600">⚠ option animateur : à prévoir</span>`:"",r.theme&&`✨ ${esc(r.theme)}`]
+    const meta=isA?[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.formule&&`${ic("cake","sm")} ${esc(r.formule)}`,r.salle&&`${ic("pin","sm")} ${esc(r.salle)}`,animOf(r)?`${ic("clock","sm")} ${esc(firstName(animOf(r)))}`:isManager()&&needAnim(r)&&r.statut!=="annule"?`<span style="color:var(--rouge-f);font-weight:600">⚠ option animateur : à prévoir</span>`:"",r.theme&&`✨ ${esc(r.theme)}`,(r.options||[]).length&&`🎁 ${esc(r.options.join(", "))}`]
       :[r.nb_enfants&&`${ic("users","sm")} ${r.nb_enfants} enfants`,r.nb_encadrants&&`${r.nb_encadrants} encadrants`,r.niveau&&`${ic(conf.icon,"sm")} ${esc(r.niveau)}`,r.formule&&esc(r.formule),r.referent&&`référent ${esc(firstName(r.referent))}`];
     return`<div class="resa" data-id="${r.id}" tabindex="0"><div class="when" style="background:var(${conf.col})">${when}</div>
       <div class="tx"><b>${title}</b><div class="meta">${meta.filter(Boolean).map(x=>`<span>${x}</span>`).join("")}</div>${isA&&r.allergies?`<div class="meta"><span class="alert">${ic("alert","sm")} ${esc(r.allergies)}</span></div>`:""}${r.qweekle_note?`<div class="meta"><span>${ic("alert","sm")} Note du client : ${esc(r.qweekle_note)}</span></div>`:""}</div>
@@ -998,6 +1001,7 @@ async function resaView(m,kind){
       <label class="f">Thème<input name="theme" value="${esc(r.theme||"")}" maxlength="60"></label>
       <label class="f">Animateur·rice<select name="animateur">${whoOptions(animOf(r),{empty:"—"})}</select></label>
       <label class="f" style="flex-direction:row;align-items:center;gap:8px;align-self:end;padding-bottom:10px"><input type="checkbox" name="option_animateur" ${r.option_animateur?"checked":""} style="width:auto"> Option animateur prise</label>
+      ${optBoxes(r)}
       <label class="f full">Allergies / régimes<input name="allergies" value="${esc(r.allergies||"")}" placeholder="Ex. : arachides (Léon), sans gluten (2 enfants)"></label>
       <label class="f">Parent<input name="parent_nom" value="${esc(r.parent_nom||"")}"></label>
       <label class="f">Téléphone<input type="tel" name="parent_tel" value="${esc(r.parent_tel||"")}"></label>
@@ -1024,15 +1028,27 @@ async function resaView(m,kind){
       <label class="f full">Montant (€)<input type="number" step="0.01" name="montant" value="${r.montant??""}"></label>
       <label class="f full">Notes<textarea name="notes">${esc(r.notes||"")}</textarea></label></div>`;
   const NUM=["age","nb_enfants","nb_encadrants","duree_min","montant","acompte"];
-  const clean=d=>{const o={};for(const[k,v]of Object.entries(d))o[k]=v===""?null:NUM.includes(k)?+v:v;if(isA){if("animateur" in d)Object.assign(o,animCols(d.animateur));o.option_animateur=d.option_animateur==="on"}return o};
+  const clean=d=>{const o={};for(const[k,v]of Object.entries(d))if(!k.startsWith("opt:"))o[k]=v===""?null:NUM.includes(k)?+v:v;if(isA){if("animateur" in d)Object.assign(o,animCols(d.animateur));o.option_animateur=d.option_animateur==="on";o.options=optsOf(d)}return o};
   const table=isA?"anniversaires":"groupes";
   const nb=$("rNew");if(nb)nb.onclick=async()=>{const r=await modal(isA?"Nouvel anniversaire":kind==="centre"?"Nouveau centre de loisirs":"Nouvelle sortie scolaire",form(),{submit:"Ajouter"});if(!r)return;
     const row=clean(r.data);if(!isA)row.type=kind;const{error}=await S.sb.from(table).insert(row);if(error)return fail(error);toast("Réservation ajoutée");render()};
   const open=async r=>{
     if(!isManager()){const st=ST[r.statut]||["",r.statut];
-      const fields=isA?[["Quand",`${capital(fDay(r.date))} à ${fTime(r.heure)}`],["Âge",r.age&&r.age+" ans"],["Enfants",r.nb_enfants],["Formule",r.formule],["Salle",r.salle],["Thème",r.theme],["Animateur·rice",animOf(r)&&person(animOf(r)).full_name],["Allergies",r.allergies],["Parent",[r.parent_nom,r.parent_tel].filter(Boolean).join(" · ")],["Notes",r.notes],["Statut",st[1]]]
+      const fields=isA?[["Quand",`${capital(fDay(r.date))} à ${fTime(r.heure)}`],["Âge",r.age&&r.age+" ans"],["Enfants",r.nb_enfants],["Formule",r.formule],["Salle",r.salle],["Thème",r.theme],["Animateur·rice",animOf(r)&&person(animOf(r)).full_name],["Allergies",r.allergies],["Parent",[r.parent_nom,r.parent_tel].filter(Boolean).join(" · ")],["Note du client (Qweekle)",r.qweekle_note],["Statut",st[1]]]
         :[["Quand",`${capital(fDay(r.date))} · ${fTime(r.heure_arrivee)}${r.heure_depart?" → "+fTime(r.heure_depart):""}`],["Ville",r.ville],[kind==="ecole"?"Classe(s)":"Âges",r.niveau],["Enfants",r.nb_enfants],["Encadrants",r.nb_encadrants],["Formule",r.formule],["Référent",r.referent&&person(r.referent).full_name],["Contact",[r.contact_nom,r.contact_tel].filter(Boolean).join(" · ")],["Notes",r.notes],["Statut",st[1]]];
-      await modal(isA?`Anniversaire de ${r.enfant}`:r.structure,`<div class="list">${fields.filter(([,v])=>v).map(([k,v])=>`<div class="row"><div class="tx"><small>${k}</small><b style="white-space:pre-wrap">${esc(v)}</b></div></div>`).join("")}</div>`,{readonly:true});return}
+      const info=`<div class="list">${fields.filter(([,v])=>v).map(([k,v])=>`<div class="row"><div class="tx"><small>${k}</small><b style="white-space:pre-wrap">${esc(v)}</b></div></div>`).join("")}</div>`;
+      if(!isA){await modal(r.structure,info,{readonly:true});return}
+      const res=await modal(`Anniversaire de ${r.enfant}`,info+`<div class="fgrid" style="margin-top:12px">
+        <label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="option_animateur" ${r.option_animateur?"checked":""} style="width:auto"> Option animateur prise</label>
+        ${optBoxes(r)}
+        <label class="f">Salle<input name="salle" value="${esc(r.salle||"")}"></label>
+        <label class="f">Thème<input name="theme" value="${esc(r.theme||"")}" maxlength="60"></label>
+        <label class="f full">Allergies / régimes<input name="allergies" value="${esc(r.allergies||"")}"></label>
+        <label class="f full">Commentaires<textarea name="notes">${esc(r.notes||"")}</textarea></label></div>`);
+      if(!res)return;
+      const{error}=await S.sb.rpc("maj_anniv_equipe",{p_id:r.id,p_options:optsOf(res.data),p_option_animateur:res.data.option_animateur==="on",
+        p_salle:res.data.salle||"",p_theme:res.data.theme||"",p_allergies:res.data.allergies||"",p_notes:res.data.notes||""});
+      if(error)return fail(error);toast("Enregistré");render();return}
     const res=await modal(isA?`Anniversaire de ${r.enfant}`:r.structure,form(r),{danger:"Supprimer"});if(!res)return;
     if(res.action==="danger"){if(!confirm("Supprimer définitivement cette réservation ?"))return;const{error}=await S.sb.from(table).delete().eq("id",r.id);if(error)return fail(error);return render()}
     const row=clean(res.data);row.updated_at=new Date().toISOString();const{error}=await S.sb.from(table).update(row).eq("id",r.id);if(error)return fail(error);toast("Enregistré");render()};

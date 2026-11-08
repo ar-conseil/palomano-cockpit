@@ -201,8 +201,17 @@ def tokens(*names):
     return frozenset(w for w in re.split(r"[^a-z]+", t) if len(w) > 1)
 
 
-def animateur_sales():
-    """{noms du client : [dates de vente]} des lignes « Animateur » de l'export caisse le plus récent (ou None)."""
+OPTIONS = [(re.compile(r"animateur\b", re.I), "Animateur"),
+           (re.compile(r"g[aâ]teau au chocolat", re.I), "Gâteau au chocolat"),
+           (re.compile(r"g[aâ]teau aux pommes", re.I), "Gâteau aux pommes"),
+           (re.compile(r"pochette goodies", re.I), "Pochette goodies"),
+           (re.compile(r"soft oasis", re.I), "Soft Oasis"),
+           (re.compile(r"bonbons non v", re.I), "Bonbons non végétariens"),
+           (re.compile(r"bonbons v", re.I), "Bonbons végétariens")]
+
+
+def option_sales():
+    """{noms du client : [(date de vente, option)]} des options anniversaire de l'export caisse le plus récent (ou None)."""
     src = Path(os.environ.get("PALOMANO_SUIVI_DIR", "sources"))
     files = sorted(src.glob("palomano-la-maillerie__*.xlsx"), key=lambda f: f.stat().st_mtime)
     if not files:
@@ -215,20 +224,23 @@ def animateur_sales():
     for r in rows:
         if not r or g(r, "Vente supprimée le") or "annul" in str(g(r, "Statut") or "").lower():
             continue
-        name = g(r, "Produit") or g(r, "Produit & Paiement") or ""
-        if not re.match(r"\s*(\[[^\]]*\]\s*)?animateur\b", str(name), re.I):
-            continue
+        name = re.sub(r"^\s*\[[^\]]*\]\s*", "", str(g(r, "Produit") or g(r, "Produit & Paiement") or ""))
+        label = next((lab for rx, lab in OPTIONS if rx.search(name)), None)
         ts = g(r, "Enregistré le")
-        if isinstance(ts, str) and len(ts) >= 10:
-            out.setdefault(tokens(g(r, "Prénom Client"), g(r, "Nom Client")), []).append(dt.date.fromisoformat(ts[:10]))
+        if label and isinstance(ts, str) and len(ts) >= 10:
+            out.setdefault(tokens(g(r, "Prénom Client"), g(r, "Nom Client")), []).append((dt.date.fromisoformat(ts[:10]), label))
     return out, files[-1].name
 
 
-def has_animateur(r, sales):
-    """Vrai si le même client a acheté « Animateur » entre la réservation et le jour de la fête."""
-    dates = sales.get(tokens(r["client"])) or []
+def options_of(r, sales):
+    """Options achetées par le même client entre la réservation et le jour de la fête."""
     lo = (r["booked"] or r["start"]).date() - dt.timedelta(days=1)
-    return any(lo <= d <= r["start"].date() + dt.timedelta(days=1) for d in dates)
+    hi = r["start"].date() + dt.timedelta(days=1)
+    return {lab for d, lab in sales.get(tokens(r["client"])) or [] if lo <= d <= hi}
+
+
+def has_animateur(r, sales):
+    return "Animateur" in options_of(r, sales)
 
 
 def record(key, r):
@@ -287,7 +299,7 @@ def main():
         sys.exit(1)
 
     try:
-        sales, caisse = animateur_sales()
+        sales, caisse = option_sales()
     except Exception as e:                      # l'option animateur ne doit jamais bloquer l'import
         print(f"::warning::Option animateur non lue dans l'export caisse : {e}")
         sales, caisse = None, None
@@ -295,16 +307,23 @@ def main():
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     created = updated = cancelled = 0
     for table, own in (("anniversaires", own_anniv), ("groupes", OWN_GROUPE)):
-        db = {r["qweekle_id"]: r for r in sb(f"{table}?qweekle_id=not.is.null&select=id,qweekle_id,{','.join(own)}", prefer="")}
+        cols = ",".join(own + (["options"] if table == "anniversaires" else []))
+        db = {r["qweekle_id"]: r for r in sb(f"{table}?qweekle_id=not.is.null&select=id,qweekle_id,{cols}", prefer="")}
         seen = set()
         for key, r in resas.items():
             t, rec = record(key, r)
             if t != table:
                 continue
-            if t == "anniversaires" and sales is not None and has_animateur(r, sales):
+            found = options_of(r, sales) if t == "anniversaires" and sales is not None else set()
+            if "Animateur" in found:
                 rec["option_animateur"] = True   # jamais remis à « non » : l'équipe peut cocher l'option à la main
+            found.discard("Animateur")
             seen.add(key)
             cur = db.get(key)
+            if found:                            # options vendues en caisse : ajoutées, jamais retirées
+                have = set((cur or {}).get("options") or [])
+                if not found <= have:
+                    rec["options"] = sorted(have | found)
             if not cur:
                 if table == "anniversaires":
                     rec["enfant"] = f"Enfant de {r['client']}"   # prénom à compléter par l'équipe
@@ -314,7 +333,7 @@ def main():
                 sb(table, rec, "POST")
                 created += 1
                 continue
-            patch = {k: rec[k] for k in own if k in rec and not same(cur.get(k), rec.get(k))}
+            patch = {k: rec[k] for k in own + ["options"] if k in rec and not same(cur.get(k), rec.get(k))}
             if cur.get("statut") == "termine":
                 patch.pop("statut", None)
             if patch:
