@@ -261,11 +261,14 @@ async function boot(){
   if(!C.supabaseUrl||!C.supabaseAnonKey||!window.supabase){showAuth("vConfig");return}
   S.sb=supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
   S.sb.auth.onAuthStateChange((ev,session)=>{
-    if(ev==="PASSWORD_RECOVERY"){showAuth("fNewPw");return}
+    if(ev==="PASSWORD_RECOVERY"){S.recovery=true;showAuth("fNewPw");return}
     if(ev==="SIGNED_OUT"){S.user=S.me=null;showAuth("fLogin")}
   });
+  // Lien « mot de passe oublié » : la session de récupération ne doit pas ouvrir l'appli avant le nouveau mot de passe
+  const fromRecovery=/type=recovery/.test(location.hash+location.search);
   const{data:{session}}=await S.sb.auth.getSession();
-  if(session)await enter(session.user);else showAuth("fLogin");
+  if(session&&(S.recovery||fromRecovery)){S.recovery=true;showAuth("fNewPw");history.replaceState(null,"",location.pathname)}
+  else if(session)await enter(session.user);else showAuth("fLogin");
 }
 async function enter(user){
   S.user=user;
@@ -299,7 +302,7 @@ $("fReset").onsubmit=async e=>{e.preventDefault();
   $("rErr").textContent=error?error.message:"C'est envoyé : regardez votre boîte mail."};
 $("fNewPw").onsubmit=async e=>{e.preventDefault();
   const{data,error}=await S.sb.auth.updateUser({password:$("nPw").value});
-  if(error){$("nErr").textContent=error.message;return}toast("Mot de passe modifié");enter(data.user)};
+  if(error){$("nErr").textContent=error.message;return}S.recovery=false;toast("Mot de passe modifié");enter(data.user)};
 $("toSignup").onclick=()=>showAuth("fSignup");$("toReset").onclick=()=>showAuth("fReset");
 document.querySelectorAll(".toLogin").forEach(b=>b.onclick=()=>showAuth("fLogin"));
 $("pendRetry").onclick=async()=>{const{data:{user}}=await S.sb.auth.getUser();if(user)enter(user);else showAuth("fLogin")};
