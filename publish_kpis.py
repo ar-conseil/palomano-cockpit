@@ -65,17 +65,8 @@ def from_ventes(v):
             d["snack"] += ht
             if fam == "snack":
                 d["snack_only"] += ht
-        low = str(name).lower()
-        if fam in ("entrees", "anniv", "b2b") and not low.startswith("anniversaire"):
-            d["ent"] += q                       # entrées tous publics (hors ligne « formule anniversaire »)
-            # variantes comparées au journal (contrôle) pour caler la définition des entrées
-            adult = "adulte" in low or "accompagn" in low or "encadr" in low
-            baby = "bébé" in low or "bebe" in low
-            d["ent_sans_adultes_groupes"] = d.get("ent_sans_adultes_groupes", 0) + (0 if adult and fam != "entrees" else q)
-            d["ent_sans_bebes"] = d.get("ent_sans_bebes", 0) + (0 if baby else q)
-            d["ent_sans_adultes_ni_bebes"] = d.get("ent_sans_adultes_ni_bebes", 0) + (0 if (adult and fam != "entrees") or baby else q)
-            d["ent_enfants_seuls"] = d.get("ent_enfants_seuls", 0) + (0 if adult or baby else q)
-            d["ent_" + fam] = d.get("ent_" + fam, 0) + q
+        if fam in ("entrees", "b2b"):
+            d["ent"] += q   # entrées comme dans le journal : parc + écoles/centres, sans les enfants des anniversaires
     for day, t in v.get("tk", {}).items():
         if day in out:
             out[day]["anniv_n"] = t.get("anniv", 0)
@@ -91,21 +82,6 @@ def reconcile(journal, ventes):
         a, b = sum(journal[x][k] for x in common), sum(ventes[x][k] for x in common)
         return f"{k} {b / a * 100:.0f} %" if a else f"{k} —"
     print(f"Contrôle caisse / journal ({common[0]} → {common[-1]}) : " + " · ".join(pct(k) for k in SEG))
-    a = sum(journal[x]["ent"] for x in common)
-    if a:
-        print("Contrôle des entrées (caisse / journal) : " + " · ".join(
-            f"{k} {sum(ventes[x].get(k, 0) for x in common) / a * 100:.0f} %"
-            for k in ("ent_sans_adultes_groupes", "ent_sans_bebes", "ent_sans_adultes_ni_bebes", "ent_enfants_seuls",
-                      "ent_entrees", "ent_anniv", "ent_b2b")))
-        for lbl, keep in (("lun-mar-jeu-ven", lambda x: dt.date.fromisoformat(x).weekday() in (0, 1, 3, 4)),
-                          ("mer-sam-dim", lambda x: dt.date.fromisoformat(x).weekday() in (2, 5, 6))):
-            sub = [x for x in common if keep(x)]
-            j = sum(journal[x]["ent"] for x in sub)
-            if j:
-                v = lambda k: sum(ventes[x].get(k, 0) for x in sub)
-                print(f"Entrées {lbl} : parc+anniv {(v('ent_entrees') + v('ent_anniv')) / j * 100:.0f} % · "
-                      f"parc+groupes {(v('ent_entrees') + v('ent_b2b')) / j * 100:.0f} % · "
-                      f"parc seul {v('ent_entrees') / j * 100:.0f} %")
 
 
 def daily_real(d):
