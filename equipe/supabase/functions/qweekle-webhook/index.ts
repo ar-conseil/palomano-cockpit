@@ -153,6 +153,9 @@ function parsePanel(h: string) {
 async function refreshOrder(order: string, bookingId?: string) {
   if (!QU || !QP) return log(order, "commande non lue : compte Qweekle dédié non configuré (secrets de la fonction)");
   try {
+    // Interrupteur : si la caisse utilise le même compte Qweekle, chaque connexion la déconnecterait
+    const pause = await sb("sync_state?key=eq.qweekle_pause&select=key");
+    if (pause?.length) return log(order, "commande non lue : lecture en pause (compte Qweekle partagé avec la caisse)");
     const rows = await sb(`anniversaires?qweekle_order=eq.${encodeURIComponent(order)}&statut=neq.annule` +
       "&select=id,date,qweekle_booking,option_animateur,commande,paiement&order=id&limit=1");
     if (!rows?.length) return log(order, "commande non lue : anniversaire introuvable");

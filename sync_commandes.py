@@ -170,6 +170,11 @@ def main():
     if not SB_URL or not SB_KEY:
         print("Commandes Qweekle : secrets Supabase absents, ignoré")
         return
+    # Interrupteur : si la caisse utilise le même compte Qweekle, chaque connexion la déconnecterait
+    pause = sb("sync_state?key=eq.qweekle_pause&select=message", prefer="")
+    if pause:
+        print("Commandes Qweekle : " + (pause[0].get("message") or "en pause"))
+        return
     if not USER or not PWD:
         state(False, "compte Qweekle dédié non configuré (secrets QWEEKLE_EMAIL et QWEEKLE_PASSWORD) : "
                      "options et montants des anniversaires non lus")
