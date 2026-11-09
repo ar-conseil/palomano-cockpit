@@ -1084,8 +1084,6 @@ async function resaView(m,kind){
       <label class="f">Parent<input name="parent_nom" value="${esc(r.parent_nom||"")}"></label>
       <label class="f">Téléphone<input type="tel" name="parent_tel" value="${esc(r.parent_tel||"")}"></label>
       <label class="f full">E-mail<input type="email" name="parent_email" value="${esc(r.parent_email||"")}"></label>
-      <label class="f">Montant total (€)<input type="number" step="0.01" name="montant" value="${r.montant??""}"></label>
-      <label class="f">Acompte versé (€)<input type="number" step="0.01" name="acompte" value="${r.acompte??""}"></label>
       <label class="f full">Statut<select name="statut">${opt(ST_ANNIV,r.statut||"confirme")}</select></label>
       <label class="f full">Notes<textarea name="notes">${esc(r.notes||"")}</textarea></label></div>`
     :`<div class="fgrid">
@@ -1334,13 +1332,13 @@ function objLine(o,kp){
   if(km&&(kd||kw)){  // suivi automatique : jour, semaine et mois en cours
     const fv=(v,unit)=>v==null?"—":unit==="%"?fNum(v,0)+" %":unit==="€"?(Math.abs(v)>=100?fNum(v,0):fNum(v,2))+" €":unit==="note"?fNum(v,2):fNum(v,0);
     const bar=(lbl,k)=>{if(!k)return"";const r=k.target?k.value/k.target:NaN,w=isFinite(r)?Math.min(r,1)*100:0,col=!isFinite(r)?"var(--muted)":r>=1?"var(--vert-f)":r>=.9?"var(--jaune-f)":"var(--bleu-f)";
-      return`<div style="display:grid;grid-template-columns:74px 1fr auto;gap:10px;align-items:center;margin-top:6px"><small style="color:var(--ink-2);font-weight:600">${lbl}</small><div class="prog" style="margin:0"><i style="width:${w}%;background:${col}"></i></div><small style="white-space:nowrap">${fv(k.value,k.unit)} <span style="color:var(--muted)">/ ${fv(k.target,k.unit)}${isFinite(r)?" · "+(r>=1?"🎉 ":"")+fNum(r*100,0)+" %":""}</span></small></div>`};
+      return`<div style="display:grid;grid-template-columns:74px 1fr auto;gap:10px;align-items:center;margin-top:6px"><small style="color:var(--ink-2);font-weight:600">${lbl}</small><div class="prog" style="margin:0"><i style="width:${w}%;background:${col}"></i></div><small style="white-space:nowrap">${k.unit==="€"&&!isManager()?"":`${fv(k.value,k.unit)} `}<span style="color:var(--muted)">${k.unit==="€"&&!isManager()?"":`/ ${fv(k.target,k.unit)}`}${isFinite(r)?(k.unit==="€"&&!isManager()?"":" · ")+(r>=1?"🎉 ":"")+fNum(r*100,0)+" %":""}</span></small></div>`};
     return`<div style="margin:12px 0"><b>${esc(o.title.replace(/ du mois\b/i,""))}</b>${bar("Jour",kd)}${bar("Semaine",kw)}${bar("Mois",km)}
       <small style="color:var(--muted)">${[kd&&kd.period,kw&&kw.period,km.period].filter(Boolean).map(esc).join(" · ")} · suivi automatique${o.description?" · "+esc(o.description):""}</small></div>`}
   const k=o.kpi_key?kp.get(o.kpi_key):null,cur=k?k.value:o.current,tgt=k&&k.target!=null?k.target:o.target,unit=k?k.unit:o.unit;
   const r=tgt?cur/tgt:NaN,w=isFinite(r)?Math.min(r,1)*100:0,col=!isFinite(r)?"var(--muted)":r>=1?"var(--vert-f)":r>=.9?"var(--jaune-f)":"var(--bleu-f)";
   const fv=v=>v==null?"—":unit==="%"?fNum(v,0)+" %":unit==="€"?(Math.abs(v)>=100?fNum(v,0):fNum(v,2))+" €":unit==="note"?fNum(v,2):fNum(v,0)+(unit&&unit!=="nb"?" "+esc(unit):"");
-  return`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;gap:10px"><b>${esc(o.title)}</b><span style="white-space:nowrap">${fv(cur)} <span style="color:var(--muted)">/ ${fv(tgt)}</span></span></div>
+  return`<div style="margin:12px 0"><div style="display:flex;justify-content:space-between;gap:10px"><b>${esc(o.title)}</b><span style="white-space:nowrap">${unit==="€"&&!isManager()?"":`${fv(cur)} <span style="color:var(--muted)">/ ${fv(tgt)}</span>`}</span></div>
     <div class="prog"><i style="width:${w}%;background:${col}"></i></div>
     <small style="color:var(--muted)">${isFinite(r)?(r>=1?"🎉 ":"")+fNum(r*100,0)+" % de l'objectif":"—"}${k&&k.period?" · "+esc(k.period):""}${o.end_date?" · jusqu'au "+fDate(o.end_date):""}${k?" · suivi automatique":""}${o.description?" · "+esc(o.description):""}</small></div>`;
 }

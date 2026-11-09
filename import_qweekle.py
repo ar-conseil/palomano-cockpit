@@ -211,6 +211,25 @@ def parse(data):
             res["kids"] += n
             if low.startswith("groupe"):
                 res["groupe"] = True
+    # Un même anniversaire réservé en plusieurs fois (enfant ajouté quelques jours après, par exemple) :
+    # même client, même jour → une seule fête. On garde la réservation qui porte la formule (sinon la
+    # plus ancienne) ; les autres deviennent des alias (fiches en double supprimées à l'import).
+    fetes = {}
+    for key, r in resas.items():
+        if r["kind"] == "anniv":
+            fetes.setdefault((r["client"], r["start"].date()), []).append(key)
+    for keys in fetes.values():
+        if len(keys) < 2:
+            continue
+        keys.sort(key=lambda k: (not resas[k]["formule"], resas[k]["booked"] or resas[k]["start"]))
+        main = resas[keys[0]]
+        for k in keys[1:]:
+            r = resas.pop(k)
+            main["kids"] += r["kids"]
+            main["start"] = min(main["start"], r["start"])
+            main["formule"] = main["formule"] or r["formule"]
+            main["note"] = main["note"] or r["note"]
+            aliases.add(k)
     return resas, (min(dates), max(dates)) if dates else (None, None), aliases
 
 
