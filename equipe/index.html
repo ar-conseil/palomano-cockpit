@@ -1206,11 +1206,12 @@ async function printAnniv(list,days){
       ${perso&&a.allergies?`<div class="al">⚠️ Allergies / régimes : ${e(a.allergies)}</div>`:""}
       ${a.notes?`<div class="nt">📝 ${e(a.notes)}</div>`:""}${a.qweekle_note?`<div class="nt">💬 Note du client : ${e(a.qweekle_note)}</div>`:""}</div>`};
   const page=d=>{const l=list.filter(a=>a.date===d),kids=l.reduce((s,a)=>s+(a.nb_enfants||0),0);
-    return`<section><header><img src="${location.origin}${location.pathname.replace(/[^/]*$/,"")}assets/logo.svg" alt=""><div><h1>Anniversaires · ${e(capital(fDay(d)))}</h1><p>${l.length} anniversaire${l.length>1?"s":""} · ${kids} enfants${l.some(needAnim)?` · ${l.filter(needAnim).length} avec animateur`:""}</p></div></header>${l.map(block).join("")}
-      <footer>Palomano Lille · imprimé le ${new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} · données Qweekle et espace équipe</footer></section>`};
+    return`<section><div class="in ${l.length>=5?"two":""}"><header><img src="${location.origin}${location.pathname.replace(/[^/]*$/,"")}assets/logo.svg" alt=""><div><h1>Anniversaires · ${e(capital(fDay(d)))}</h1><p>${l.length} anniversaire${l.length>1?"s":""} · ${kids} enfants${l.some(needAnim)?` · ${l.filter(needAnim).length} avec animateur`:""}</p></div></header><div class="list">${l.map(block).join("")}</div>
+      <footer>Palomano Lille · imprimé le ${new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} · données Qweekle et espace équipe</footer></div></section>`};
   const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Anniversaires Palomano</title><style>
     @page{size:A4;margin:12mm}*{box-sizing:border-box}body{margin:0;font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#2b2b2a}
-    section{page-break-after:always;min-height:100%}section:last-child{page-break-after:auto}
+    section{width:186mm;height:272mm;overflow:hidden;page-break-after:always;break-after:page}section:last-child{page-break-after:auto;break-after:auto}
+    .in{width:186mm;transform-origin:top left}.two .list{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}.two .b{margin-bottom:6px}
     header{display:flex;gap:14px;align-items:center;border-bottom:3px solid #e8a0a8;padding-bottom:8px;margin-bottom:10px}header img{height:42px}
     h1{margin:0;font-size:22px}header p{margin:2px 0 0;color:#666;font-size:14px}
     .b{border:1.5px solid #ddd;border-radius:10px;padding:8px 10px;margin:0 0 8px;break-inside:avoid}.b.anim{border-color:#c94a5a;border-width:2.5px}
@@ -1220,8 +1221,15 @@ async function printAnniv(list,days){
     .o{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:5px}.o span{border:1px solid #e3d79a;background:#fbf6dc;border-radius:999px;padding:1px 8px;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}.o.none{color:#999}
     .al{margin-top:5px;color:#b3261e;font-weight:800}.nt{margin-top:3px;color:#444}
     footer{margin-top:10px;color:#999;font-size:10.5px;text-align:center}
-    @media screen{body{background:#eee;padding:16px}section{background:#fff;max-width:800px;margin:0 auto 16px;padding:18px;border-radius:8px}}
-  </style></head><body>${sel.map(page).join("")}<script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
+    @media screen{body{background:#eee;padding:16px}section{background:#fff;margin:0 auto 16px;padding:0;box-shadow:0 0 0 12px #fff}}
+  </style></head><body>${sel.map(page).join("")}<script>
+    // Chaque jour tient sur une page : on réduit le contenu si besoin (2 colonnes dès 5 anniversaires)
+    function fit(){const H=266*96/25.4;   // marge de sécurité pour l'imprimante
+    document.querySelectorAll(".in").forEach(el=>{
+      const at=k=>{el.style.transform=k<1?"scale("+k+")":"";el.style.width=(186/k)+"mm";return el.scrollHeight*k<=H};
+      if(at(1))return;let lo=.3,hi=1;for(let i=0;i<12;i++){const m=(lo+hi)/2;if(at(m))lo=m;else hi=m}at(lo)})}
+    window.onload=()=>{fit();setTimeout(()=>window.print(),300)};
+  <\/script></body></html>`;
   const win=window.open("","_blank");
   if(!win)return fail("Le navigateur a bloqué la fenêtre d'impression : autorisez les fenêtres pour ce site");
   win.document.open();win.document.write(html);win.document.close();
