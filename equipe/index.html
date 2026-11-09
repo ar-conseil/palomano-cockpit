@@ -75,29 +75,64 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 @media (max-width:860px){.auth{grid-template-columns:1fr}.auth-art{display:none}.mob-logo{display:block}}
 
 /* ── Structure ── */
-.app{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
-.side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:8px;padding:22px 16px;background:var(--card);border-right:1px solid var(--line);overflow-y:auto}
-.side .logo{width:180px;margin:4px 8px 18px}
-.side h6{margin:14px 12px 4px;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.app{display:block;min-height:100vh}
+.avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:var(--ink);flex:none}
+/* ── Bandeau (ordinateur) ── */
+.mast{position:sticky;z-index:30;isolation:isolate}
+.mast-art{position:absolute;inset:0 0 auto;width:100%;height:var(--mh,190px);z-index:-1;display:block}
+.mast::before{content:"";position:absolute;inset:0 0 auto;height:var(--mh,190px);z-index:-1;border-bottom:1px solid rgba(74,74,73,.06)}
+.mast-illu{position:absolute;right:max(150px,calc(50% - 560px));top:62px;width:118px;z-index:0;filter:drop-shadow(0 12px 16px rgba(74,74,73,.18));animation:floaty 6s ease-in-out infinite;pointer-events:none}
+@keyframes floaty{50%{transform:translateY(-7px) rotate(-2deg)}}
+@media (prefers-reduced-motion:reduce){.mast-illu{animation:none}}
+.mast-in{position:relative;max-width:1440px;margin:0 auto;padding:0 36px}
+.mast-top{display:flex;align-items:center;gap:12px;padding:18px 0 0}
+.mast-logo{width:168px;flex:none}
+.mast-hello{display:flex;flex-direction:column;gap:4px;padding:26px 0 28px;min-width:0;max-width:calc(100% - 260px)}
+.mast-hello .eyebrow{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:700}
+.mast-hello b{font-size:44px;font-weight:800;letter-spacing:-.015em;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mast-hello b .wave{display:inline-block;transform-origin:70% 80%;animation:wave 2.6s ease-in-out 1s 2}
+@keyframes wave{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(14deg)}20%,40%{transform:rotate(-8deg)}}
+.mast-hello .eyebrow em{font-style:normal;font-variant-numeric:tabular-nums;color:var(--rouge-f)}
+.mast-acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.mast-acts a{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:14px;background:rgba(255,255,255,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.9),0 6px 16px -10px rgba(74,74,73,.35);text-decoration:none;color:var(--ink);font-weight:600;font-size:14px;white-space:nowrap}
+.mast-acts a:hover{background:#fff}
+.mechip{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 8px;border-radius:999px;background:rgba(255,255,255,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.9),0 6px 16px -10px rgba(74,74,73,.35);max-width:280px}
+.mechip .who{min-width:0;line-height:1.2}
+.mechip .who b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mechip .who span{display:block;font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mechip .btn{border-radius:50%}
+/* Onglets principaux : intercalaires qui sortent du bandeau */
+.gtabs{display:flex;gap:6px;align-items:flex-end;overflow-x:auto;scrollbar-width:none}
+.gtabs::-webkit-scrollbar{display:none}
+.gtabs a{position:relative;display:inline-flex;align-items:center;gap:10px;padding:12px 22px 14px;border-radius:20px 20px 0 0;text-decoration:none;color:var(--ink);font-weight:700;font-size:15.5px;white-space:nowrap;background:rgba(255,255,255,.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .15s,padding .15s;cursor:pointer}
+.gtabs a:hover{background:rgba(255,255,255,.8)}
+.gtabs a .gi{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:var(--gc);color:var(--gf)}
+.gtabs a .gi .ic{width:18px;height:18px}
+.gtabs a[aria-current="page"]{background:var(--bg);padding-top:15px}
+.gtabs a[aria-current="page"]::before,.gtabs a[aria-current="page"]::after{content:"";position:absolute;bottom:0;width:20px;height:20px;pointer-events:none}
+.gtabs a[aria-current="page"]::before{left:-20px;background:radial-gradient(circle at 0 0,transparent 20px,var(--bg) 20.5px)}
+.gtabs a[aria-current="page"]::after{right:-20px;background:radial-gradient(circle at 100% 0,transparent 20px,var(--bg) 20.5px)}
+.gtabs a:first-child[aria-current="page"]::before{display:none}
+.gtabs a .badge{margin-left:2px}
+/* Sous-onglets */
+.subbar{background:var(--bg);transition:box-shadow .2s}
+.mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
+.subnav{max-width:1440px;margin:0 auto;padding:12px 36px;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
+.subnav::-webkit-scrollbar{display:none}
+.subnav a{display:inline-flex;align-items:center;gap:9px;padding:9px 15px;border-radius:14px;color:var(--ink-2);text-decoration:none;font-weight:600;font-size:14.5px;white-space:nowrap;cursor:pointer;position:relative;transition:background .15s,color .15s}
+.subnav a:hover{background:var(--card);color:var(--ink)}
+.subnav a .ic{width:18px;height:18px}
+.subnav a[aria-current="page"]{background:var(--card);color:var(--ink);box-shadow:var(--shadow),inset 0 -3px 0 var(--gf)}
+.subnav a[aria-current="page"] .ic{color:var(--gf)}
+.subnav a .badge{margin-left:2px}
+.subnav .sep{width:1px;background:var(--line-2);margin:6px 6px}
 .nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;color:var(--ink-2);text-decoration:none;font-weight:600;cursor:pointer;position:relative}
 .nav a:hover{background:var(--bg);color:var(--ink)}
 .nav a[aria-current="page"]{background:var(--bleu-c);color:var(--ink)}
-.nav a[aria-current="page"] .ic{color:var(--bleu-f)}
-.nav a[data-t="anniv"][aria-current="page"]{background:var(--rouge-c)}
-.nav a[data-t="anniv"][aria-current="page"] .ic{color:var(--rouge-f)}
-.nav a[data-t="centres"][aria-current="page"]{background:var(--vert-c)}
-.nav a[data-t="centres"][aria-current="page"] .ic{color:#9aab55}
-.nav a[data-t="ecoles"][aria-current="page"]{background:var(--jaune-c)}
-.nav a[data-t="ecoles"][aria-current="page"] .ic{color:#c99a2e}
 .badge{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--rouge-f);color:#fff;font-size:12px;font-weight:700;display:inline-grid;place-items:center}
-.side .me{margin-top:auto;display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;background:var(--bg)}
-.avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;color:var(--ink);flex:none}
-.me .who{min-width:0;flex:1;line-height:1.25}
-.me .who b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
-.me .who span{font-size:12px;color:var(--muted)}
-.main{min-width:0;padding:28px 36px 60px}
+.main{min-width:0;max-width:1440px;margin:0 auto;padding:22px 36px 60px}
 /* Aperçu « voir comme » (direction) */
-.pv{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 36px;background:var(--jaune);color:var(--ink);font-size:14px;box-shadow:0 2px 10px -6px rgba(74,74,73,.5)}
+.pv{position:relative;z-index:25;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 36px;background:var(--jaune);color:var(--ink);font-size:14px;box-shadow:0 2px 10px -6px rgba(74,74,73,.5)}
 .pv b{font-weight:700}.pv .sp{flex:1}
 .pv select{width:auto;padding:6px 10px;border-radius:10px}
 .maincol{min-width:0}
@@ -109,9 +144,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .topbar .acts{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .mtop,.bnav{display:none}
 @media (max-width:900px){
-  .app{grid-template-columns:1fr}
-  .side{display:none}
-  .mtop{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
+  .mast{display:none}
+  .mtop{display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:20;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line);
+    background:radial-gradient(circle at 92% 20%,var(--jaune-c) 0 26px,transparent 27px),linear-gradient(110deg,#fdf8f0,var(--bleu-c) 55%,var(--rouge-c))}
   .mtop .logo{height:34px;width:auto}
   .mtop .sp{flex:1}
   .main{padding:18px 16px calc(96px + env(safe-area-inset-bottom))}
@@ -181,13 +216,66 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .prog i{display:block;height:100%;border-radius:6px}
 
 /* ── Aujourd'hui ── */
-.hero{position:relative;overflow:hidden;border-radius:28px;padding:28px 30px;background:linear-gradient(120deg,var(--bleu-c),var(--jaune-c) 60%,var(--rouge-c));display:flex;align-items:center;gap:24px;min-height:190px}
-.hero h2{margin:0;font-size:30px;font-weight:700;line-height:1.15}
+.hero{position:relative;overflow:hidden;isolation:isolate;border-radius:28px;padding:30px 32px;background:var(--card);box-shadow:var(--shadow);display:flex;align-items:center;gap:24px;min-height:190px}
+.hero::before{content:"";position:absolute;z-index:-1;inset:-40% -10% auto auto;width:480px;height:480px;border-radius:50%;background:radial-gradient(circle,var(--jaune-c) 0 30%,transparent 31%),radial-gradient(circle at 70% 70%,var(--rouge-c) 0 22%,transparent 23%)}
+.hero::after{content:"";position:absolute;z-index:-1;left:-60px;bottom:-90px;width:260px;height:200px;border-radius:50%;background:var(--bleu-c);opacity:.8}
+.hero h2{margin:0;font-size:34px;font-weight:800;line-height:1.1;letter-spacing:-.01em}
 .hero p{margin:6px 0 0;color:var(--ink-2)}
 .hero .illu{width:150px;margin-left:auto;flex:none;filter:drop-shadow(0 12px 18px rgba(74,74,73,.15))}
-.hero .shift{margin-top:16px;display:inline-flex;align-items:center;gap:12px;background:rgba(255,255,255,.75);border-radius:16px;padding:10px 16px;font-weight:600;flex-wrap:wrap}
+.hero .shift{margin-top:16px;display:inline-flex;align-items:center;gap:12px;background:var(--bg);border-radius:16px;padding:10px 16px;font-weight:600;flex-wrap:wrap}
 .hero .shift b{font-size:22px}
 @media (max-width:700px){.hero{padding:20px}.hero h2{font-size:22px}.hero .illu{width:80px;align-self:flex-start}}
+.mob-hi{display:none;margin:0 0 14px;font-size:24px;font-weight:800}
+@media (max-width:900px){.mob-hi{display:block}}
+@media (max-width:1180px){.mast-hello b{font-size:34px}.mast-illu{right:40px;width:96px}}
+.day{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.6fr);gap:18px}
+@media (max-width:1100px){.day{grid-template-columns:1fr}}
+.mycard{position:relative;overflow:hidden;isolation:isolate;border-radius:28px;padding:24px 26px;color:#fff;background:linear-gradient(150deg,#3a3846,#2a2934);box-shadow:0 20px 40px -22px rgba(42,41,52,.7);display:flex;flex-direction:column;gap:14px;min-height:250px}
+.mc-art{position:absolute;right:-10px;bottom:-10px;width:300px;z-index:-1;opacity:.9}
+.mc-head{display:flex;align-items:center;gap:10px}
+.mc-eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;font-weight:700;color:rgba(255,255,255,.7)}
+.mc-live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:rgba(95,154,58,.25);color:#b9e29a}
+.mc-live::before{content:"";width:7px;height:7px;border-radius:50%;background:#8fd162;animation:pulse 1.6s infinite}
+.mc-none{font-size:20px;font-weight:700;color:rgba(255,255,255,.85)}
+.mc-times{display:flex;align-items:center;gap:12px}
+.mc-times b{font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.mc-arrow{flex:none;width:34px;height:2px;border-radius:2px;background:rgba(255,255,255,.5);position:relative}
+.mc-arrow::after{content:"";position:absolute;right:-1px;top:-4px;width:8px;height:8px;border-top:2px solid rgba(255,255,255,.5);border-right:2px solid rgba(255,255,255,.5);transform:rotate(45deg)}
+.mc-track{position:relative;height:10px;border-radius:5px;background:rgba(255,255,255,.14);margin:14px 0 8px;max-width:420px}
+.mc-track i{position:absolute;inset:0 auto 0 0;border-radius:5px;background:linear-gradient(90deg,#f7d589,#ef818e)}
+.mc-track span{position:absolute;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:#fff;box-shadow:0 0 0 5px rgba(239,129,142,.35)}
+.mc-meta{display:flex;gap:8px;flex-wrap:wrap}
+.mc-meta span{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.9)}
+.mycard .clock-btn{margin-top:auto;align-self:flex-start;background:#fff;color:var(--ink);box-shadow:0 10px 24px -10px rgba(0,0,0,.6)}
+.mycard .clock-btn .dot{background:var(--rouge-c);color:var(--rouge-f)}
+.mycard .clock-btn small{color:var(--ink-2)}
+.mycard .clock-btn.on{background:var(--rouge-f);color:#fff}.mycard .clock-btn.on .dot{background:rgba(255,255,255,.2);color:#fff}.mycard .clock-btn.on small{color:#fff}
+.ktiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.ktile{position:relative;overflow:hidden;isolation:isolate;border-radius:24px;padding:20px 22px;background:var(--card);box-shadow:var(--shadow);display:flex;flex-direction:column;min-width:0;transition:transform .15s}
+.ktile:hover{transform:translateY(-2px)}
+.ktile::before{content:"";position:absolute;z-index:-1;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:var(--kc)}
+.ktile::after{content:"";position:absolute;z-index:-1;right:46px;top:70px;width:18px;height:18px;border-radius:50%;background:var(--kc);opacity:.9}
+.kic{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;background:var(--kc);color:var(--kf);margin-bottom:12px;box-shadow:inset 0 0 0 3px rgba(255,255,255,.6)}
+.ktile b{font-size:46px;font-weight:800;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ktile .kl{font-weight:700;margin-top:4px}
+.ktile small{color:var(--muted);font-size:12.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:700px){.ktiles{gap:12px}.ktile{padding:14px}.ktile b{font-size:32px}.kic{width:38px;height:38px}.mc-times b{font-size:32px}.ktile::before{width:96px;height:96px;right:-34px;top:-34px}.ktile::after{display:none}.mc-art{width:220px;opacity:.6}}
+.crew{margin-top:18px}
+.crew-scale{position:relative;height:18px;margin:0 0 4px 150px;font-size:11.5px;color:var(--muted)}
+.crew-scale span{position:absolute;transform:translateX(-50%)}
+.crew-row{display:flex;align-items:center;gap:0;padding:6px 0;border-top:1px dashed var(--line-2)}
+.crew-who{width:150px;flex:none;display:flex;align-items:center;gap:10px;min-width:0}
+.crew-who b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-lane{position:relative;flex:1;height:38px;border-radius:12px;background:repeating-linear-gradient(90deg,var(--bg) 0 1px,transparent 1px calc(100% / 13))}
+.crew-bar{position:absolute;top:4px;bottom:4px;border-radius:10px;font-style:normal;font-size:12.5px;font-weight:700;display:flex;align-items:center;padding:0 10px;white-space:nowrap;overflow:hidden;background:color-mix(in srgb,var(--c) 55%,#fff);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--c) 85%,#fff)}
+.crew-now{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--rouge-f);border-radius:2px}
+.crew-now::before{content:"";position:absolute;top:-3px;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--rouge-f)}
+@media (max-width:700px){.crew-scale{margin-left:96px}.crew-who{width:96px}.crew-who .avatar{display:none}}
+/* Au programme : frise verticale */
+.prog-item{position:relative}
+.prog-item .tag{position:relative;z-index:1;box-shadow:0 0 0 4px var(--card)}
+.prog-item{border-top:0!important}
+.prog-item:not(:last-child)::before{content:"";position:absolute;left:86px;top:56px;bottom:-12px;width:2px;border-radius:2px;background:var(--line-2)}
 .prog-item{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-top:1px dashed var(--line-2)}
 .prog-item:first-child{border-top:0}
 .prog-item .time{min-width:52px;font-weight:700;font-size:15px}
@@ -396,21 +484,58 @@ th{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.
 
 <!-- ═════════ APPLICATION ═════════ -->
 <div class="app hidden" id="vApp">
-  <aside class="side">
-    <img class="logo" src="assets/logo.svg" alt="Palomano">
-    <nav class="nav" id="sideNav"></nav>
-    <div class="me">
-      <div class="avatar" id="meAv"></div>
-      <div class="who"><b id="meName"></b><span id="meRole"></span></div>
-      <button class="btn icon ghost" id="logout" title="Se déconnecter" aria-label="Se déconnecter"></button>
-    </div>
-  </aside>
   <div class="mtop">
     <img class="logo" src="assets/logo.svg" alt="Palomano">
     <span class="sp"></span>
     <div class="avatar" id="meAvM" style="width:34px;height:34px;font-size:13px"></div>
   </div>
   <div class="maincol">
+    <header class="mast" id="mast">
+    <svg class="mast-art" viewBox="0 0 1600 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="mBg" x1="0" y1="0" x2="1" y2=".4"><stop offset="0" stop-color="#fdf8f0"/><stop offset=".45" stop-color="#e4eff9"/><stop offset=".8" stop-color="#f8dfe4"/><stop offset="1" stop-color="#f9e2b4"/></linearGradient>
+        <radialGradient id="mSun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f7d589"/><stop offset=".7" stop-color="#f7d589" stop-opacity=".55"/><stop offset="1" stop-color="#f7d589" stop-opacity="0"/></radialGradient>
+        <pattern id="mDot" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="#4a4a49" fill-opacity=".07"/></pattern>
+        <filter id="mGrain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .29  0 0 0 0 .29  0 0 0 0 .29  0 0 0 .07 0"/></filter>
+      </defs>
+      <rect width="1600" height="220" fill="url(#mBg)"/>
+      <rect width="1600" height="220" fill="url(#mDot)"/>
+      <circle cx="1330" cy="100" r="140" fill="url(#mSun)"/>
+      <circle cx="1330" cy="100" r="50" fill="#f7d589"/>
+      <g fill="none" stroke-linecap="round">
+        <path d="M600 175 C 780 90, 920 195, 1090 120 S 1390 40, 1640 95" stroke="#ef818e" stroke-width="22" stroke-opacity=".55"/>
+        <path d="M660 205 C 840 130, 990 215, 1170 155 S 1450 85, 1640 145" stroke="#c1daf3" stroke-width="22"/>
+        <path d="M740 140 C 910 195, 1050 80, 1230 140 S 1490 195, 1640 120" stroke="#e1ebbd" stroke-width="22"/>
+        <path d="M520 70 C 600 40, 640 100, 720 70 S 830 30, 880 60" stroke="#4a4a49" stroke-opacity=".18" stroke-width="2" stroke-dasharray="1 9"/>
+      </g>
+      <g>
+        <circle cx="905" cy="48" r="9" fill="#ef818e"/><circle cx="1010" cy="96" r="5" fill="#8ab5d7"/><circle cx="1400" cy="38" r="7" fill="#c8d68e"/>
+        <circle cx="1490" cy="92" r="11" fill="#f8c9d2"/><circle cx="760" cy="70" r="4" fill="#efc369"/><circle cx="1110" cy="30" r="4" fill="#df6276"/>
+        <rect x="1330" y="80" width="14" height="14" rx="3" fill="#c1daf3" transform="rotate(20 1337 87)"/>
+        <rect x="830" y="22" width="12" height="12" rx="3" fill="#e1ebbd" transform="rotate(-15 836 28)"/>
+        <path d="M1560 40l3 8.5 8.5 3-8.5 3-3 8.5-3-8.5-8.5-3 8.5-3z" fill="#efc369"/>
+        <path d="M970 140l2.2 6 6 2.2-6 2.2-2.2 6-2.2-6-6-2.2 6-2.2z" fill="#df6276" fill-opacity=".8"/>
+        <path d="M1060 60 q 10 -14 20 0 t 20 0 t 20 0" fill="none" stroke="#8ab5d7" stroke-width="3" stroke-linecap="round"/>
+        <path d="M1440 150 q 8 -12 16 0 t 16 0 t 16 0" fill="none" stroke="#df6276" stroke-width="3" stroke-linecap="round" stroke-opacity=".7"/>
+      </g>
+      <rect width="1600" height="220" filter="url(#mGrain)"/>
+    </svg>
+      <img class="mast-illu" src="assets/illu.svg" alt="">
+      <div class="mast-in">
+        <div class="mast-top">
+          <img class="mast-logo" src="assets/logo.svg" alt="Palomano">
+          <div class="mast-acts" id="mastActs"></div>
+          <div class="mechip">
+            <div class="avatar" id="meAv"></div>
+            <div class="who"><b id="meName"></b><span id="meRole"></span></div>
+            <button class="btn icon ghost" id="logout" title="Se déconnecter" aria-label="Se déconnecter"></button>
+          </div>
+        </div>
+        <div class="mast-hello"><span class="eyebrow" id="mastDate"></span><b id="mastHi"></b></div>
+        <nav class="gtabs" id="gTabs" role="tablist"></nav>
+      </div>
+      <div class="subbar"><nav class="subnav" id="sideNav"></nav></div>
+    </header>
     <div class="pv hidden" id="pvBar"></div>
     <main class="main" id="main"></main>
   </div>
@@ -524,11 +649,20 @@ document.addEventListener("click",async e=>{
 const STOCK_TEST=true;   // module Stocks en phase de test : ni alertes ni badge tant que c'est vrai
 const BADGES={};
 function navLink(n){return`<a href="#" data-t="${n.t}" ${S.tab===n.t?'aria-current="page"':""}>${ic(n.i)}<span>${n.l}</span>${n.beta?`<span class="beta">Test</span>`:""}${BADGES[n.b]?`<span class="badge">${BADGES[n.b]}</span>`:""}</a>`}
+const GROUPS={"Au quotidien":{c:"--bleu-c",f:"var(--bleu-f)",i:"home"},"Réservations":{c:"--rouge-c",f:"var(--rouge-f)",i:"cake"},"Équipe":{c:"--vert-c",f:"#9aab55",i:"users"}};
+function navGroups(items){const out=[];let g=null;items.forEach(n=>{if(n.h){g={h:n.h,items:[]};out.push(g)}else if(g)g.items.push(n)});return out.filter(x=>x.items.length)}
 function renderNav(){
   const items=NAV.filter(n=>(!n.mgr||isManager())&&(!n.dir||isDirection())&&(!n.saisie||isManager()||S.canSaisie));
-  const viewAs=realDirection()?`<a href="#" data-t="__viewas">${ic("users")}<span>Voir comme…</span></a>`:"";
-  $("sideNav").innerHTML=items.map(n=>n.h?`<h6>${n.h}</h6>`:navLink(n)).join("")+
-    (isDirection()?`<h6>Pilotage</h6><a href="pilotage/">${ic("chart")}<span>Dashboard financier</span></a>`:realDirection()?`<h6>Pilotage</h6>`:"")+viewAs;
+  const groups=navGroups(items),cur=groups.find(g=>g.items.some(n=>n.t===S.tab))||groups[0];
+  const gs=g=>{const k=GROUPS[g.h]||GROUPS["Au quotidien"];return`--gc:var(${k.c});--gf:${k.f}`};
+  $("gTabs").innerHTML=groups.map(g=>{const k=GROUPS[g.h]||GROUPS["Au quotidien"],n=g.items.reduce((s,x)=>s+(BADGES[x.b]||0),0);
+    return`<a href="#" data-t="${g.items[0].t}" role="tab" style="${gs(g)}" ${g===cur?'aria-current="page"':""}><span class="gi">${ic(k.i)}</span>${g.h}${n&&g!==cur?`<span class="badge">${n}</span>`:""}</a>`}).join("");
+  $("sideNav").style.cssText=gs(cur);
+  $("sideNav").innerHTML=cur.items.map(navLink).join("");
+  $("mastActs").innerHTML=(isDirection()?`<a href="pilotage/">${ic("chart")}<span>Dashboard financier</span></a>`:"")+
+    (realDirection()?`<a href="#" data-t="__viewas">${ic("users")}<span>Voir comme…</span></a>`:"");
+  paintClock();const h=new Date().getHours();
+  $("mastHi").innerHTML=S.me?`${h<5||h>=18?"Bonsoir":h<12?"Bonjour":"Bon après-midi"} ${esc(S.me.full_name.split(" ")[0])} <span class="wave">👋</span>`:"";
   const sum=["bDem","bReg"].reduce((s,k)=>s+(BADGES[k]||0),0);
   $("bNav").innerHTML=BNAV.map(t=>navLink(NAV.find(n=>n.t===t))).join("")+
     `<a href="#" data-t="__more" ${BNAV.includes(S.tab)?"":'aria-current="page"'}>${ic("more")}<span>Plus</span>${sum?`<span class="badge">${sum}</span>`:""}</a>`;
@@ -594,9 +728,16 @@ $("sheet").onclick=e=>{if(e.target.id==="sheet")$("sheet").classList.add("hidden
 function go(t){
   if(!VIEWS[t]||((t==="reglages"||t==="factu")&&!isManager())||(t==="heures"&&!isDirection()))t="today";
   S.tab=t;try{sessionStorage.setItem("palo.eq.tab",t)}catch(e){}
-  renderNav();window.scrollTo(0,0);render();
+  renderNav();fitMast();window.scrollTo(0,0);render();
 }
 function setBadge(id,n){BADGES[id]=n||0}
+/* En-tête collant : le bandeau défile, les onglets restent visibles */
+function fitMast(){const m=$("mast"),g=$("gTabs");if(!m||!g||!m.offsetParent)return;
+  m.style.setProperty("--mh",(g.offsetTop+g.offsetHeight)+"px");m.style.top=(-g.offsetTop)+"px"}
+addEventListener("resize",fitMast);
+addEventListener("scroll",()=>{const m=$("mast"),g=$("gTabs");if(m&&g)m.classList.toggle("stuck",scrollY>g.offsetTop)},{passive:true});
+function paintClock(){const el=$("mastDate");if(!el)return;const now=new Date();el.innerHTML=`${capital(now.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}))} · <em>${now.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</em> · Espace équipe`}
+setInterval(()=>{if(!document.hidden)paintClock()},20000);
 async function render(){try{await VIEWS[S.tab]($("main"))}catch(e){fail(e)}}
 function topbar(title,sub,acts=""){return`<div class="topbar"><div><h1>${title}</h1>${sub?`<div class="sub">${sub}</div>`:""}</div><div class="acts">${acts}</div></div>`}
 
@@ -779,12 +920,34 @@ VIEWS.today=async m=>{
       <div class="list">${its.map(i=>{const x=doneBy.get(i.id);return`<div class="row"><button class="check ${x?"on":""}" data-cl="${i.id}" aria-label="${x?"Décocher":"Cocher"} : ${esc(i.label)}">${x?ic("check","sm"):""}</button>
         <div class="tx"><b style="font-weight:${x?400:600}">${esc(i.label)}</b>${x?`<small>${esc(firstName(x.done_by))} · ${new Date(x.done_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</small>`:""}</div></div>`}).join("")||'<div class="empty">Aucun point défini.</div>'}</div></div>`};
   const kp=new Map((kpis||[]).map(k=>[k.key,k]));
-  m.innerHTML=`<div class="hero">
-      <div style="min-width:0"><h2>${hr<12?"Bonjour":hr<18?"Bon après-midi":"Bonsoir"} ${esc(S.me.full_name.split(" ")[0])} !</h2><p>${capital(fDay(d))}</p>
-      ${mine.length?mine.map(s=>`<div class="shift">${ic("clock")}<span>${s.teletravail?"🏠 Télétravail":"Mon service"}</span><b>${fTime(s.start_time)} – ${fTime(s.end_time)}</b>${+s.pause_min?`<small style="color:var(--ink-2)">${PZ(s).slice(3)}</small>`:""}${s.label?`<span class="pill">${esc(s.label)}</span>`:""}</div>`).join(" "):'<div class="shift">'+ic("clock")+'<span>Pas de service prévu aujourd\'hui</span></div>'}
-      <div><button class="clock-btn ${openPt?"on":""}" id="clockBtn"><span class="dot">${ic(openPt?"check":"clock")}</span><span>${openPt?"Je termine ma journée":"Je commence ma journée"}<small id="clockSub">${openPt?`en poste depuis ${new Date(openPt.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} · ${fDur(ptHours([openPt]))}`:`${fDur(wkH)} pointées cette semaine`}</small></span></button></div>
-      ${others.length?`<div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">${others.map(s=>`<span class="pill" style="background:rgba(255,255,255,.7)"><i style="background:${esc(person(s.user_id).color)}"></i>${esc(firstName(s.user_id))} ${fTime(s.start_time)}–${fTime(s.end_time)}</span>`).join("")}</div>`:""}</div>
-      <img class="illu" src="assets/illu.svg" alt=""></div>
+  const tmin=t=>{const[x,y]=String(t||"0:0").split(":").map(Number);return x*60+y},nowM=new Date().getHours()*60+new Date().getMinutes();
+  const shiftBlock=s=>{const a0=tmin(s.start_time),b0=tmin(s.end_time),pct=Math.max(0,Math.min(100,(nowM-a0)/(b0-a0)*100));
+    const st=nowM<a0?`commence dans ${fDur((a0-nowM)/60)}`:nowM>=b0?"service terminé":`encore ${fDur((b0-nowM)/60)}`;
+    return`<div class="mc-shift"><div class="mc-times"><b>${fTime(s.start_time)}</b><i class="mc-arrow"></i><b>${fTime(s.end_time)}</b></div>
+      <div class="mc-track"><i style="width:${pct}%"></i>${nowM>=a0&&nowM<b0?`<span style="left:${pct}%"></span>`:""}</div>
+      <div class="mc-meta"><span>${s.teletravail?"🏠 Télétravail":st}</span>${+s.pause_min?`<span>${PZ(s).slice(3)}</span>`:""}${s.label?`<span>${esc(s.label)}</span>`:""}</div></div>`};
+  const kids=[...(anniv||[]),...(groupes||[])].reduce((x,r)=>x+(+r.nb_enfants||0),0),unread=(posts||[]).filter(p=>!read.has(p.id)).length;
+  const crewIds=[...new Set((shifts||[]).map(s=>s.user_id))];
+  const tile=(c,f,icn,n,l,sub)=>`<div class="ktile" style="--kc:var(${c});--kf:${f}"><span class="kic">${ic(icn)}</span><b>${n}</b><span class="kl">${l}</span>${sub?`<small>${sub}</small>`:""}</div>`;
+  const H0=8,H1=21,pos=t=>Math.max(0,Math.min(100,(tmin(t)/60-H0)/(H1-H0)*100));
+  m.innerHTML=`<h2 class="mob-hi">${hr<12?"Bonjour":hr<18?"Bon après-midi":"Bonsoir"} ${esc(S.me.full_name.split(" ")[0])} 👋</h2>
+    <div class="day">
+      <div class="mycard">
+        <svg class="mc-art" viewBox="0 0 300 200" aria-hidden="true"><circle cx="250" cy="30" r="70" fill="#f7d589" fill-opacity=".9"/><path d="M-20 170 C 60 120, 120 200, 200 150 S 300 110, 330 140" stroke="#ef818e" stroke-width="16" fill="none" stroke-linecap="round" opacity=".8"/><path d="M-20 196 C 70 150, 140 220, 220 178 S 300 150, 330 170" stroke="#c1daf3" stroke-width="16" fill="none" stroke-linecap="round" opacity=".7"/><circle cx="178" cy="52" r="5" fill="#e1ebbd"/><circle cx="292" cy="112" r="4" fill="#f8c9d2"/></svg>
+        <div class="mc-head"><span class="mc-eyebrow">Ma journée</span>${openPt?'<span class="mc-live">En poste</span>':""}</div>
+        ${mine.length?mine.map(shiftBlock).join(""):`<div class="mc-none">Pas de service prévu aujourd'hui</div>`}
+        <button class="clock-btn ${openPt?"on":""}" id="clockBtn"><span class="dot">${ic(openPt?"check":"clock")}</span><span>${openPt?"Je termine ma journée":"Je commence ma journée"}<small id="clockSub">${openPt?`en poste depuis ${new Date(openPt.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} · ${fDur(ptHours([openPt]))}`:`${fDur(wkH)} pointées cette semaine`}</small></span></button>
+      </div>
+      <div class="ktiles">
+        ${tile("--rouge-c","var(--rouge-f)","cake",prog.length,`réservation${prog.length>1?"s":""}`,`${(anniv||[]).length} anniv · ${(groupes||[]).length} groupe${(groupes||[]).length>1?"s":""}`)}
+        ${tile("--jaune-c","#c99a2e","users",kids,"enfants attendus","anniversaires et groupes")}
+        ${tile("--bleu-c","var(--bleu-f)","clock",crewIds.length,`personne${crewIds.length>1?"s":""} au planning`,crewIds.length?crewIds.slice(0,3).map(firstName).join(", ")+(crewIds.length>3?"…":""):"personne aujourd'hui")}
+        ${tile("--vert-c","#9aab55","megaphone",unread,`consigne${unread>1?"s":""} à lire`,unread?"à lire avant le service":"tout est lu ✓")}
+      </div>
+    </div>
+    ${crewIds.length?`<div class="card crew"><div class="card-head"><h3>${ic("users")} L'équipe aujourd'hui</h3><span class="pill info"><i></i>${H0} h → ${H1} h</span></div>
+      <div class="crew-scale">${Array.from({length:H1-H0+1},(_,i)=>`<span style="left:${i/(H1-H0)*100}%">${H0+i}h</span>`).join("")}</div>
+      ${crewIds.map(id=>{const p=person(id);return`<div class="crew-row"><div class="crew-who">${avatar(p,32)}<b>${esc(firstName(id))}</b></div><div class="crew-lane">${(shifts||[]).filter(s=>s.user_id===id).map(s=>`<i class="crew-bar" style="left:${pos(s.start_time)}%;width:${pos(s.end_time)-pos(s.start_time)}%;--c:${esc(p.color||"#c1daf3")}">${fTime(s.start_time)} – ${fTime(s.end_time)}${s.teletravail?" 🏠":""}</i>`).join("")}${nowM/60>=H0&&nowM/60<=H1?`<span class="crew-now" style="left:${(nowM/60-H0)/(H1-H0)*100}%"></span>`:""}</div></div>`}).join("")}</div>`:""}
     <div class="grid g21" style="margin-top:18px">
       <div class="card"><div class="card-head"><h3>${ic("cal")} Au programme</h3><span class="pill info"><i></i>${prog.length} réservation${prog.length>1?"s":""}</span></div>
         ${prog.length?prog.map(p=>{const[bg,fg,icn]=RESA_COL[p.k];return`<div class="prog-item"><div class="time">${fTime(p.t)}</div><div class="tag" style="background:var(${bg});color:${fg}">${ic(icn)}</div>
