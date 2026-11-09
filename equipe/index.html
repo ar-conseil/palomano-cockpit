@@ -1160,7 +1160,7 @@ VIEWS.annivplan=async m=>{
       <span class="who2">${p?"🎈 "+esc(p.full_name):needAnim(a)?"⚠ Option animateur : à prévoir":"Sans animateur"}</span></button>`};
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
   m.innerHTML=topbar("Planning anniversaires","Qui anime quel anniversaire, semaine par semaine")+
-    `<div class="plan-bar"><button class="btn icon" id="aPrev" aria-label="Semaine précédente">${ic("left")}</button><span class="week">${wl}</span><button class="btn icon" id="aNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="aNow">Aujourd'hui</button></div>
+    `<div class="plan-bar"><button class="btn icon" id="aPrev" aria-label="Semaine précédente">${ic("left")}</button><span class="week">${wl}</span><button class="btn icon" id="aNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="aNow">Aujourd'hui</button><span style="flex:1"></span><button class="btn sm soft" id="aPrint">🖨️ Fiche à afficher</button></div>
     <div class="grid g3" style="margin-bottom:18px">
       <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("cake")}</div><div><b>${list.length}</b><span>anniversaire${list.length>1?"s":""} cette semaine</span></div></div>
       <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("alert")}</div><div><b>${todo.length}</b><span>option animateur sans animateur</span></div></div>
@@ -1168,6 +1168,7 @@ VIEWS.annivplan=async m=>{
     </div>
     <div class="apweek">${days.map(d=>`<div class="apday ${d===today?"today":""}"><h4>${capital(fShort(d))}${annOn(d).length?`<span>${annOn(d).length}</span>`:""}</h4>${annOn(d).map(card).join("")||'<div class="apnone">—</div>'}</div>`).join("")}</div>
     <p class="plan-hint">${isManager()?"Cliquez sur un anniversaire pour noter l'option animateur et choisir qui l'anime"+(editable?" ; son service peut être ajouté en même temps au planning de l'équipe.":pl?" (le planning de l'équipe de cette semaine n'est plus modifiable : vérifiez ses horaires).":" (le planning de l'équipe de cette semaine n'est pas encore commencé)."):"Les animateurs prévus pour chaque anniversaire."}</p>`;
+  $("aPrint").onclick=()=>printAnniv(list,days);
   $("aPrev").onclick=()=>{S.apWeek=addDays(w,-7);render()};$("aNext").onclick=()=>{S.apWeek=addDays(w,7);render()};$("aNow").onclick=()=>{S.apWeek=null;render()};
   m.querySelectorAll("[data-ann]").forEach(b=>b.onclick=async()=>{if(!isManager())return;const a=(anniv||[]).find(x=>x.id===+b.dataset.ann);if(!a)return;
     const a0=toMin(a.heure),a1=a0+(a.duree_min||120),fin=toTime(Math.min(a1,23*60+45));
@@ -1183,6 +1184,48 @@ VIEWS.annivplan=async m=>{
     toast(who?`${person(who).full_name.split(" ")[0]} anime l'anniversaire de ${a.enfant}`:r.data.opt==="on"?"Option animateur notée : animateur à prévoir":"Enregistré");render()});
 };
 
+/* Fiche des anniversaires à imprimer et afficher dans le parc (une page A4 par jour).
+   Par défaut : mercredi, samedi et dimanche de la semaine. Jamais de montant ni de téléphone. */
+async function printAnniv(list,days){
+  const withA=days.filter(d=>list.some(a=>a.date===d));
+  if(!withA.length)return toast("Aucun anniversaire cette semaine");
+  const def=withA.filter(d=>[0,3,6].includes(parse(d).getDay()));
+  const r=await modal("Fiche des anniversaires à afficher",`<p class="hint" style="margin-top:0">Une page A4 par jour. Dans la fenêtre d'impression, choisissez « Enregistrer en PDF » ou votre imprimante.</p>
+    <div class="f full">Jours<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px">${withA.map(d=>`<label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" name="d:${d}" ${(def.length?def:withA).includes(d)?"checked":""} style="width:auto">${capital(fShort(d))} (${list.filter(a=>a.date===d).length})</label>`).join("")}</div></div>
+    <label class="f full" style="flex-direction:row;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" name="perso" checked style="width:auto"> Afficher le nom du parent et les allergies</label>
+    <p class="hint" style="margin:0">Décochez si la fiche est visible par le public (données des familles).</p>`,{submit:"Imprimer"});
+  if(!r)return;
+  const sel=withA.filter(d=>r.data["d:"+d]==="on");if(!sel.length)return toast("Choisissez au moins un jour");
+  const perso=r.data.perso==="on",e=esc;
+  const fin=a=>fTime(toTime(Math.min(toMin(a.heure)+(a.duree_min||120),23*60+45)));
+  const block=a=>{const p=animOf(a)?person(animOf(a)):null,opts=annOpts(a,{anim:false});
+    return`<div class="b ${needAnim(a)?"anim":""}"><div class="h"><div class="t">${fTime(a.heure)}<small>→ ${fin(a)}</small></div><div class="n"><b>${e(a.enfant)}</b>${a.age?` <span>· ${a.age} ans</span>`:""}
+      <div class="m">${[a.nb_enfants&&`👧 ${a.nb_enfants} enfants`,a.formule&&`🎂 ${e(a.formule)}`,a.salle&&`📍 ${e(a.salle)}`,a.theme&&`✨ ${e(a.theme)}`,perso&&a.parent_nom&&`👤 ${e(a.parent_nom)}`].filter(Boolean).join("<i>·</i>")}</div></div></div>
+      ${needAnim(a)?`<div class="an">🎈 AVEC ANIMATEUR${p?` : ${e(p.full_name)}`:" : À PRÉVOIR"}</div>`:p?`<div class="an soft">Animateur·rice : ${e(p.full_name)}</div>`:""}
+      ${opts.length?`<div class="o">${opts.map(o=>`<span>${OPT_IC(o)} ${e(o)}</span>`).join("")}</div>`:`<div class="o none">Pas d'option</div>`}
+      ${perso&&a.allergies?`<div class="al">⚠️ Allergies / régimes : ${e(a.allergies)}</div>`:""}
+      ${a.notes?`<div class="nt">📝 ${e(a.notes)}</div>`:""}${a.qweekle_note?`<div class="nt">💬 Note du client : ${e(a.qweekle_note)}</div>`:""}</div>`};
+  const page=d=>{const l=list.filter(a=>a.date===d),kids=l.reduce((s,a)=>s+(a.nb_enfants||0),0);
+    return`<section><header><img src="${location.origin}${location.pathname.replace(/[^/]*$/,"")}assets/logo.svg" alt=""><div><h1>Anniversaires · ${e(capital(fDay(d)))}</h1><p>${l.length} anniversaire${l.length>1?"s":""} · ${kids} enfants${l.some(needAnim)?` · ${l.filter(needAnim).length} avec animateur`:""}</p></div></header>${l.map(block).join("")}
+      <footer>Palomano Lille · imprimé le ${new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} · données Qweekle et espace équipe</footer></section>`};
+  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Anniversaires Palomano</title><style>
+    @page{size:A4;margin:12mm}*{box-sizing:border-box}body{margin:0;font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#2b2b2a}
+    section{page-break-after:always;min-height:100%}section:last-child{page-break-after:auto}
+    header{display:flex;gap:14px;align-items:center;border-bottom:3px solid #e8a0a8;padding-bottom:8px;margin-bottom:10px}header img{height:42px}
+    h1{margin:0;font-size:22px}header p{margin:2px 0 0;color:#666;font-size:14px}
+    .b{border:1.5px solid #ddd;border-radius:10px;padding:8px 10px;margin:0 0 8px;break-inside:avoid}.b.anim{border-color:#c94a5a;border-width:2.5px}
+    .h{display:flex;gap:12px;align-items:flex-start}.t{min-width:62px;font-size:20px;font-weight:800;line-height:1.1}.t small{display:block;font-size:12px;font-weight:600;color:#777}
+    .n b{font-size:18px}.n span{color:#555;font-size:15px}.m{margin-top:2px;color:#444}.m i{font-style:normal;color:#bbb;margin:0 6px}
+    .an{margin:6px 0 2px;padding:5px 10px;border-radius:8px;background:#c94a5a;color:#fff;font-weight:800;font-size:15px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.an.soft{background:#eef2f7;color:#2b2b2a;font-weight:600;font-size:13px}
+    .o{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:5px}.o span{border:1px solid #e3d79a;background:#fbf6dc;border-radius:999px;padding:1px 8px;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}.o.none{color:#999}
+    .al{margin-top:5px;color:#b3261e;font-weight:800}.nt{margin-top:3px;color:#444}
+    footer{margin-top:10px;color:#999;font-size:10.5px;text-align:center}
+    @media screen{body{background:#eee;padding:16px}section{background:#fff;max-width:800px;margin:0 auto 16px;padding:18px;border-radius:8px}}
+  </style></head><body>${sel.map(page).join("")}<script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
+  const win=window.open("","_blank");
+  if(!win)return fail("Le navigateur a bloqué la fenêtre d'impression : autorisez les fenêtres pour ce site");
+  win.document.open();win.document.write(html);win.document.close();
+}
 VIEWS.centres=m=>resaView(m,"centre");
 VIEWS.ecoles=m=>resaView(m,"ecole");
 
