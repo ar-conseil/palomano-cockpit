@@ -408,6 +408,11 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .mk-live{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:#7fc25a;animation:pulse 1.6s infinite}
 @media (max-width:1380px){.mast-kpis .mk:nth-child(n+4){display:none}}
 @media (max-width:1180px){.mast-kpis{margin-right:110px}.mast-kpis .mk:nth-child(n+3){display:none}}
+.mkpis-m{display:none}
+@media (max-width:900px){.mkpis-m{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding:12px 16px 2px;scroll-snap-type:x mandatory}
+  .mkpis-m::-webkit-scrollbar{display:none}
+  .mkpis-m .mk{flex:none;min-width:128px;scroll-snap-align:start;background:var(--card);box-shadow:var(--shadow)}
+  .mkpis-m:empty{display:none}}
 .mast-acts .gear{padding:9px 11px}
 .mast-acts .gear .ic{transition:transform .4s}.mast-acts .gear:hover .ic{transform:rotate(60deg)}
 .mast-acts a[aria-current="page"]{background:#fff;box-shadow:inset 0 0 0 2px var(--bleu-f)}
@@ -612,6 +617,7 @@ th{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.
     <div class="avatar" id="meAvM" style="width:34px;height:34px;font-size:13px"></div>
   </div>
   <div class="maincol">
+    <div class="mkpis-m" id="mastKpisM"></div>
     <header class="mast" id="mast">
     <svg class="mast-art" viewBox="0 0 1600 220" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <defs>
@@ -1042,8 +1048,8 @@ async function loadLive(){
 const loadLiveSoon=()=>{clearTimeout(LIVE.soon);LIVE.soon=setTimeout(loadLive,1200)};
 function resaTot(r){return r?(r.anniv+r.centre+r.ecole+r.privat):0}
 function paintMastKpis(){
-  const el=$("mastKpis");if(!el)return;const L=LIVE.data;
-  if(!L){el.innerHTML="";return}
+  const el=$("mastKpis"),elM=$("mastKpisM");if(!el)return;const L=LIVE.data;
+  if(!L){el.innerHTML="";if(elM)elM.innerHTML="";return}
   const r=L.resa,kids=r.anniv_enfants+r.centre_enfants+r.ecole_enfants+r.privat_pers,M=L.montants,old=el.innerHTML;
   const k=(c,lab,v,sub,live)=>`<a class="mk" data-t="live" href="#" style="--kf:${c}">${live?'<i class="mk-live"></i>':""}<small><i></i>${lab}</small><b>${v}</b><span>${sub}</span></a>`;
   const sn=L.snack||{},bo=L.boutique||{},y=L.yavin;
@@ -1054,6 +1060,7 @@ function paintMastKpis(){
     k("#9aab55","Boutique",M&&bo.ttc!=null?fE0(bo.ttc):bo.articles!=null?fN0(bo.articles):"—",M&&bo.ttc!=null?`${fN0(bo.articles)} articles`:"articles vendus",bo.articles!=null),
     M&&y?k("var(--ink-2)","Cartes",fE0(y.cb),`${fN0(y.nb)} paiements`,false):""].join("");
   if(old&&old!==el.innerHTML)el.querySelectorAll(".mk").forEach(x=>x.classList.add("flash"));
+  if(elM){const oldM=elM.innerHTML;elM.innerHTML=el.innerHTML;if(oldM&&oldM!==elM.innerHTML)elM.querySelectorAll(".mk").forEach(x=>x.classList.add("flash"))}
 }
 function startLive(){
   stopLive();loadLive();LIVE.timer=setInterval(()=>{if(!document.hidden)loadLive()},60000);
