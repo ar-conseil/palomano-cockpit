@@ -81,6 +81,14 @@ jobs:
           PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
         run: python import_qweekle.py || echo "::warning::Import Qweekle en échec"
 
+      - name: Lire les commandes Qweekle des anniversaires (options, total, acompte, reste à payer)
+        env:
+          QWEEKLE_EMAIL: ${{ secrets.QWEEKLE_EMAIL }}
+          QWEEKLE_PASSWORD: ${{ secrets.QWEEKLE_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python sync_commandes.py || echo "::warning::Commandes Qweekle en échec"
+
 
       - name: Conserver la session Microsoft
         if: always() && hashFiles('.ms_token/refresh_token.enc') != ''
