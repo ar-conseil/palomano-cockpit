@@ -837,7 +837,8 @@ VIEWS.planning=async m=>{
   const hrs={};SH.forEach(s=>{hrs[s.user_id]=(hrs[s.user_id]||0)+(s.b-s.a)/60});
   const offOn=(d,uid)=>(leaves||[]).some(l=>l.start_date<=d&&l.end_date>=d&&(!uid||l.user_id===uid));
   const used=new Set(SH.map(s=>s.user_id)),EXT_ORD={salarie:0,animateur:1,staffeur:2,autre:3};
-  const team=[...S.people.filter(p=>p.active&&p.role).sort((a,b)=>(a.role==="direction")-(b.role==="direction")||a.full_name.localeCompare(b.full_name)),
+  // la direction (Antonin, Alex) n'apparaît pas dans le planning des équipes, sauf si un service lui est prévu cette semaine
+  const team=[...S.people.filter(p=>p.active&&p.role&&(p.role!=="direction"||used.has(p.id))).sort((a,b)=>(a.role==="direction")-(b.role==="direction")||a.full_name.localeCompare(b.full_name)),
     ...[...S.ext.values()].filter(x=>x.active||used.has(x.id)).sort((a,b)=>EXT_ORD[a.type]-EXT_ORD[b.type]||a.full_name.localeCompare(b.full_name))];
   const resaOn=d=>[...(anniv||[]).filter(a=>a.date===d).map(a=>({t:a.heure,k:"anniv",l:`${fTime(a.heure)} anniv ${a.enfant}`})),...(grp||[]).filter(g=>g.date===d).map(g=>({t:g.heure_arrivee||"",k:g.type,l:`${fTime(g.heure_arrivee)} ${g.structure}`}))].sort((a,b)=>a.t.localeCompare(b.t));
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
