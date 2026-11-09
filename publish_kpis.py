@@ -196,6 +196,23 @@ def main():
         urllib.request.urlopen(req, timeout=30)
     except urllib.error.HTTPError as e:
         sys.exit(f"Espace équipe : échec de publication des indicateurs (HTTP {e.code}) {e.read()[:200]!r}")
+    # Produits de caisse → famille (snack, boutique…) : sert à ranger en direct les lignes des factures Qweekle
+    v = d.get("ventes") or {}
+    fams = {}
+    for fam, grp, name, _ in v.get("products") or []:
+        nom = str(name).strip().lower()
+        if nom:
+            fams[nom] = {"nom": nom, "famille": fam, "groupe": grp or "", "updated_at": now}
+    if fams:
+        req = urllib.request.Request(
+            url.rstrip("/") + "/rest/v1/produit_famille?on_conflict=nom", data=json.dumps(list(fams.values())).encode(),
+            method="POST", headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                                    "Prefer": "resolution=merge-duplicates,return=minimal"})
+        try:
+            urllib.request.urlopen(req, timeout=30)
+            print(f"Espace équipe : {len(fams)} produits de caisse rangés par famille")
+        except urllib.error.HTTPError as e:
+            print(f"::warning::Familles de produits non publiées (HTTP {e.code} — schema_v20.sql pas encore exécuté ?)")
     # journal public (dépôt public) : pas de montants, seulement les pourcentages d'atteinte
     print("Espace équipe : " + " · ".join(
         f"{r['key']}={round(r['value'] / r['target'] * 100) if r['value'] is not None and r['target'] else '—'} %"
