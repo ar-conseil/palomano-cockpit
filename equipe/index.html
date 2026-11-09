@@ -413,6 +413,36 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .mast-acts .gear{padding:9px 11px}
 .mast-acts .gear .ic{transition:transform .4s}.mast-acts .gear:hover .ic{transform:rotate(60deg)}
 .mast-acts a[aria-current="page"]{background:#fff;box-shadow:inset 0 0 0 2px var(--bleu-f)}
+.mk b sup.tt,.lv-big b.v sup.tt{font-size:.36em;font-weight:800;letter-spacing:.06em;margin-left:4px;vertical-align:.95em;opacity:.55}
+.lv-big .sub b{font-weight:800;color:var(--ink)}.lv-big.dark .sub b{color:#fff}
+/* ── Boutons animés ── */
+.btn,.gtabs a,.subnav a,.mast-acts a,.mk,.bell,.clock-btn,.seg button,.days-tabs button,.chip,.check,.pv-ck button{transition:transform .25s cubic-bezier(.3,1.6,.5,1),box-shadow .25s,background .2s,color .2s}
+.btn:hover:not(:disabled),.mast-acts a:hover,.clock-btn:hover{transform:translateY(-2px)}
+.btn:active:not(:disabled),.gtabs a:active,.subnav a:active,.mast-acts a:active,.mk:active,.bell:active,.clock-btn:active,.seg button:active,.chip:active,.check:active,.pv-ck button:active{transform:scale(.94);transition-duration:.08s}
+.btn.pri,.clock-btn,.gtabs a,.mast-acts a{position:relative;overflow:hidden;isolation:isolate}
+.btn.pri::after,.clock-btn::after,.gtabs a::after,.mast-acts a::after{content:"";position:absolute;z-index:-1;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);transform:skewX(-18deg);pointer-events:none;opacity:0}
+.btn.pri:hover::after,.clock-btn:hover::after,.gtabs a:hover::after,.mast-acts a:hover::after{animation:shine .8s ease forwards}
+@keyframes shine{0%{left:-60%;opacity:1}100%{left:130%;opacity:1}}
+.gtabs a:hover .gi{animation:wiggle .6s ease}
+@keyframes wiggle{0%,100%{transform:rotate(0) scale(1)}25%{transform:rotate(-12deg) scale(1.12)}50%{transform:rotate(10deg) scale(1.12)}75%{transform:rotate(-5deg) scale(1.05)}}
+.gtabs a[aria-current="page"] .gi{animation:gpulse 2.6s ease-in-out infinite}
+@keyframes gpulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--gf) 45%,transparent)}50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--gf) 0%,transparent)}}
+.subnav a:hover .ic,.mast-acts a:hover .ic,.btn:hover .ic{animation:hop .45s cubic-bezier(.3,1.8,.5,1)}
+@keyframes hop{40%{transform:translateY(-3px) scale(1.15)}}
+.mast-acts a.gear:hover .ic{animation:spin 1s cubic-bezier(.5,0,.3,1)}
+@keyframes spin{to{transform:rotate(180deg)}}
+.bell:hover .ic{animation:ring .9s ease}
+.clock-btn .dot{transition:transform .3s cubic-bezier(.3,1.8,.5,1)}.clock-btn:hover .dot{transform:scale(1.12) rotate(-10deg)}
+.gtabs.intro-in a{animation:popIn .55s cubic-bezier(.3,1.6,.5,1) both}
+.gtabs.intro-in a:nth-child(2){animation-delay:.08s}.gtabs.intro-in a:nth-child(3){animation-delay:.16s}.gtabs.intro-in a:nth-child(4){animation-delay:.24s}
+.subnav.intro-in a{animation:popIn .45s cubic-bezier(.3,1.6,.5,1) both}
+.subnav.intro-in a:nth-child(2){animation-delay:.04s}.subnav.intro-in a:nth-child(3){animation-delay:.08s}.subnav.intro-in a:nth-child(4){animation-delay:.12s}.subnav.intro-in a:nth-child(5){animation-delay:.16s}.subnav.intro-in a:nth-child(6){animation-delay:.2s}
+@keyframes popIn{from{opacity:0;transform:translateY(10px) scale(.85)}to{opacity:1;transform:none}}
+.intro-in .mk{animation:popIn .5s cubic-bezier(.3,1.6,.5,1) both}.intro-in .mk:nth-child(2){animation-delay:.06s}.intro-in .mk:nth-child(3){animation-delay:.12s}.intro-in .mk:nth-child(4){animation-delay:.18s}.intro-in .mk:nth-child(5){animation-delay:.24s}
+.mk.flash{animation:mkflash 1.2s ease}
+.ripple{position:absolute;border-radius:50%;pointer-events:none;background:currentColor;opacity:.22;transform:scale(0);animation:ripple .6s ease-out forwards;z-index:0}
+@keyframes ripple{to{transform:scale(1);opacity:0}}
+@media (prefers-reduced-motion:reduce){.btn,.gtabs a,.subnav a,.mast-acts a,.mk,.bell,.clock-btn{transition:none!important;animation:none!important}.btn::after,.gtabs a::after,.mast-acts a::after,.clock-btn::after,.ripple{display:none!important}.gtabs a .gi,.ic{animation:none!important}}
 /* ── Cloche et alertes de réservation ── */
 .bell{position:relative;display:inline-grid;place-items:center;width:42px;height:42px;border:0;border-radius:50%;cursor:pointer;color:var(--ink);background:rgba(255,255,255,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.9),0 6px 16px -10px rgba(74,74,73,.35)}
 .bell:hover{background:#fff}
@@ -770,7 +800,9 @@ const NAV=[
   {h:"Réservations"},
   {t:"anniv",l:"Anniversaires",i:"cake"},{t:"annivplan",l:"Planning anniversaires",i:"cal"},{t:"centres",l:"Centres de loisirs",i:"tent"},{t:"ecoles",l:"Écoles",i:"school"},{t:"privat",l:"Privatisations",i:"star"},
   {h:"Équipe"},
-  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"objectifs",l:"Objectifs",i:"target"},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
+  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
+  {h:"Objectifs"},
+  {t:"objectifs",l:"Objectifs",i:"target"},
 ];
 const BNAV=["today","planning","anniv","stocks"];
 /* Dashboard financier : la direction l'ouvre avec son compte, sans le mot de passe. La clé de déchiffrement
@@ -786,7 +818,7 @@ document.addEventListener("click",async e=>{
 const STOCK_TEST=true;   // module Stocks en phase de test : ni alertes ni badge tant que c'est vrai
 const BADGES={};
 function navLink(n){return`<a href="#" data-t="${n.t}" ${S.tab===n.t?'aria-current="page"':""}>${ic(n.i)}<span>${n.l}</span>${n.beta?`<span class="beta">Test</span>`:""}${BADGES[n.b]?`<span class="badge">${BADGES[n.b]}</span>`:""}</a>`}
-const GROUPS={"Au quotidien":{c:"--bleu-c",f:"var(--bleu-f)",i:"home"},"Réservations":{c:"--rouge-c",f:"var(--rouge-f)",i:"cake"},"Équipe":{c:"--vert-c",f:"#9aab55",i:"users"}};
+const GROUPS={"Au quotidien":{c:"--bleu-c",f:"var(--bleu-f)",i:"home"},"Réservations":{c:"--rouge-c",f:"var(--rouge-f)",i:"cake"},"Équipe":{c:"--vert-c",f:"#9aab55",i:"users"},"Objectifs":{c:"--jaune-c",f:"#c99a2e",i:"target"}};
 function navGroups(items){const out=[];let g=null;items.forEach(n=>{if(n.h){g={h:n.h,items:[]};out.push(g)}else if(g)g.items.push(n)});return out.filter(x=>x.items.length)}
 function renderNav(){
   const items=NAV.filter(n=>(!n.mgr||isManager())&&(!n.dir||isDirection())&&(!n.saisie||isManager()||S.canSaisie));
@@ -796,6 +828,7 @@ function renderNav(){
     return`<a href="#" data-t="${(g.items.find(x=>x.t!=="reglages")||g.items[0]).t}" role="tab" style="${gs(g)}" ${g===cur?'aria-current="page"':""}><span class="gi">${ic(k.i)}</span>${g.h}${n&&g!==cur?`<span class="badge">${n}</span>`:""}</a>`}).join("");
   $("sideNav").style.cssText=gs(cur);
   $("sideNav").innerHTML=cur.items.filter(n=>n.t!=="reglages").map(navLink).join("");
+  if(typeof animateTabs==="function")animateTabs(cur.h);
   $("mastActs").innerHTML=`<button class="bell" id="bell" aria-label="Nouvelles réservations"></button>`+(isDirection()?`<a href="pilotage/">${ic("chart")}<span>Dashboard financier</span></a>`:"")+
     (realDirection()?`<a href="#" data-t="__viewas">${ic("users")}<span>Voir comme…</span></a>`:"")+
     (isManager()?`<a href="#" class="gear" data-t="reglages" title="Réglages" ${S.tab==="reglages"?'aria-current="page"':""}>${ic("gear")}<span>Réglages</span>${BADGES.bReg?`<span class="badge">${BADGES.bReg}</span>`:""}</a>`:"");
@@ -1035,6 +1068,7 @@ const LIVE={data:null,ch:null,timer:null,soon:null,feed:null};
 const RCOL={anniv:["--rouge-c","var(--rouge-f)","cake","🎂","Nouvel anniversaire"],centre:["--vert-c","#9aab55","tent","🏕️","Nouveau centre de loisirs"],
   ecole:["--jaune-c","#c99a2e","school","🎒","Nouvelle sortie scolaire"],privat:["--bleu-c","var(--bleu-f)","star","✨","Nouvelle privatisation"]};
 const fE0=v=>v==null?"—":Number(v).toLocaleString("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+const ttc=v=>`${fE0(v)}<sup class="tt">TTC</sup>`;
 const fN0=v=>v==null?"—":Number(v).toLocaleString("fr-FR",{maximumFractionDigits:0});
 const ago=t=>{const m=Math.round((Date.now()-new Date(t))/6e4);return m<1?"à l'instant":m<60?`il y a ${m} min`:m<1440?`il y a ${Math.round(m/60)} h`:`il y a ${Math.round(m/1440)} j`};
 async function loadLive(){
@@ -1052,11 +1086,12 @@ function paintMastKpis(){
   const sn=L.snack||{},bo=L.boutique||{},y=L.yavin;
   el.innerHTML=[
     k("var(--rouge-f)","Réservations",resaTot(r),`${fN0(kids)} enfants attendus`,true),
-    k("var(--bleu-f)","Ventes",M&&L.ventes.ttc!=null?fE0(L.ventes.ttc):fN0(L.ventes.nb),M&&L.ventes.ttc!=null?`${fN0(L.ventes.nb)} ventes`:"ventes encaissées",!!L.ventes.nb),
-    k("#c99a2e","Snacking",M&&sn.ttc!=null?fE0(sn.ttc):sn.articles!=null?fN0(sn.articles):"—",M&&sn.ttc!=null?`${fN0(sn.articles)} articles`:"articles vendus",sn.articles!=null),
-    k("#9aab55","Boutique",M&&bo.ttc!=null?fE0(bo.ttc):bo.articles!=null?fN0(bo.articles):"—",M&&bo.ttc!=null?`${fN0(bo.articles)} articles`:"articles vendus",bo.articles!=null),
-    M&&y?k("var(--ink-2)","Cartes",fE0(y.cb),`${fN0(y.nb)} paiements`,false):""].join("");
+    k("var(--bleu-f)","Ventes",M&&L.ventes.ttc!=null?ttc(L.ventes.ttc):fN0(L.ventes.nb),M&&L.ventes.ttc!=null?`${L.ventes.ht!=null?fE0(L.ventes.ht)+" HT · ":""}${fN0(L.ventes.nb)} ventes`:"ventes encaissées",!!L.ventes.nb),
+    k("#c99a2e","Snacking",M&&sn.ttc!=null?ttc(sn.ttc):sn.articles!=null?fN0(sn.articles):"—",M&&sn.ttc!=null?`${sn.ht!=null?fE0(sn.ht)+" HT · ":""}${fN0(sn.articles)} art.`:"articles vendus",sn.articles!=null),
+    k("#9aab55","Boutique",M&&bo.ttc!=null?ttc(bo.ttc):bo.articles!=null?fN0(bo.articles):"—",M&&bo.ttc!=null?`${bo.ht!=null?fE0(bo.ht)+" HT · ":""}${fN0(bo.articles)} art.`:"articles vendus",bo.articles!=null),
+    M&&y?k("var(--ink-2)","Cartes",ttc(y.cb),`${fN0(y.nb)} paiements`,false):""].join("");
   if(old&&old!==el.innerHTML)el.querySelectorAll(".mk").forEach(x=>x.classList.add("flash"));
+  if(!old){[el,elM].forEach(x=>{if(x){x.classList.add("intro-in");setTimeout(()=>x.classList.remove("intro-in"),900)}})}
   if(elM){const oldM=elM.innerHTML;elM.innerHTML=el.innerHTML;if(oldM&&oldM!==elM.innerHTML)elM.querySelectorAll(".mk").forEach(x=>x.classList.add("flash"))}
 }
 function startLive(){
@@ -1123,6 +1158,21 @@ document.addEventListener("click",e=>{
   const pop=$("bellPop");if(pop&&!pop.classList.contains("hidden")&&!e.target.closest("#bellPop"))pop.classList.add("hidden");
 });
 
+/* ── Boutons animés : ondulation au clic ── */
+document.addEventListener("pointerdown",e=>{
+  const b=e.target.closest(".btn,.gtabs a,.subnav a,.mast-acts a,.mk,.clock-btn,.seg button,.bnav a,.nav a");if(!b||matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+  const r=b.getBoundingClientRect(),d=Math.max(r.width,r.height)*2.2,sp=document.createElement("span");
+  sp.className="ripple";sp.style.cssText=`width:${d}px;height:${d}px;left:${e.clientX-r.left-d/2}px;top:${e.clientY-r.top-d/2}px`;
+  if(getComputedStyle(b).position==="static")b.style.position="relative";b.style.overflow="hidden";b.appendChild(sp);setTimeout(()=>sp.remove(),650);
+},{passive:true});
+let lastGroup=null;
+function animateTabs(group){
+  const g=$("gTabs"),sn=$("sideNav");if(!g)return;
+  if(lastGroup===null){g.classList.add("intro-in");setTimeout(()=>g.classList.remove("intro-in"),900)}
+  if(group!==lastGroup&&sn){sn.classList.remove("intro-in");void sn.offsetWidth;sn.classList.add("intro-in");setTimeout(()=>sn.classList.remove("intro-in"),800)}
+  lastGroup=group;
+}
+
 /* ── Animation d'ouverture (une fois par session) ── */
 function playIntro(name){
   try{if(sessionStorage.getItem("palo.intro")||matchMedia("(prefers-reduced-motion: reduce)").matches)return;sessionStorage.setItem("palo.intro","1")}catch(e){return}
@@ -1158,22 +1208,22 @@ function paintLive(){
       :`<div class="empty">${L.lignes_ok?"Pas encore de vente aujourd'hui.":L.factures?"Les factures reçues ne détaillent pas les produits.":"Le détail par produit s'affichera dès que Qweekle enverra les premières factures du jour."}</div>`};
   const hrs=L.heures||[],H=new Date().getHours(),mx=Math.max(1,...hrs.map(h=>M&&h.m!=null?+h.m:h.n));
   const bars=Array.from({length:12},(_,i)=>i+9).map(h=>{const x=hrs.find(z=>z.h===h),v=x?(M&&x.m!=null?+x.m:x.n):0;
-    return`<div class="hb ${h===H?"now":""}" title="${h} h : ${x?x.n:0} vente(s)${M&&x&&x.m!=null?" · "+fE0(x.m):""}"><em>${v?(M&&x.m!=null?fE0(v):v):""}</em><i style="height:${v/mx*100}%"></i><span>${h}h</span></div>`}).join("");
+    return`<div class="hb ${h===H?"now":""}" title="${h} h : ${x?x.n:0} vente(s)${M&&x&&x.m!=null?" · "+fE0(x.m)+" TTC"+(x.mh!=null?" · "+fE0(x.mh)+" HT":""):""}"><em>${v?(M&&x.m!=null?fE0(v):v):""}</em><i style="height:${v/mx*100}%"></i><span>${h}h</span></div>`}).join("");
   box.innerHTML=`<div class="lv-top">
       ${big("--rouge-c","var(--rouge-f)","cake","Réservations du jour",resaTot(r),`${fN0(kids)} enfants et invités attendus`,
         [r.anniv&&`🎂 ${r.anniv} anniv`,r.centre&&`🏕️ ${r.centre} centre${r.centre>1?"s":""}`,r.ecole&&`🎒 ${r.ecole} école${r.ecole>1?"s":""}`,r.privat&&`✨ ${r.privat} privat.`].filter(Boolean).map(x=>`<span>${x}</span>`).join(""))}
-      ${big("--bleu-c","var(--bleu-f)","card","Ventes encaissées",M&&L.ventes.ttc!=null?fE0(L.ventes.ttc):fN0(L.ventes.nb),
-        M&&L.ventes.ttc!=null?`${fN0(L.ventes.nb)} ventes${L.ventes.derniere?" · dernière "+ago(L.ventes.derniere):""}`:L.ventes.derniere?`dernière ${ago(L.ventes.derniere)}`:"en attente de la première vente",
-        M&&y?`<span>💳 ${fE0(y.cb)} en carte · ${fN0(y.nb)} paiements</span>`:"","dark")}
-      ${big("--jaune-c","#c99a2e","cup","Snacking",M&&sn.ttc!=null?fE0(sn.ttc):sn.articles!=null?fN0(sn.articles):"—",M&&sn.ttc!=null?`${fN0(sn.articles)} articles vendus`:"articles vendus aujourd'hui")}
-      ${big("--vert-c","#9aab55","bag","Boutique",M&&bo.ttc!=null?fE0(bo.ttc):bo.articles!=null?fN0(bo.articles):"—",M&&bo.ttc!=null?`${fN0(bo.articles)} articles vendus`:"articles vendus aujourd'hui")}
+      ${big("--bleu-c","var(--bleu-f)","card","Ventes encaissées",M&&L.ventes.ttc!=null?ttc(L.ventes.ttc):fN0(L.ventes.nb),
+        M&&L.ventes.ttc!=null?`${L.ventes.ht!=null?`<b>${fE0(L.ventes.ht)} HT</b> · `:""}${fN0(L.ventes.nb)} ventes${L.ventes.derniere?" · dernière "+ago(L.ventes.derniere):""}`:L.ventes.derniere?`dernière ${ago(L.ventes.derniere)}`:"en attente de la première vente",
+        M&&y?`<span>💳 ${fE0(y.cb)} TTC en carte · ${fN0(y.nb)} paiements</span>`:"","dark")}
+      ${big("--jaune-c","#c99a2e","cup","Snacking",M&&sn.ttc!=null?ttc(sn.ttc):sn.articles!=null?fN0(sn.articles):"—",M&&sn.ttc!=null?`${sn.ht!=null?`<b>${fE0(sn.ht)} HT</b> · `:""}${fN0(sn.articles)} articles vendus`:"articles vendus aujourd'hui")}
+      ${big("--vert-c","#9aab55","bag","Boutique",M&&bo.ttc!=null?ttc(bo.ttc):bo.articles!=null?fN0(bo.articles):"—",M&&bo.ttc!=null?`${bo.ht!=null?`<b>${fE0(bo.ht)} HT</b> · `:""}${fN0(bo.articles)} articles vendus`:"articles vendus aujourd'hui")}
     </div>
     <div class="grid g2" style="margin-top:18px">
       <div class="card"><div class="card-head"><h3>${ic("cup")} Top snacking du jour</h3></div>${tops(sn,"#c99a2e")}</div>
       <div class="card"><div class="card-head"><h3>${ic("bag")} Top boutique du jour</h3></div>${tops(bo,"#9aab55")}</div>
     </div>
     <div class="grid g21" style="margin-top:18px">
-      <div class="card"><div class="card-head"><h3>${ic("chart")} Ventes heure par heure</h3><span class="pill info"><i></i>${M?"en €":"nombre de ventes"}</span></div>
+      <div class="card"><div class="card-head"><h3>${ic("chart")} Ventes heure par heure</h3><span class="pill info"><i></i>${M?"en € TTC":"nombre de ventes"}</span></div>
         ${L.ventes.nb?`<div class="hbars">${bars}</div>`:`<div class="empty">${L.webhook_depuis?"Pas encore de vente aujourd'hui.":"Les ventes arriveront ici en direct dès la première vente encaissée dans Qweekle."}</div>`}</div>
       <div class="card feed"><div class="card-head"><h3>${ic("bell")} Dernières réservations</h3><a class="link" href="#" id="lvBell">Tout voir →</a></div>
         ${(LIVE.feed8||[]).length?LIVE.feed8.map(x=>{const[c,f,icn]=RCOL[x.kind]||RCOL.anniv;return`<div class="nf"><div class="tag" style="background:var(${c});color:${f}">${ic(icn)}</div><div class="tx"><b>${esc(x.titre)}</b><small>${capital(fShort(x.date))}${x.heure?" · "+fTime(x.heure):""}${x.nb?` · ${x.nb} pers.`:""}</small></div><span class="ago">${ago(x.created_at)}</span></div>`}).join(""):'<div class="empty">Aucune nouvelle réservation ces 14 derniers jours.</div>'}</div>
