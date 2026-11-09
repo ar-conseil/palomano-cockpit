@@ -1632,8 +1632,27 @@ async function borneSettings(){
     try{localStorage.setItem(BORNE_KEY,k)}catch(e){return fail("Le navigateur de cette tablette bloque le stockage : impossible d'en faire une borne")}
     await S.sb.auth.signOut();location.hash="borne";location.reload()};
 }
+/* Webhook Qweekle : Qweekle envoie chaque réservation en direct à la fonction Supabase « qweekle-webhook ».
+   L'adresse contient une clé secrète créée ici (affichée une seule fois, seule son empreinte est gardée). */
+async function webhookSettings(){
+  const el=$("whState");if(!el)return;
+  const{data:w,error}=await S.sb.rpc("webhook_etat");
+  if(error){el.innerHTML=`<div class="empty">${esc(/function|schema/.test(error.message)?"La mise à jour v12 n'est pas encore installée dans Supabase.":error.message)}</div>`;return}
+  el.innerHTML=!w||!w.cree?'<div class="empty">Pas encore branché : créez l\'adresse, puis collez-la dans Qweekle.</div>'
+    :`<div class="row"><div class="tx"><b>${w.vu?"Branché · dernier événement reçu "+fStamp(w.vu):"Adresse créée le "+fStamp(w.cree)+" · aucun événement reçu pour l'instant"}</b><small>${w.jour} événement${w.jour>1?"s":""} sur 24 h${w.erreurs?` · <span style="color:var(--rouge-f)">${w.erreurs} en erreur</span>`:""}</small></div><span class="pill ${w.vu?"ok":"warn"}"><i></i>${w.vu?"En direct":"En attente"}</span></div>`;
+  const b=$("whNew");if(b)b.onclick=async()=>{
+    if(w&&w.cree&&!confirm("Créer une nouvelle adresse ? L'ancienne cessera de fonctionner : il faudra coller la nouvelle dans Qweekle."))return;
+    const{data:k,error}=await S.sb.rpc("webhook_creer");if(error)return fail(error);
+    const url=`${C.supabaseUrl}/functions/v1/qweekle-webhook?k=${k}`;
+    const shown=modal("Adresse du webhook Qweekle",`<p class="hint" style="margin-top:0">Copiez cette adresse maintenant : elle ne sera plus affichée (gardez-la secrète, elle permet d'écrire des réservations).</p>
+      <label class="f full">Adresse<input id="whUrl" value="${esc(url)}" readonly onclick="this.select()"></label>
+      <button type="button" class="btn sm soft" id="whCopy" style="margin:6px 0 12px">${ic("check","sm")} Copier l'adresse</button>
+      <ol class="hint" style="margin:0;padding-left:18px;line-height:1.6"><li>Dans Qweekle : menu ☰ › Paramètres › <b>Webhooks</b> › <b>Ajouter un webhook</b>.</li><li>Collez l'adresse, cliquez sur <b>Créer</b>.</li><li>Ouvrez le webhook créé (<b>Modifier</b>), cochez <b>booking.created</b>, <b>booking.updated</b>, <b>booking.deleted</b>, laissez les sources activées, puis <b>Sauver</b>.</li><li>Ne touchez pas à l'autre webhook déjà présent (script Google).</li></ol>`,{readonly:true});
+    setTimeout(()=>{const c=$("whCopy");if(c)c.onclick=()=>{const i=$("whUrl");i.select();navigator.clipboard?.writeText(i.value);toast("Adresse copiée")}},50);
+    await shown;setTimeout(webhookSettings,0)};
+}
 VIEWS.reglages=async m=>{
-  await loadPeople();setTimeout(borneSettings,0);
+  await loadPeople();setTimeout(borneSettings,0);setTimeout(webhookSettings,0);
   const{data:items}=await S.sb.from("checklist_items").select("*").order("moment").order("position");
   const{data:invs}=isDirection()?await S.sb.from("invitations").select("*").is("used_at",null).order("created_at"):{data:[]};
   const pend=S.people.filter(p=>!p.role&&p.active),act=S.people.filter(p=>p.role||!p.active);
@@ -1645,7 +1664,10 @@ VIEWS.reglages=async m=>{
       <div class="list">${(invs||[]).map(i=>`<div class="row"><div class="avatar" style="width:36px;height:36px;background:${esc(i.color||"#c1daf3")}">✉</div><div class="tx"><b>${esc(i.email)}</b><small>${ROLE[i.role]}${i.poste?" · "+esc(i.poste):""} · pas encore inscrit·e</small></div><button class="btn sm ghost" data-delinv="${esc(i.email)}">Retirer</button></div>`).join("")||'<div class="empty">Aucune invitation en attente.</div>'}</div></div>`:""}
     ${isDirection()?`<div class="card" style="margin-bottom:18px"><div class="card-head"><h3>${ic("clock")} Borne de pointage</h3><button class="btn sm soft" id="borneOn">${ic("plus","sm")} Activer cette tablette comme borne</button></div>
       <p class="hint">Posez une tablette à l'accueil, ouvrez www.palomano-dashboard.com dessus, connectez-vous, puis cliquez sur « Activer cette tablette ». Elle affichera un code qui change toutes les 30 secondes : l'équipe pointe en le scannant, impossible de pointer depuis chez soi. Vous serez déconnecté de la tablette.</p>
-      <div class="list" id="borneList"><div class="empty">Chargement…</div></div></div>`:""}
+      <div class="list" id="borneList"><div class="empty">Chargement…</div></div></div>
+    <div class="card" style="margin-bottom:18px"><div class="card-head"><h3>${ic("cake")} Webhook Qweekle · réservations en direct</h3><button class="btn sm soft" id="whNew">${ic("plus","sm")} Créer l'adresse du webhook</button></div>
+      <p class="hint">Qweekle envoie chaque réservation créée, déplacée ou annulée (anniversaires, centres, écoles) à l'espace équipe à la seconde, sans export à déposer. L'export Qweekle reste un filet de sécurité.</p>
+      <div class="list" id="whState"><div class="empty">Chargement…</div></div></div>`:""}
     <div class="grid g2"><div class="card"><h3 style="margin-bottom:8px">${ic("users")} Équipe</h3><div class="list">${act.map(p=>`<div class="row ${isDirection()?"click":""}" ${isDirection()?`data-person="${p.id}"`:""} style="${p.active?"":"opacity:.5"}">${avatar(p,36)}<div class="tx"><b>${esc(p.full_name)}${p.active?"":" (désactivé)"}</b><small>${esc(p.email||"")}${p.poste?" · "+esc(p.poste):""}</small></div>
       <span class="pill ${p.role==="direction"?"info":""}"><i></i>${p.role?ROLE[p.role]:"—"}${p.can_validate_planning?" · valide le planning":""}</span></div>`).join("")}</div></div>
     <div class="card"><div class="card-head"><h3>${ic("check")} Checklists</h3><button class="btn sm soft" id="cNew">${ic("plus","sm")} Point</button></div>

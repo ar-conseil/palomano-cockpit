@@ -22,6 +22,9 @@ Une réservation = plusieurs lignes (Enfant / Adulte, entrée + formule annivers
   l'import ne fait que cocher l'option (jamais la décocher), l'équipe peut la cocher à la main avant la fête.
 - Une réservation importée qui disparaît d'un export plus récent couvrant sa date
   (annulée dans Qweekle) passe en « annulé ».
+- Webhooks Qweekle (schema_v12.sql) : les réservations arrivent aussi en direct (clé « wh-<commande> »).
+  L'export les reprend (même date + même client) au lieu de les dupliquer, et ne réécrit jamais une
+  ligne mise à jour par un webhook après la date de l'export.
 
 Variables : SUPABASE_URL, SUPABASE_SERVICE_KEY, plus celles de fetch_sharepoint.py.
 """
@@ -321,10 +324,17 @@ def main():
         sales, caisse = None, None
     own_anniv = OWN_ANNIV + (["option_animateur"] if sales is not None else [])
     now = dt.datetime.now(dt.timezone.utc).isoformat()
+    exported = item["lastModifiedDateTime"].replace("Z", "+00:00")
+    fresher = lambda c: bool(c.get("webhook_at")) and c["webhook_at"] > exported   # webhook plus récent que l'export
     created = updated = cancelled = merged = 0
     for table, own in (("anniversaires", own_anniv), ("groupes", OWN_GROUPE)):
         cols = ",".join(own + (["options"] if table == "anniversaires" else []))
-        db = {r["qweekle_id"]: r for r in sb(f"{table}?qweekle_id=not.is.null&select=id,qweekle_id,{cols}", prefer="")}
+        db = {r["qweekle_id"]: r for r in sb(f"{table}?qweekle_id=not.is.null&select=id,qweekle_id,webhook_at,{cols}", prefer="")}
+        name = "parent_nom" if table == "anniversaires" else "structure"
+        live = {}                                # réservations arrivées par webhook, pas encore vues dans un export
+        for k, c in db.items():
+            if k.startswith("wh-"):
+                live.setdefault((c["date"], tokens(c.get(name))), []).append(k)
         seen = set()
         for key, r in resas.items():
             t, rec = record(key, r)
@@ -336,6 +346,15 @@ def main():
             found.discard("Animateur")
             seen.add(key)
             cur = db.get(key)
+            if not cur:                          # déjà arrivée par webhook : on la reprend sous la clé de l'export
+                pend = live.get((rec["date"], tokens(rec.get(name))))
+                wk = pend.pop(0) if pend else None
+                if wk:
+                    cur = db.pop(wk)
+                    sb(f"{table}?id=eq.{cur['id']}", {"qweekle_id": key}, "PATCH")
+                    db[key] = cur
+            if cur and fresher(cur):
+                continue                         # modifiée en direct par Qweekle après l'export : on n'y touche pas
             if found:                            # options vendues en caisse : ajoutées, jamais retirées
                 have = set((cur or {}).get("options") or [])
                 if not found <= have:
@@ -362,7 +381,8 @@ def main():
                 if k in aliases and k not in seen:
                     sb(f"{table}?id=eq.{c['id']}", method="DELETE")
                     merged += 1
-            gone = [c for k, c in db.items() if k not in seen and k not in aliases
+            gone = [c for k, c in db.items() if k not in seen and k not in aliases and not k.startswith("wh-")
+                    and not fresher(c)
                     and d0.isoformat() <= c["date"] <= d1.isoformat() and c["statut"] not in ("annule", "termine")]
             if len(gone) > max(5, len(seen) // 3):
                 print(f"::warning::{len(gone)} {table} absentes de l'export : export partiel ? annulation non appliquée")
@@ -381,9 +401,17 @@ def main():
            + (f" du {d0:%d/%m/%Y} au {d1:%d/%m/%Y}" if d0 else "")
            + f" · {created} ajoutées, {updated} mises à jour, {cancelled} annulées"
            + (f", {merged} doublons regroupés" if merged else "") + f" · « {item['name']} »")
-    if age > STALE_DAYS:
+    try:                                         # webhooks actifs : l'export n'est plus qu'un filet de sécurité
+        wh = sb("sync_state?key=eq.qweekle_webhook&select=synced_at", prefer="")
+        live_ok = bool(wh) and (dt.datetime.now(dt.timezone.utc)
+                                - dt.datetime.fromisoformat(wh[0]["synced_at"].replace("Z", "+00:00"))).days < 3
+    except Exception:
+        live_ok = False
+    if live_ok:
+        msg = "en direct (webhooks Qweekle) · dernier export : " + msg
+    elif age > STALE_DAYS:
         msg = f"export Qweekle vieux de {age} jours, à refaire · " + msg
-    state(age <= STALE_DAYS, msg)
+    state(live_ok or age <= STALE_DAYS, msg)
 
 
 if __name__ == "__main__":
