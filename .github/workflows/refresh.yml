@@ -2,8 +2,9 @@ name: Actualisation du dashboard
 
 on:
   schedule:
-    # Toutes les 30 min de 7h à 23h (heure de Paris ≈ UTC+1/+2), plus une passe de nuit
-    - cron: "*/30 5-22 * * *"
+    # Filet de sécurité : GitHub ne respecte pas ses horaires. Le vrai rythme est donné par Supabase
+    # (schema_v15.sql) : toutes les 15 min de 6 h à 23 h et à chaque saisie du jour (workflow_dispatch).
+    - cron: "0 5-22 * * *"
     - cron: "0 2 * * *"
   workflow_dispatch:
   push:
