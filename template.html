@@ -265,8 +265,9 @@ nav.tabs.gtabs button:hover::after{animation:shine .8s ease forwards}
 /* Périodes : barre collante sous le bandeau */
 .subbar{background:var(--page);transition:box-shadow .2s}
 header.mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
-.subbar .controls{max-width:1440px;margin:0 auto;padding:12px 36px;justify-content:center;gap:6px}
-.subbar .chip{border:0;border-radius:14px;padding:8px 14px;font-weight:600;font-size:13.5px;background:transparent;color:var(--ink-2);transition:transform .25s cubic-bezier(.3,1.6,.5,1),background .15s,box-shadow .2s}
+.subbar .controls{max-width:1440px;margin:0 auto;padding:12px 36px;justify-content:center;gap:4px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.subbar .controls::-webkit-scrollbar{display:none}
+.subbar .chip{border:0;border-radius:14px;padding:8px 12px;font-weight:600;font-size:13.5px;background:transparent;color:var(--ink-2);transition:transform .25s cubic-bezier(.3,1.6,.5,1),background .15s,box-shadow .2s}
 .subbar .chip:hover{background:var(--surface);color:var(--ink)}
 .subbar .chip:active{transform:scale(.94)}
 .subbar .chip[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--pshadow),inset 0 -3px 0 var(--rouge-f)}
@@ -313,23 +314,23 @@ header.mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
     <nav class="tabs gtabs" role="tablist" id="tabs">
       <button role="tab" data-t="synth" aria-selected="true" style="--gc:var(--bleu-c);--gf:var(--bleu-f)"><span class="gi"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="4.5" rx="2"/><rect x="13.5" y="11" width="7" height="9.5" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/></svg></span>Synthèse</button>
       <button role="tab" data-t="activ" style="--gc:var(--rouge-c);--gf:var(--rouge-f)"><span class="gi"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"/></svg></span>Activité</button>
-      <button role="tab" data-t="ventes" id="tabVentes" style="--gc:var(--jaune-c);--gf:var(--jaune-f)"><span class="gi"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span>Ventes & produits</button>
+      <button role="tab" data-t="ventes" id="tabVentes" style="--gc:var(--jaune-c);--gf:var(--jaune-f)" title="Ventes & produits"><span class="gi"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg></span>Ventes</button>
       <button role="tab" data-t="clients" id="tabClients" style="--gc:var(--vert-c);--gf:var(--vert-f)"><span class="gi"><svg viewBox="0 0 24 24"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>Clientèle</button>
-      <button role="tab" data-t="n1" style="--gc:var(--bleu-c);--gf:var(--bleu-f)"><span class="gi"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span>Comparatif N-1</button>
-      <button role="tab" data-t="obj" style="--gc:var(--jaune-c);--gf:var(--jaune-f)"><span class="gi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/></svg></span>Objectifs & OKR</button>
-      <button role="tab" data-t="qual" style="--gc:var(--rouge-c);--gf:var(--rouge-f)"><span class="gi"><svg viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span>Qualité & équipe</button>
-      <button role="tab" data-t="cost" style="--gc:var(--vert-c);--gf:var(--vert-f)"><span class="gi"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="2.8"/><path d="M5 6.5v5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5M5 11.5v5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5"/></svg></span>Charges & rentabilité</button>
+      <button role="tab" data-t="n1" style="--gc:var(--bleu-c);--gf:var(--bleu-f)" title="Comparatif N-1"><span class="gi"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span>N-1</button>
+      <button role="tab" data-t="obj" style="--gc:var(--jaune-c);--gf:var(--jaune-f)" title="Objectifs & OKR"><span class="gi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/></svg></span>Objectifs</button>
+      <button role="tab" data-t="qual" style="--gc:var(--rouge-c);--gf:var(--rouge-f)" title="Qualité & équipe"><span class="gi"><svg viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span>Qualité</button>
+      <button role="tab" data-t="cost" style="--gc:var(--vert-c);--gf:var(--vert-f)" title="Charges & rentabilité"><span class="gi"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="2.8"/><path d="M5 6.5v5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5M5 11.5v5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5"/></svg></span>Charges</button>
     </nav>
   </div>
   <div class="subbar"><div class="controls" id="periods">
       <button class="chip" data-p="last">Dernier jour</button>
-      <button class="chip" data-p="7d">7 derniers jours</button>
-      <button class="chip" data-p="wtd">Semaine en cours</button>
+      <button class="chip" data-p="7d">7 jours</button>
+      <button class="chip" data-p="wtd">Semaine</button>
       <button class="chip" data-p="mtd">Mois en cours</button>
       <button class="chip" data-p="pm">Mois précédent</button>
       <button class="chip" data-p="qtd">Trimestre</button>
       <button class="chip" data-p="ytd">Année civile</button>
-      <button class="chip" data-p="bp">Exercice BP (mai→avr)</button>
+      <button class="chip" data-p="bp" title="Exercice BP (mai → avril)">Exercice BP</button>
       <button class="chip" data-p="all">Depuis l'ouverture</button>
       <button class="chip" data-p="custom">Personnalisé…</button>
       <span class="custom" id="customBox"><input type="date" id="dFrom"> → <input type="date" id="dTo"></span>
