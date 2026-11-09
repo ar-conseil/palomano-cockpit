@@ -1620,8 +1620,8 @@ VIEWS.factu=async m=>{
 };
 
 /* ═════════ RÉGLAGES ═════════ */
-async function borneSettings(){
-  const el=$("borneList");if(!el)return;
+async function borneSettings(n=0){
+  const el=$("borneList");if(!el){if(n<40&&S.tab==="reglages")setTimeout(()=>borneSettings(n+1),150);return}
   const{data,error}=await S.sb.rpc("bornes_liste");
   if(error){el.innerHTML=`<div class="empty">${esc(/function|schema/.test(error.message)?"La mise à jour v10 n'est pas encore installée dans Supabase.":error.message)}</div>`;return}
   el.innerHTML=(data||[]).map(b=>`<div class="row"><div class="tx"><b>${esc(b.nom)}</b><small>activée le ${fStamp(b.created_at)}${b.last_seen?` · vue ${fStamp(b.last_seen)}`:""}</small></div>${b.active?`<span class="pill ok"><i></i>Active</span><button class="btn sm ghost" data-borneoff="${b.id}">Désactiver</button>`:'<span class="pill"><i></i>Désactivée</span>'}</div>`).join("")||'<div class="empty">Aucune borne pour l\'instant.</div>';
@@ -1634,8 +1634,8 @@ async function borneSettings(){
 }
 /* Webhook Qweekle : Qweekle envoie chaque réservation en direct à la fonction Supabase « qweekle-webhook ».
    L'adresse contient une clé secrète créée ici (affichée une seule fois, seule son empreinte est gardée). */
-async function webhookSettings(){
-  const el=$("whState");if(!el)return;
+async function webhookSettings(n=0){
+  const el=$("whState");if(!el){if(n<40&&S.tab==="reglages")setTimeout(()=>webhookSettings(n+1),150);return}   // la page Réglages n'est pas encore affichée
   const{data:w,error}=await S.sb.rpc("webhook_etat");
   if(error){el.innerHTML=`<div class="empty">${esc(/function|schema/.test(error.message)?"La mise à jour v12 n'est pas encore installée dans Supabase.":error.message)}</div>`;return}
   el.innerHTML=!w||!w.cree?'<div class="empty">Pas encore branché : créez l\'adresse, puis collez-la dans Qweekle.</div>'
