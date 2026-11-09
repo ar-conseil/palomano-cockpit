@@ -688,7 +688,9 @@ function pendingPointer(){
 async function loadPeople(){
   const{data,error}=await S.sb.from("profiles").select("*").order("full_name");
   if(error)return fail(error);
-  S.people=data;S.byId=new Map(data.map(p=>[p.id,p]));
+  // Accès cachés (tests) : absents des listes de l'équipe (planning, heures, paie, choix d'animateur), visibles dans Réglages
+  S.hiddenPeople=data.filter(p=>p.hidden&&p.id!==S.user?.id);
+  S.people=data.filter(p=>!p.hidden||p.id===S.user?.id);S.byId=new Map(data.map(p=>[p.id,p]));
   const{data:ext}=await S.sb.from("intervenants").select("*").order("full_name");   // intérimaires + invités sans compte
   S.extAll=ext||[];S.ext=new Map(S.extAll.map(x=>[x.id,{...x,ext:true}]));
 }
@@ -1789,20 +1791,20 @@ VIEWS.reglages=async m=>{
   await loadPeople();setTimeout(borneSettings,0);setTimeout(webhookSettings,0);
   const{data:items}=await S.sb.from("checklist_items").select("*").order("moment").order("position");
   const{data:invs}=isDirection()?await S.sb.from("invitations").select("*").is("used_at",null).order("created_at"):{data:[]};
-  const pend=S.people.filter(p=>!p.role&&p.active),act=S.people.filter(p=>p.role||!p.active);
+  const pend=S.people.filter(p=>!p.role&&p.active),act=[...S.people.filter(p=>p.role||!p.active),...(isDirection()?S.hiddenPeople||[]:[])];
   m.innerHTML=topbar("Réglages","Accès de l'équipe et checklists du parc")+
     `${isDirection()?`<div class="card" style="margin-bottom:18px"><h3>👋 Comptes en attente</h3><p class="hint">Les salariés créent leur compte depuis la page de connexion, puis vous leur donnez un rôle ici.</p>
       <div class="list">${pend.map(p=>`<div class="row">${avatar(p,36)}<div class="tx"><b>${esc(p.full_name)}</b><small>${esc(p.email||"")} · inscrit le ${fStamp(p.created_at)}</small></div><button class="btn sm pri" data-person="${p.id}">Donner accès</button></div>`).join("")||'<div class="empty">Aucun compte en attente.</div>'}</div></div>
     <div class="card" style="margin-bottom:18px"><div class="card-head"><h3>✉️ Invitations</h3><button class="btn sm soft" id="invNew">${ic("plus","sm")} Pré-autoriser une adresse</button></div>
       <p class="hint">La personne crée son compte avec cette adresse sur www.palomano-dashboard.com et reçoit directement son rôle, sans attente.</p>
-      <div class="list">${(invs||[]).map(i=>`<div class="row"><div class="avatar" style="width:36px;height:36px;background:${esc(i.color||"#c1daf3")}">✉</div><div class="tx"><b>${esc(i.email)}</b><small>${ROLE[i.role]}${i.poste?" · "+esc(i.poste):""} · pas encore inscrit·e</small></div><button class="btn sm ghost" data-delinv="${esc(i.email)}">Retirer</button></div>`).join("")||'<div class="empty">Aucune invitation en attente.</div>'}</div></div>`:""}
+      <div class="list">${(invs||[]).map(i=>`<div class="row"><div class="avatar" style="width:36px;height:36px;background:${esc(i.color||"#c1daf3")}">✉</div><div class="tx"><b>${esc(i.email)}${i.hidden?' <span class="pill" style="font-size:11px">🔒 accès caché</span>':""}</b><small>${ROLE[i.role]}${i.poste?" · "+esc(i.poste):""} · pas encore inscrit·e</small></div><button class="btn sm ghost" data-delinv="${esc(i.email)}">Retirer</button></div>`).join("")||'<div class="empty">Aucune invitation en attente.</div>'}</div></div>`:""}
     ${isDirection()?`<div class="card" style="margin-bottom:18px"><div class="card-head"><h3>${ic("clock")} Borne de pointage</h3><button class="btn sm soft" id="borneOn">${ic("plus","sm")} Activer cette tablette comme borne</button></div>
       <p class="hint">Posez une tablette à l'accueil, ouvrez www.palomano-dashboard.com dessus, connectez-vous, puis cliquez sur « Activer cette tablette ». Elle affichera un code qui change toutes les 30 secondes : l'équipe pointe en le scannant, impossible de pointer depuis chez soi. Vous serez déconnecté de la tablette.</p>
       <div class="list" id="borneList"><div class="empty">Chargement…</div></div></div>
     <div class="card" style="margin-bottom:18px"><div class="card-head"><h3>${ic("cake")} Webhook Qweekle · réservations en direct</h3><button class="btn sm soft" id="whNew">${ic("plus","sm")} Créer l'adresse du webhook</button></div>
       <p class="hint">Qweekle envoie chaque réservation créée, déplacée ou annulée (anniversaires, centres, écoles) à l'espace équipe à la seconde, sans export à déposer. L'export Qweekle reste un filet de sécurité.</p>
       <div class="list" id="whState"><div class="empty">Chargement…</div></div></div>`:""}
-    <div class="grid g2"><div class="card"><h3 style="margin-bottom:8px">${ic("users")} Équipe</h3><div class="list">${act.map(p=>`<div class="row ${isDirection()?"click":""}" ${isDirection()?`data-person="${p.id}"`:""} style="${p.active?"":"opacity:.5"}">${avatar(p,36)}<div class="tx"><b>${esc(p.full_name)}${p.active?"":" (désactivé)"}</b><small>${esc(p.email||"")}${p.poste?" · "+esc(p.poste):""}</small></div>
+    <div class="grid g2"><div class="card"><h3 style="margin-bottom:8px">${ic("users")} Équipe</h3><div class="list">${act.map(p=>`<div class="row ${isDirection()?"click":""}" ${isDirection()?`data-person="${p.id}"`:""} style="${p.active?"":"opacity:.5"}">${avatar(p,36)}<div class="tx"><b>${esc(p.full_name)}${p.active?"":" (désactivé)"}${p.hidden?' <span class="pill" style="font-size:11px">🔒 accès caché</span>':""}</b><small>${esc(p.email||"")}${p.poste?" · "+esc(p.poste):""}</small></div>
       <span class="pill ${p.role==="direction"?"info":""}"><i></i>${p.role?ROLE[p.role]:"—"}${p.can_validate_planning?" · valide le planning":""}</span></div>`).join("")}</div></div>
     <div class="card"><div class="card-head"><h3>${ic("check")} Checklists</h3><button class="btn sm soft" id="cNew">${ic("plus","sm")} Point</button></div>
       ${["ouverture","fermeture"].map(mo=>`<p class="hint" style="margin:12px 0 4px">${mo==="ouverture"?"Ouverture":"Fermeture"}</p><div class="list">${(items||[]).filter(i=>i.moment===mo).map(i=>`<div class="row click" data-ci="${i.id}" style="${i.active?"":"opacity:.5"}"><span style="color:var(--muted);min-width:18px">${i.position}</span><div class="tx"><b>${esc(i.label)}</b></div>${i.active?"":'<span class="pill">masqué</span>'}</div>`).join("")}</div>`).join("")}</div></div>`;
