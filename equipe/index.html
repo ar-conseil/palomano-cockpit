@@ -1198,37 +1198,74 @@ async function printAnniv(list,days){
   const sel=withA.filter(d=>r.data["d:"+d]==="on");if(!sel.length)return toast("Choisissez au moins un jour");
   const perso=r.data.perso==="on",e=esc;
   const fin=a=>fTime(toTime(Math.min(toMin(a.heure)+(a.duree_min||120),23*60+45)));
-  const block=a=>{const p=animOf(a)?person(animOf(a)):null,opts=annOpts(a,{anim:false});
-    return`<div class="b ${needAnim(a)?"anim":""}"><div class="h"><div class="t">${fTime(a.heure)}<small>→ ${fin(a)}</small></div><div class="n"><b>${e(a.enfant)}</b>${a.age?` <span>· ${a.age} ans</span>`:""}
-      <div class="m">${[a.nb_enfants&&`👧 ${a.nb_enfants} enfants`,a.formule&&`🎂 ${e(a.formule)}`,a.salle&&`📍 ${e(a.salle)}`,a.theme&&`✨ ${e(a.theme)}`,perso&&a.parent_nom&&`👤 ${e(a.parent_nom)}`].filter(Boolean).join("<i>·</i>")}</div></div></div>
-      ${needAnim(a)?`<div class="an">🎈 AVEC ANIMATEUR${p?` : ${e(p.full_name)}`:" : À PRÉVOIR"}</div>`:p?`<div class="an soft">Animateur·rice : ${e(p.full_name)}</div>`:""}
-      ${opts.length?`<div class="o">${opts.map(o=>`<span>${OPT_IC(o)} ${e(o)}</span>`).join("")}</div>`:`<div class="o none">Pas d'option</div>`}
-      ${perso&&a.allergies?`<div class="al">⚠️ Allergies / régimes : ${e(a.allergies)}</div>`:""}
-      ${a.notes?`<div class="nt">📝 ${e(a.notes)}</div>`:""}${a.qweekle_note?`<div class="nt">💬 Note du client : ${e(a.qweekle_note)}</div>`:""}</div>`};
-  const page=d=>{const l=list.filter(a=>a.date===d),kids=l.reduce((s,a)=>s+(a.nb_enfants||0),0);
-    return`<section><div class="in ${l.length>=5?"two":""}"><header><img src="${location.origin}${location.pathname.replace(/[^/]*$/,"")}assets/logo.svg" alt=""><div><h1>Anniversaires · ${e(capital(fDay(d)))}</h1><p>${l.length} anniversaire${l.length>1?"s":""} · ${kids} enfants${l.some(needAnim)?` · ${l.filter(needAnim).length} avec animateur`:""}</p></div></header><div class="list">${l.map(block).join("")}</div>
-      <footer>Palomano Lille · imprimé le ${new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})} · données Qweekle et espace équipe</footer></div></section>`};
-  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Anniversaires Palomano</title><style>
-    @page{size:A4;margin:12mm}*{box-sizing:border-box}body{margin:0;font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#2b2b2a}
-    section{width:186mm;height:272mm;overflow:hidden;page-break-after:always;break-after:page}section:last-child{page-break-after:auto;break-after:auto}
-    .in{width:186mm;transform-origin:top left}.two .list{display:grid;grid-template-columns:1fr 1fr;gap:0 8px}.two .b{margin-bottom:6px}
-    header{display:flex;gap:14px;align-items:center;border-bottom:3px solid #e8a0a8;padding-bottom:8px;margin-bottom:10px}header img{height:42px}
-    h1{margin:0;font-size:22px}header p{margin:2px 0 0;color:#666;font-size:14px}
-    .b{border:1.5px solid #ddd;border-radius:10px;padding:8px 10px;margin:0 0 8px;break-inside:avoid}.b.anim{border-color:#c94a5a;border-width:2.5px}
-    .h{display:flex;gap:12px;align-items:flex-start}.t{min-width:62px;font-size:20px;font-weight:800;line-height:1.1}.t small{display:block;font-size:12px;font-weight:600;color:#777}
-    .n b{font-size:18px}.n span{color:#555;font-size:15px}.m{margin-top:2px;color:#444}.m i{font-style:normal;color:#bbb;margin:0 6px}
-    .an{margin:6px 0 2px;padding:5px 10px;border-radius:8px;background:#c94a5a;color:#fff;font-weight:800;font-size:15px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.an.soft{background:#eef2f7;color:#2b2b2a;font-weight:600;font-size:13px}
-    .o{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:5px}.o span{border:1px solid #e3d79a;background:#fbf6dc;border-radius:999px;padding:1px 8px;font-weight:600;-webkit-print-color-adjust:exact;print-color-adjust:exact}.o.none{color:#999}
-    .al{margin-top:5px;color:#b3261e;font-weight:800}.nt{margin-top:3px;color:#444}
-    footer{margin-top:10px;color:#999;font-size:10.5px;text-align:center}
-    @media screen{body{background:#eee;padding:16px}section{background:#fff;margin:0 auto 16px;padding:0;box-shadow:0 0 0 12px #fff}}
+  // couleur de chaque option, d'après sa famille
+  const oc=o=>/animat/i.test(o)?"r":/g[âa]teau/i.test(o)?"y":/sirop|soft|oasis|jus/i.test(o)?"b":/bonbon/i.test(o)?"p":/goodies|chaussette/i.test(o)?"g":"n";
+  const block=a=>{const p=animOf(a)?person(animOf(a)):null,opts=annOpts(a,{anim:false}),anim=needAnim(a);
+    const facts=[a.nb_enfants&&["Enfants",a.nb_enfants],a.formule&&["Formule",e(a.formule)],a.salle&&["Salle",e(a.salle)],a.theme&&["Thème",e(a.theme)],perso&&a.parent_nom&&["Famille",e(a.parent_nom)]].filter(Boolean);
+    return`<article class="${anim?"anim":""}">
+      <div class="tm"><b>${fTime(a.heure)}</b><span>${fin(a)}</span></div>
+      <div class="bd">
+        <div class="nm">${e(a.enfant)}${a.age?`<em>${a.age} ans</em>`:""}</div>
+        ${facts.length?`<div class="fx">${facts.map(([k,v])=>`<span><small>${k}</small>${v}</span>`).join("")}</div>`:""}
+        ${anim?`<div class="rib ${p?"":"todo"}"><span>🎈</span>${p?`Animateur · <b>${e(p.full_name)}</b>`:"Avec animateur · <b>à prévoir</b>"}</div>`:p?`<div class="rib soft"><span>🎈</span>Animateur · <b>${e(p.full_name)}</b></div>`:""}
+        ${opts.length?`<div class="op">${opts.map(o=>`<span class="${oc(o)}">${OPT_IC(o)} ${e(o)}</span>`).join("")}</div>`:`<div class="op none">Aucune option</div>`}
+        ${perso&&a.allergies?`<div class="al"><b>⚠ Allergies</b>${e(a.allergies)}</div>`:""}
+        ${a.notes||a.qweekle_note?`<div class="nt">${a.notes?`<p>📝 ${e(a.notes)}</p>`:""}${a.qweekle_note?`<p>💬 <i>Client :</i> ${e(a.qweekle_note)}</p>`:""}</div>`:""}
+      </div></article>`};
+  const logo=`${location.origin}${location.pathname.replace(/[^/]*$/,"")}assets/logo.svg`;
+  const page=d=>{const l=list.filter(a=>a.date===d),kids=l.reduce((s,a)=>s+(a.nb_enfants||0),0),na=l.filter(needAnim).length,dt=parse(d);
+    return`<section><div class="in ${l.length>=5?"two":""}">
+      <div class="stripe"><i></i><i></i><i></i><i></i></div>
+      <header><img src="${logo}" alt="Palomano"><div class="ti"><small>Anniversaires du jour</small><h1>${e(capital(dt.toLocaleDateString("fr-FR",{weekday:"long"})))} <span>${dt.toLocaleDateString("fr-FR",{day:"numeric",month:"long"})}</span></h1></div>
+        <div class="kp"><div><b>${l.length}</b>fête${l.length>1?"s":""}</div><div><b>${kids}</b>enfants</div><div class="${na?"hot":""}"><b>${na}</b>animateur${na>1?"s":""}</div></div></header>
+      <div class="lw"><div class="list">${l.map(block).join("")}</div></div>
+      <footer><span>Palomano Lille · La Maillerie</span><span>Imprimé le ${new Date().toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}</span></footer>
+    </div></section>`};
+  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Anniversaires Palomano</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playpen+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* marge de page à 0 : le navigateur n'imprime plus d'en-tête ni de pied (adresse, about:blank, date) */
+    @page{size:A4 portrait;margin:0}
+    :root{--ink:#3d3c3a;--ink2:#6b6a68;--mute:#a19f9b;--line:#ecebe8;--rose:#ef818e;--roseF:#d9576c;--roseC:#fde7eb;--jaune:#f7d589;--jauneC:#fdf3dc;--vert:#c8d68e;--vertC:#eef3dc;--bleu:#8ab5d7;--bleuC:#e6f0f9;--violC:#efe9f7}
+    *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html,body{margin:0;background:#fff;color:var(--ink);font:400 12.5px/1.4 "Playpen Sans",ui-rounded,system-ui,sans-serif}
+    section{width:210mm;height:297mm;padding:10mm 12mm;overflow:hidden;page-break-after:always;break-after:page;position:relative}
+    section:last-child{page-break-after:auto;break-after:auto}
+    .in{width:186mm}.lw{position:relative}.list{width:186mm;transform-origin:top left}
+    .stripe{display:flex;height:6px;border-radius:6px;overflow:hidden;margin-bottom:9px}.stripe i{flex:1}.stripe i:nth-child(1){background:var(--rose)}.stripe i:nth-child(2){background:var(--jaune)}.stripe i:nth-child(3){background:var(--vert)}.stripe i:nth-child(4){background:var(--bleu)}
+    header{display:flex;align-items:center;gap:14px;padding-bottom:10px;margin-bottom:12px;border-bottom:1.5px dashed var(--line)}
+    header img{height:40px;flex:none}
+    .ti{flex:1}.ti small{display:block;font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--roseF)}
+    h1{white-space:nowrap;margin:1px 0 0;font-size:27px;font-weight:800;line-height:1.05;letter-spacing:-.01em}h1 span{font-weight:600;color:var(--ink2)}
+    .kp{display:flex;gap:6px}.kp div{min-width:58px;text-align:center;background:#f7f6f4;border-radius:12px;padding:5px 8px 6px;font-size:10.5px;font-weight:600;color:var(--ink2);line-height:1.1}
+    .kp b{display:block;font-size:21px;font-weight:800;color:var(--ink)}.kp .hot{background:var(--roseC);color:var(--roseF)}.kp .hot b{color:var(--roseF)}
+    .list{display:flex;flex-direction:column;gap:8px}.two .list{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    article{display:flex;border:1.5px solid var(--line);border-radius:14px;overflow:hidden;break-inside:avoid;background:#fff}
+    article.anim{border-color:var(--rose);box-shadow:0 0 0 1.5px var(--rose)}
+    .tm{flex:none;width:58px;background:var(--bleuC);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;text-align:center}
+    article.anim .tm{background:var(--roseC)}
+    .tm b{font-size:17px;font-weight:800;line-height:1}.tm span{margin-top:3px;font-size:10.5px;font-weight:600;color:var(--ink2)}.tm span:before{content:"→ "}
+    .bd{flex:1;min-width:0;padding:8px 11px 9px}
+    .nm{font-size:18px;font-weight:800;line-height:1.15}.nm em{font-style:normal;font-size:11.5px;font-weight:700;margin-left:7px;padding:1px 7px;border-radius:999px;background:var(--jauneC);color:#9a7a2c;vertical-align:3px}
+    .fx{display:flex;flex-wrap:wrap;gap:3px 12px;margin-top:4px;font-weight:600}.fx span{white-space:nowrap}.fx small{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin-right:4px}
+    .rib{display:flex;align-items:center;gap:7px;margin-top:7px;padding:5px 10px;border-radius:9px;background:var(--roseF);color:#fff;font-size:13px;font-weight:600}.rib b{font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+    .rib.todo{background:#fff;color:var(--roseF);border:2px dashed var(--roseF)}.rib.soft{background:var(--roseC);color:var(--roseF)}
+    .op{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px}.op span{padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;background:#f4f3f1}
+    .op .y{background:var(--jauneC)}.op .b{background:var(--bleuC)}.op .p{background:var(--roseC)}.op .g{background:var(--vertC)}.op .n{background:var(--violC)}.op.none{color:var(--mute);font-style:italic}
+    .al{margin-top:7px;padding:5px 9px;border-radius:9px;background:#fdecec;color:#b3261e;font-weight:700;display:flex;gap:8px;align-items:baseline}.al b{font-size:10px;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+    .nt{margin-top:6px;font-size:11.5px;color:var(--ink2)}.nt p{margin:2px 0}
+    footer{position:absolute;left:12mm;right:12mm;bottom:9mm;display:flex;justify-content:space-between;padding-top:7px;border-top:1.5px dashed var(--line);font-size:10px;color:var(--mute)}
+    @media screen{body{background:#e9e7e4;padding:20px 0}section{margin:0 auto 20px;background:#fff;box-shadow:0 4px 24px rgba(0,0,0,.12);border-radius:4px}}
   </style></head><body>${sel.map(page).join("")}<script>
-    // Chaque jour tient sur une page : on réduit le contenu si besoin (2 colonnes dès 5 anniversaires)
-    function fit(){const H=266*96/25.4;   // marge de sécurité pour l'imprimante
-    document.querySelectorAll(".in").forEach(el=>{
-      const at=k=>{el.style.transform=k<1?"scale("+k+")":"";el.style.width=(186/k)+"mm";return el.scrollHeight*k<=H};
-      if(at(1))return;let lo=.3,hi=1;for(let i=0;i<12;i++){const m=(lo+hi)/2;if(at(m))lo=m;else hi=m}at(lo)})}
-    window.onload=()=>{fit();setTimeout(()=>window.print(),300)};
+    // Chaque jour remplit exactement une page : 2 colonnes dès 5 anniversaires, texte agrandi ou réduit au plus juste
+    function fit(){const mm=96/25.4,P=297*mm;   // hauteur de la feuille A4
+      document.querySelectorAll(".in").forEach(el=>{const lw=el.querySelector(".lw"),li=el.querySelector(".list"),f=el.parentNode.querySelector("footer");
+        const avail=P-9*mm-(f?f.offsetHeight:0)-10-lw.offsetTop;   // de la fin de l'en-tête jusqu'au pied de page
+        const at=k=>{li.style.transform=k!==1?"scale("+k+")":"";li.style.width=(186/k)+"mm";return li.scrollHeight*k<=avail};
+        let lo=.3,hi=1.3;if(at(hi))return;for(let i=0;i<14;i++){const m=(lo+hi)/2;if(at(m))lo=m;else hi=m}at(lo)})}
+    const go=()=>{fit();setTimeout(()=>window.print(),250)};
+    (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(go);   // la police chargée, on ajuste puis on imprime
   <\/script></body></html>`;
   const win=window.open("","_blank");
   if(!win)return fail("Le navigateur a bloqué la fenêtre d'impression : autorisez les fenêtres pour ce site");
