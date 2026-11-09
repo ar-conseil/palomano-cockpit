@@ -876,10 +876,10 @@ async function pickPreview(){
   // identifiant fictif au format uuid (les requêtes filtrent sur des colonnes uuid) : aucune ligne ne lui correspond
   S.pvInv=new Map((invs||[]).map((i,n)=>{const id="00000000-0000-4000-8000-"+String(n+1).padStart(12,"0");return[id,{id,email:i.email,full_name:nameFromEmail(i.email),role:i.role,poste:i.poste||"",color:i.color||"#c1daf3",
     contrat_h:i.contrat_h,apprenti:i.apprenti,mineur:i.mineur,can_validate_planning:i.can_validate_planning,active:true,invite:true}]}));
-  const list=[...S.people.filter(p=>p.active&&p.role&&p.id!==self),...S.pvInv.values()];
+  const list=[...S.people.filter(p=>p.active&&p.role&&p.id!==self),...(S.hiddenPeople||[]).filter(p=>p.active&&p.role&&p.id!==self),...S.pvInv.values()];
   if(!list.length)return toast("Personne d'autre n'a de compte ou d'invitation");
   const yan=list.find(p=>/yannika/i.test(p.full_name+" "+(p.email||"")));
-  const r=await modal("Voir l'espace comme…",`<label class="f full">Personne<select name="id">${list.map(p=>`<option value="${esc(p.id)}" ${yan&&p.id===yan.id?"selected":""}>${esc(p.full_name)} — ${ROLE[p.role]}${p.poste?" · "+esc(p.poste):""}${p.invite?" (invitée, compte pas encore créé)":""}</option>`).join("")}</select></label>
+  const r=await modal("Voir l'espace comme…",`<label class="f full">Personne<select name="id">${list.map(p=>`<option value="${esc(p.id)}" ${yan&&p.id===yan.id?"selected":""}>${esc(p.full_name)} — ${ROLE[p.role]}${p.poste?" · "+esc(p.poste):""}${p.invite?" (invitée, compte pas encore créé)":""}${p.hidden?" (accès caché)":""}</option>`).join("")}</select></label>
     <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">Vous verrez exactement son menu, son tableau du jour, son planning et ses objectifs. C'est un aperçu : rien ne peut être modifié, et la personne n'est pas prévenue.</p>`,{submit:"Voir son espace"});
   if(r)startPreview(r.data.id);
 }
