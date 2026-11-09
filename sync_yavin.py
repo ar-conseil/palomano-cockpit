@@ -26,6 +26,7 @@ KEY = os.environ.get("YAVIN_API_KEY", "").strip()
 SERIALS = [s.strip() for s in os.environ.get("YAVIN_SERIALS", "").split(",") if s.strip()]
 SB_URL, SB_KEY = os.environ.get("SUPABASE_URL", "").rstrip("/"), os.environ.get("SUPABASE_SERVICE_KEY", "")
 DAYS = 3
+BACKFILL = 90        # premier passage : on récupère l'historique des 90 derniers jours
 
 
 def sb(path, body=None, method="GET", prefer="return=minimal"):
@@ -81,9 +82,11 @@ def main():
         print("Yavin : clé API absente (secret YAVIN_API_KEY), ignoré")
         return
     today = dt.datetime.now(ZoneInfo("Europe/Paris")).date()
+    have = sb("yavin_jour?select=date", prefer="") or []
+    days = BACKFILL if len(have) < 30 else DAYS
     rows, total_tx = [], 0
     try:
-        for i in range(DAYS):
+        for i in range(days):
             day = today - dt.timedelta(days=i)
             tx = fetch_day(day)
             total_tx += len(tx)
@@ -103,7 +106,7 @@ def main():
         return
     sb("yavin_jour?on_conflict=date", rows, "POST", "resolution=merge-duplicates,return=minimal")
     r0 = rows[0]
-    state(True, f"aujourd'hui {r0['cb_total']:.2f} € en {r0['nb']} paiement(s) carte · {total_tx} transactions lues sur {DAYS} jours")
+    state(True, f"aujourd'hui {r0['cb_total']:.2f} € en {r0['nb']} paiement(s) carte · {total_tx} transactions lues sur {days} jours")
 
 
 if __name__ == "__main__":
