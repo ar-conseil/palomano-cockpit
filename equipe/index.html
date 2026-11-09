@@ -235,6 +235,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .animbig span{font-weight:600;font-size:14px;opacity:.95}
 .paymini{display:flex;flex-direction:column;align-items:flex-end;font-size:12.5px;color:var(--ink-2);line-height:1.35}.paymini b{font-size:14px;color:var(--ink)}.paymini .due{color:var(--rouge-f);font-weight:700}.paymini .okp{color:#7d9440;font-weight:700}
 .paybox{border:1px solid var(--line,#eee);border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:13.5px}.paybox .ph{font-weight:700;margin-bottom:6px}.paybox .pl{display:flex;justify-content:space-between;gap:12px;padding:2px 0}.paybox .tot{font-weight:700;border-top:1px dashed var(--line,#e5e5e5);margin-top:4px;padding-top:6px}.paybox .due{color:var(--rouge-f)}.paybox .okp{color:#7d9440}
+.sjauto{margin-bottom:18px}.sjcells{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px}.sjcells>div{background:var(--bg);border-radius:14px;padding:10px 12px}.sjcells small{display:block;color:var(--ink-2);font-weight:600;font-size:12.5px}.sjcells b{display:block;font-size:19px;margin:2px 0}.sjcells span{font-size:12.5px;color:var(--ink-2)}
 .optchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}.optchips span{font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--jaune-c);color:var(--ink)}
 .animtag{display:inline-block;margin-left:8px;padding:2px 10px;border-radius:999px;background:var(--rouge-f);color:#fff;font-size:12.5px;font-weight:700;vertical-align:2px;white-space:nowrap}
 .anchip.plain{background:var(--card);box-shadow:inset 0 0 0 1px var(--line-2)}
@@ -1401,15 +1402,26 @@ VIEWS.saisie=async m=>{
     S.sb.from("saisie_jour").select("*").order("date",{ascending:false}).limit(10),
     S.sb.from("sync_state").select("*").eq("key","saisie").maybeSingle()]);
   if(error)return fail(error);
-  const r=row||{},num=v=>v===""||v==null?null:+String(v).replace(",",".");
+  // Chiffres proposés automatiquement (réservations Qweekle, ventes du webhook, cartes Yavin)
+  const{data:auto}=await S.sb.rpc("saisie_auto",{d});const A=auto||{};
+  const AUTO_K=["anniv_nb","anniv_entrees","scolaire_nb","groupe_nb"];
+  const r0=row||{},r={...r0};let prefilled=0;
+  if(!row)AUTO_K.forEach(k=>{if(A[k]){r[k]=A[k];prefilled++}});
+  const num=v=>v===""||v==null?null:+String(v).replace(",",".");
   const ttc=x=>["parc_ttc","anniv_ttc","scolaire_ttc","groupe_ttc","snack_ttc","boutique_ttc","event_ttc"].reduce((t,k)=>t+(+x[k]||0),0);
   const ent=x=>["parc_nb","anniv_entrees","scolaire_nb","groupe_nb"].reduce((t,k)=>t+(+x[k]||0),0);
   const status=x=>x.sync_error?`<span class="pill bad"><i></i>${esc(x.sync_error)}</span>`:x.dirty?'<span class="pill warn"><i></i>En attente de copie dans l\'Excel</span>':x.synced_at?`<span class="pill ok"><i></i>Dans l'Excel depuis le ${fStamp(x.synced_at)}</span>`:"";
   m.innerHTML=topbar("Saisie du jour","Résultats de la journée, recopiés automatiquement dans « Objectifs Palomano Lille » (toutes les 30 min)",
       `<input type="date" id="sjDate" value="${d}" max="${TODAY()}" style="padding:8px 10px;border-radius:12px;border:1.5px solid var(--line-2);font:inherit">`)+
-    `<form id="sjForm" class="card"><h3>${ic("cal")} ${capital(fDay(d))} ${row?status(r):""}</h3>
+    (()=>{const y=A.yavin,since=A.webhook_depuis&&new Date(A.webhook_depuis)<=new Date(d+"T23:59:59"),cells=[];
+      if(A.ventes_nb||since)cells.push(`<div><small>Encaissé dans Qweekle ce jour-là</small><b>${A.ventes_nb?fEur2(A.ventes_ttc):"—"}</b><span>${A.ventes_nb?`${A.ventes_nb} vente${A.ventes_nb>1?"s":""} · ${fEur2(A.ventes_ht)} HT`:"aucune vente reçue"}</span></div>`);
+      cells.push(`<div><small>Cartes bancaires (Yavin)</small><b>${y?fEur2(y.cb_total):"—"}</b><span>${y?`${y.nb} paiement${y.nb>1?"s":""}${+y.rembourse?` · ${fEur2(y.rembourse)} remboursés`:""} · lu ${fStamp(y.synced_at)}`:"Yavin pas encore branché"}</span></div>`);
+      cells.push(`<div><small>Réservations du jour</small><b>${A.anniv_nb||0} anniv. · ${(A.scolaire_nb||0)+(A.groupe_nb||0)} enfants en groupe</b><span>${A.anniv_entrees||0} enfants aux anniversaires · ${A.scolaire_nb||0} scolaires · ${A.groupe_nb||0} centres</span></div>`);
+      return`<div class="card sjauto"><h3>${ic("check")} Pour vérifier</h3><div class="sjcells">${cells.join("")}</div>
+        <p class="hint" style="margin:8px 0 0">${prefilled?"Les nombres d'anniversaires, d'enfants et de groupes ont été pré-remplis d'après les réservations : vérifiez-les. ":""}« Encaissé » = toutes les ventes enregistrées ce jour-là (y compris acomptes en ligne pour d'autres jours) : à comparer avec le Z de caisse ; les cartes Yavin à comparer avec le total CB de la caisse.</p></div>`})()+
+    `<form id="sjForm" class="card"><h3>${ic("cal")} ${capital(fDay(d))} ${row?status(r0):""}</h3>
       <div class="grid g2" style="margin-top:8px">${SJ.map(([t,i,f])=>`<div><h4 style="margin:10px 0 6px">${ic(i,"sm")} ${t}</h4><div class="fgrid">${f.map(([k,l,eur])=>
-        `<label class="f">${l}${eur?" (€)":""}<input name="${k}" type="number" inputmode="decimal" min="0" step="${eur?"0.01":"1"}" value="${r[k]??""}"></label>`).join("")}</div></div>`).join("")}</div>
+        `<label class="f">${l}${eur?" (€)":""}${!row&&AUTO_K.includes(k)&&A[k]?' <span class="pill info" style="font-size:11px;padding:1px 7px">auto</span>':""}<input name="${k}" type="number" inputmode="decimal" min="0" step="${eur?"0.01":"1"}" value="${r[k]??""}"></label>`).join("")}</div></div>`).join("")}</div>
       <label class="f full" style="margin-top:12px">Remarque (facultatif)<input name="note" maxlength="200" value="${esc(r.note||"")}"></label>
       <div style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap"><b id="sjTot"></b><span style="flex:1"></span><button class="btn pri" type="submit">${ic("check","sm")} Enregistrer la journée</button></div>
     </form>
@@ -1477,7 +1489,7 @@ VIEWS.objectifs=async m=>{
    - apprentis mineurs : 8 h/jour et 35 h/semaine maximum, cours compris (art. L3162-1) : tout dépassement est signalé ;
    - alertes générales : plus de 10 h dans une journée, plus de 48 h dans la semaine. */
 const TOL_MIN=15;
-function planCount(list,shifts,uid){
+function planCount(list,shifts,uid,proofs){
   // Heures retenues pour la paie : pointées pendant les créneaux du planning (à TOL_MIN près),
   // moins la pause prévue sur chaque service (si elle n'a pas été pointée), plus les heures validées par la direction.
   const eff=[],hors=[],alerts=[];let horsH=0,pauseH=0;const byWin=new Map();
@@ -1486,6 +1498,10 @@ function planCount(list,shifts,uid){
     if(x.kind==="ecole"||x.hors_ok){eff.push(x);continue}
     const d=iso(new Date(x.start_at));
     const win=(shifts||[]).filter(s=>s.user_id===uid&&s.day===d).map(s=>({s,w0:new Date(`${d}T${s.start_time}`).getTime()-TOL_MIN*6e4,w1:new Date(`${d}T${s.end_time}`).getTime()+TOL_MIN*6e4})).sort((u,v)=>u.w0-v.w0);
+    // Fermeture : après le dernier service du jour, le temps pointé compte jusqu'à la validation de la checklist
+    // de fermeture ou du bilan du jour (+5 min), dans la limite d'1 h après la fin prévue
+    const pf=proofs&&proofs.get(`${uid}|${d}`);
+    if(pf&&win.length){const last=win[win.length-1],end=last.w1-TOL_MIN*6e4;if(pf>end)last.w1=Math.max(last.w1,Math.min(pf+5*6e4,end+60*6e4))}
     let kept=0;
     for(const{s,w0,w1}of win){const s0=Math.max(a,w0),s1=Math.min(b,w1);if(s1>s0){const seg={...x,start_at:new Date(s0).toISOString(),end_at:new Date(s1).toISOString()};eff.push(seg);kept+=s1-s0;
       const k=s.id??`${d}${s.start_time}`;if(!byWin.has(k))byWin.set(k,{s,segs:[]});byWin.get(k).segs.push(seg)}}
@@ -1536,13 +1552,14 @@ async function exportPaie(month){
   if(error)return fail(error);
   const{data:shAll}=await S.sb.from("shifts").select("id,user_id,day,start_time,end_time,pause_min").gte("day",weeks[0]).lt("day",addDays(weeks[weeks.length-1],7));
   const team=S.people.filter(p=>p.active&&p.role&&(p.contrat_h||p.apprenti));
+  const{data:pfs}=await S.sb.rpc("fermeture_preuves",{du:weeks[0],au:addDays(weeks[weeks.length-1],6)});const PF=new Map((pfs||[]).map(x=>[`${x.user_id}|${x.day}`,new Date(x.at).getTime()]));
   const hh=h=>{const m=Math.round(h*60);return`${Math.floor(m/60)}:${String(m%60).padStart(2,"0")}`};
   const q=v=>`"${String(v).replace(/"/g,'""')}"`;
   const rows=[["Salarié(e)","Contrat","Durée contractuelle (h/sem)","Semaine","Du","Au","Heures travaillées","dont cours CFA/IUT","dont télétravail","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Hors planning non validées (non comptées)","Alertes"]];
   const recap=[["Salarié(e)","Contrat","Total heures","dont cours","dont télétravail","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Hors planning non validées (non comptées)","Semaines sans pointage","Alertes"]];
   for(const p of team){const T={tot:0,school:0,hs25:0,hs50:0,hc10:0,hc25:0},al=new Set();let empty=0,horsT=0,ttT=0;
     for(const w of weeks){const a=parse(w).getTime(),b=parse(addDays(w,7)).getTime(),list=(pts||[]).filter(x=>x.user_id===p.id&&new Date(x.start_at).getTime()>=a&&new Date(x.start_at).getTime()<b);
-      const pc=planCount(list,shAll,p.id),r=payWeek(p,pc.eff,a,b);r.alerts.push(...pc.alerts);const tt=ptHours(pc.eff.filter(x=>x.a_distance),a,b);horsT+=pc.horsH;ttT+=tt;if(!r.tot)empty++;r.alerts.forEach(x=>al.add(x));for(const k in T)T[k]+=r[k];
+      const pc=planCount(list,shAll,p.id,PF),r=payWeek(p,pc.eff,a,b);r.alerts.push(...pc.alerts);const tt=ptHours(pc.eff.filter(x=>x.a_distance),a,b);horsT+=pc.horsH;ttT+=tt;if(!r.tot)empty++;r.alerts.forEach(x=>al.add(x));for(const k in T)T[k]+=r[k];
       rows.push([p.full_name,contratLabel(p),+p.contrat_h||35,"S"+isoWeekNum(w),fDate(w),fDate(addDays(w,6)),hh(r.tot),hh(r.school),hh(tt),hh(r.hs25),hh(r.hs50),hh(r.hc10),hh(r.hc25),hh(pc.horsH),r.alerts.join(" · ")])}
     if(horsT>1/60)al.add(`${hh(horsT)} pointées hors planning non validées par la direction : non comptées`);
     recap.push([p.full_name,contratLabel(p),hh(T.tot),hh(T.school),hh(ttT),hh(T.hs25),hh(T.hs50),hh(T.hc10),hh(T.hc25),hh(horsT),empty,[...al].join(" · ")])}
@@ -1565,11 +1582,12 @@ VIEWS.heures=async m=>{
   ]);
   if(error)return fail(error);
   const{data:logs}=await S.sb.from("pointages_log").select("*").gte("at",new Date(from-7*864e5).toISOString()).order("at",{ascending:false}).limit(300);
+  const{data:pfs}=await S.sb.rpc("fermeture_preuves",{du:w,au:days[6]});const PF=new Map((pfs||[]).map(x=>[`${x.user_id}|${x.day}`,new Date(x.at).getTime()]));
   const team=S.people.filter(p=>p.active&&p.role);
   const plan=uid=>(shifts||[]).filter(s=>s.user_id===uid).reduce((t,s)=>t+(toMin(s.end_time)-toMin(s.start_time)-(+s.pause_min||0))/60,0);   // pause prévue déduite
   const mine=uid=>(pts||[]).filter(p=>p.user_id===uid);
   const open=uid=>mine(uid).find(p=>!p.end_at);
-  const rows=team.map(p=>{const pc=planCount(mine(p.id),shifts,p.id),pay=payWeek(p,pc.eff,from,to);pay.alerts.push(...pc.alerts);
+  const rows=team.map(p=>{const pc=planCount(mine(p.id),shifts,p.id,PF),pay=payWeek(p,pc.eff,from,to);pay.alerts.push(...pc.alerts);
     return{p,done:Math.max(0,ptHours(mine(p.id),from,to)-pc.pauseH),plan:plan(p.id),open:open(p.id),pc,pay}});
   const tot=k=>rows.reduce((t,r)=>t+(r[k]||0),0),nOn=rows.filter(r=>r.open).length;
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
@@ -1588,7 +1606,7 @@ VIEWS.heures=async m=>{
           <span class="num opt" style="color:${Math.abs(ec)<.25?"var(--muted)":ec>0?"var(--rouge-f)":"var(--bleu-f)"}">${r.plan||r.done?(ec>=0?"+":"−")+fDur(Math.abs(ec)):"—"}</span>
           <span class="opt" style="font-size:12.5px;line-height:1.35">${(()=>{const y=r.pay,parts=[y.hs25&&`+25 % ${fDur(y.hs25)}`,y.hs50&&`+50 % ${fDur(y.hs50)}`,y.hc10&&`compl. +10 % ${fDur(y.hc10)}`,y.hc25&&`compl. +25 % ${fDur(y.hc25)}`].filter(Boolean);
             return(parts.length?`<b>${parts.join(" · ")}</b><br>`:"")+(y.school?`<span style="color:var(--ink-2)">dont cours ${fDur(y.school)}</span><br>`:"")+(r.pc.horsH>1/60?`<span style="color:var(--rouge-f);font-weight:700">⏱ ${fDur(r.pc.horsH)} hors planning à valider</span><br>`:"")+(y.alerts.length?`<span style="color:var(--bad);font-weight:600">⚠ ${esc(y.alerts[0])}${y.alerts.length>1?` (+${y.alerts.length-1})`:""}</span><br>`:"")+(r.open?`<span class="live">en poste depuis ${new Date(r.open.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>`:"")})()||'<span style="color:var(--muted)">—</span>'}</span></div>`}).join("")}
-      <p class="hint" style="margin:12px 8px 0">Heures sup. et complémentaires calculées à la semaine civile selon le contrat ; pour les apprenties, les heures de cours saisies (CFA/IUT) sont incluses. Écart = pointé − prévu au planning. Seules les heures pointées pendant les créneaux du planning (à ${TOL_MIN} min près) comptent pour la paie : les heures en dehors restent « à valider » tant que la direction ne les a pas validées. Touchez une ligne pour voir le détail, valider ou corriger (motif obligatoire, tout est historisé). Le contrat se règle dans Réglages.</p></div>`;
+      <p class="hint" style="margin:12px 8px 0">Heures sup. et complémentaires calculées à la semaine civile selon le contrat ; pour les apprenties, les heures de cours saisies (CFA/IUT) sont incluses. Écart = pointé − prévu au planning. Seules les heures pointées pendant les créneaux du planning (à ${TOL_MIN} min près) comptent pour la paie, pause prévue déduite ; après le dernier service, le temps de fermeture compte jusqu'à la validation de la checklist de fermeture ou du bilan du jour (1 h max) : les heures en dehors restent « à valider » tant que la direction ne les a pas validées. Touchez une ligne pour voir le détail, valider ou corriger (motif obligatoire, tout est historisé). Le contrat se règle dans Réglages.</p></div>`;
   const on=(id,f)=>{const el=$(id);if(el)el.onclick=f};
   on("hExport",async()=>{const now=new Date(),cur=iso(now).slice(0,7),prev=iso(new Date(now.getFullYear(),now.getMonth()-1,1)).slice(0,7);
     const r=await modal("Export pour la paie",`<p style="margin:0">Fichier prêt à transmettre à la gestionnaire de paie : récapitulatif du mois et détail par semaine (heures, cours, heures sup. et complémentaires, alertes légales). S'ouvre dans Excel.</p>
@@ -1599,7 +1617,7 @@ VIEWS.heures=async m=>{
   m.querySelectorAll(".hours-row[data-uid]").forEach(el=>el.onclick=async()=>{
     const p=person(el.dataset.uid),list=mine(p.id).filter(x=>new Date(x.start_at).getTime()<to);
     const fmt=ts=>new Date(ts).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-    const pcx=planCount(list,shifts,p.id),horsOf=x=>pcx.hors.find(h=>h.x.id===x.id);
+    const pcx=planCount(list,shifts,p.id,PF),horsOf=x=>pcx.hors.find(h=>h.x.id===x.id);
     const plOf=d=>(shifts||[]).filter(s=>s.user_id===p.id&&s.day===d).map(s=>`${fTime(s.start_time)}–${fTime(s.end_time)}${+s.pause_min?` (pause ${s.pause_min} min)`:""}`).join(", ");
     const lg=(logs||[]).filter(l=>l.user_id===p.id&&list.some(x=>x.id===l.pointage_id)||(l.user_id===p.id&&l.action==="suppression"&&l.old_start&&new Date(l.old_start).getTime()>=from&&new Date(l.old_start).getTime()<to));
     const r=await modal(`Pointages de ${p.full_name}`,`<div class="list">${days.map(d=>{const dl=list.filter(x=>iso(new Date(x.start_at))===d);

@@ -90,6 +90,14 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python sync_commandes.py || echo "::warning::Commandes Qweekle en échec"
 
+      - name: Lire les paiements carte Yavin (bilan du jour)
+        env:
+          YAVIN_API_KEY: ${{ secrets.YAVIN_API_KEY }}
+          YAVIN_SERIALS: ${{ vars.YAVIN_SERIALS }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python sync_yavin.py || echo "::warning::Yavin en échec"
+
 
       - name: Conserver la session Microsoft
         if: always() && hashFiles('.ms_token/refresh_token.enc') != ''
