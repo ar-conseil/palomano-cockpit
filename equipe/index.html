@@ -511,6 +511,16 @@ const NAV=[
   {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"objectifs",l:"Objectifs",i:"target"},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
 ];
 const BNAV=["today","planning","anniv","stocks"];
+/* Dashboard financier : la direction l'ouvre avec son compte, sans le mot de passe. La clé de déchiffrement
+   est donnée par Supabase aux seuls membres de la direction (pilotage_acces, chaque ouverture est notée),
+   puis mémorisée sur l'appareil comme le ferait « Rester connecté ». */
+document.addEventListener("click",async e=>{
+  const a=e.target.closest('a[href="pilotage/"]');if(!a||!S.sb||S.real)return;
+  e.preventDefault();
+  try{const{data,error}=await S.sb.rpc("pilotage_acces");if(error)throw error;
+    localStorage.setItem("palo.key."+data.salt,data.cle)}catch(x){/* clé indisponible : page du mot de passe */}
+  location.href="pilotage/";
+});
 const STOCK_TEST=true;   // module Stocks en phase de test : ni alertes ni badge tant que c'est vrai
 const BADGES={};
 function navLink(n){return`<a href="#" data-t="${n.t}" ${S.tab===n.t?'aria-current="page"':""}>${ic(n.i)}<span>${n.l}</span>${n.beta?`<span class="beta">Test</span>`:""}${BADGES[n.b]?`<span class="badge">${BADGES[n.b]}</span>`:""}</a>`}

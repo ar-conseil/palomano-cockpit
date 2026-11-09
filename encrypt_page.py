@@ -114,6 +114,25 @@ def main():
     (OUT / "version.json").write_text(json.dumps({"generatedAt": m.group(1) if m else None}), encoding="utf-8")
     (SITE / ".nojekyll").write_text("")
     print(f"OK → {OUT / 'index.html'} (chiffré, {len(ct):,} octets)")
+    publish_key(payload["salt"], base64.b64encode(key).decode())
+
+
+def publish_key(salt, cle):
+    """Clé de déchiffrement rangée dans Supabase (table sans accès direct) : la direction ouvre le dashboard
+    depuis l'espace équipe sans connaître le mot de passe (schema_v19.sql, fonction pilotage_acces)."""
+    url, sk = os.environ.get("SUPABASE_URL", "").rstrip("/"), os.environ.get("SUPABASE_SERVICE_KEY", "")
+    if not url or not sk:
+        return
+    import urllib.request
+    req = urllib.request.Request(f"{url}/rest/v1/pilotage_cle?on_conflict=id", method="POST",
+                                 data=json.dumps([{"id": 1, "salt": salt, "cle": cle}]).encode(),
+                                 headers={"apikey": sk, "Authorization": f"Bearer {sk}", "Content-Type": "application/json",
+                                          "Prefer": "resolution=merge-duplicates,return=minimal"})
+    try:
+        urllib.request.urlopen(req, timeout=30).read()
+        print("Clé du dashboard publiée pour l'accès direction")
+    except Exception as e:
+        print(f"::warning::Clé du dashboard non publiée : {e}")
 
 
 if __name__ == "__main__":

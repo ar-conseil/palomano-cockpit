@@ -115,6 +115,8 @@ jobs:
       - name: Chiffrer la page
         env:
           DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python encrypt_page.py
 
       # Espace équipe (app statique ; les données vivent dans Supabase, protégées par ses règles d'accès)
