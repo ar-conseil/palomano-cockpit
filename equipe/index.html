@@ -1010,7 +1010,9 @@ $("sheet").onclick=e=>{if(e.target.id==="sheet")$("sheet").classList.add("hidden
 function go(t){
   if(!VIEWS[t]||((t==="reglages"||t==="factu")&&!isManager())||(t==="heures"&&!isDirection()))t="today";
   S.tab=t;try{sessionStorage.setItem("palo.eq.tab",t)}catch(e){}
-  renderNav();fitMast();window.scrollTo(0,0);render();
+  // si le bandeau a déjà défilé, on reste calé sous les onglets au lieu de remonter tout en haut
+  const g=$("gTabs"),keep=g&&g.offsetParent?Math.min(window.scrollY,g.offsetTop):0;
+  renderNav();fitMast();window.scrollTo(0,keep);render();
 }
 function setBadge(id,n){BADGES[id]=n||0}
 /* En-tête collant : le bandeau défile, les onglets restent visibles */
