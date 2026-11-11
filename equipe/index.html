@@ -504,8 +504,47 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .feed .nf .tag{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none}
 .feed .nf .tx{flex:1;min-width:0}.feed .nf .tx b{display:block;font-size:14px}.feed .nf .tx small{color:var(--muted);font-size:12.5px}
 .feed .nf .ago{font-size:12px;color:var(--muted);white-space:nowrap}
+/* ── Mes chiffres ── */
+.ch-per{margin:-10px 0 16px;color:var(--ink-2);font-size:13.5px}
+em.up,em.down{font-style:normal;font-weight:800;font-size:12.5px;white-space:nowrap}
+em.up{color:#4f8a2c}em.down{color:var(--bad)}
+.lv-big.dark em.up{color:#b9e29a}.lv-big.dark em.down{color:#ffb3bd}
+.chrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-top:1px dashed var(--line-2)}
+.chrow:first-of-type{border-top:0}
+.chl{display:flex;align-items:baseline;gap:10px;min-width:0}.chl b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chv{font-weight:800;font-size:17px;font-variant-numeric:tabular-nums}
+.chbar{grid-column:1/-1;position:relative;height:10px;border-radius:5px;background:var(--bg)}
+.chbar i{display:block;height:100%;border-radius:5px;animation:cgrow .8s cubic-bezier(.2,1,.3,1) both;transform-origin:left}
+.chbar u{position:absolute;top:-4px;bottom:-4px;width:2.5px;border-radius:2px;background:var(--ink);text-decoration:none}
+.chdonut{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center}
+.chdonut svg{width:170px;flex:none}
+.chdonut .dn{font:800 24px var(--font);fill:var(--ink)}.chdonut .dl{font:600 10.5px var(--font);fill:var(--ink-2)}
+.chleg{display:flex;flex-direction:column;gap:7px;font-size:13.5px;flex:1;min-width:170px}
+.chleg span{display:flex;align-items:center;gap:8px}.chleg i{width:11px;height:11px;border-radius:3px;flex:none}.chleg b{margin-left:auto;font-variant-numeric:tabular-nums}
+.chweeks{display:flex;gap:10px;align-items:flex-end;height:230px;padding-top:26px;overflow-x:auto}
+.chw{flex:1;min-width:52px;height:100%;display:flex;flex-direction:column;align-items:center;gap:4px}
+.chw .cols{flex:1;width:100%;display:flex;gap:4px;align-items:flex-end;justify-content:center}
+.chw .cols i{display:block;width:42%;max-width:34px;border-radius:9px 9px 3px 3px;position:relative;animation:crise .8s cubic-bezier(.2,1,.3,1) both;transform-origin:bottom}
+@keyframes crise{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.chw .cols i.cur{background:linear-gradient(180deg,var(--bleu-f),var(--bleu))}.chw .cols i.prev{background:var(--line-2)}
+.chw .cols i em{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-style:normal;font-size:11px;font-weight:800;white-space:nowrap;padding-bottom:3px}
+.chw span{font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.chnote{padding:11px 14px;border-radius:14px;background:var(--bg);margin-top:8px;font-size:14px;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline}
+.chnote b{display:block;width:100%;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.chnote.good{background:var(--ok-c)}.chnote.bad{background:var(--bad-c)}
 /* ── Qui est là, heure par heure ── */
-.heat{margin-top:18px}
+.heat{margin:0 0 18px}
+.repos{margin:auto;color:var(--muted);font-size:12.5px;font-style:italic}
+.ptiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+@media (max-width:1100px){.ptiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ptile{display:flex;gap:14px;align-items:center;padding:16px 18px;border-radius:22px;background:linear-gradient(135deg,var(--kc),var(--card) 85%);box-shadow:var(--shadow),inset 0 0 0 1.5px rgba(255,255,255,.7);min-width:0;transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+.ptile:hover{transform:translateY(-3px)}
+.ptile .kic{margin:0;flex:none;background:#fff;color:var(--kf)}
+.ptile b{display:block;font-size:30px;font-weight:800;line-height:1.05;letter-spacing:-.015em;font-variant-numeric:tabular-nums}
+.ptile span{display:block;font-weight:700;font-size:13.5px}
+.ptile small{display:block;color:var(--ink-2);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ptile>div{min-width:0}
+@media (max-width:700px){.ptile{padding:12px}.ptile b{font-size:22px}.ptile .kic{width:36px;height:36px}}
 .heat-wrap{overflow-x:auto}
 .heat-grid{display:grid;grid-template-columns:130px repeat(12,minmax(42px,1fr));gap:6px;align-items:center;min-width:700px}
 .heat-grid .hh{text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-2)}
@@ -856,7 +895,7 @@ const NAV=[
   {h:"Équipe"},
   {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
   {h:"Objectifs"},
-  {t:"objectifs",l:"Objectifs",i:"target"},
+  {t:"objectifs",l:"Objectifs",i:"target"},{t:"chiffres",l:"Mes chiffres",i:"chart",mgr:true},
 ];
 const BNAV=["today","planning","anniv","stocks"];
 /* Dashboard financier : la direction l'ouvre avec son compte, sans le mot de passe. La clé de déchiffrement
@@ -873,6 +912,10 @@ const STOCK_TEST=true;   // module Stocks en phase de test : ni alertes ni badge
 const BADGES={};
 function navLink(n){return`<a href="#" data-t="${n.t}" ${S.tab===n.t?'aria-current="page"':""}>${ic(n.i)}<span>${n.l}</span>${n.beta?`<span class="beta">Test</span>`:""}${BADGES[n.b]?`<span class="badge">${BADGES[n.b]}</span>`:""}</a>`}
 const GROUPS={"Au quotidien":{c:"--bleu-c",f:"var(--bleu-f)",i:"home"},"Réservations":{c:"--rouge-c",f:"var(--rouge-f)",i:"cake"},"Équipe":{c:"--vert-c",f:"#9aab55",i:"users"},"Objectifs":{c:"--jaune-c",f:"#c99a2e",i:"target"}};
+/* ═════════ MES CHIFFRES (direction et responsables) : publiés par publish_kpis.py dans chiffres_feed ═════════ */
+const CH_COL={parc:["Entrées","var(--bleu-f)"],anniv:["Anniversaires","var(--rouge-f)"],b2b:["Écoles, centres et groupes","#9aab55"],snack:["Snacking","#c99a2e"],bout:["Boutique","#8a7fd0"],event:["Évènements","#5aa9a0"]};
+const fK=v=>v==null?"—":Math.abs(v)>=10000?(v/1000).toLocaleString("fr-FR",{maximumFractionDigits:1})+" k€":fE0(v);
+const evo=(c,p)=>p>0?`<em class="${c>=p?"up":"down"}">${c>=p?"▲ +":"▼ −"}${Math.abs((c/p-1)*100).toLocaleString("fr-FR",{maximumFractionDigits:0})} %</em>`:"";
 function navGroups(items){const out=[];let g=null;items.forEach(n=>{if(n.h){g={h:n.h,items:[]};out.push(g)}else if(g)g.items.push(n)});return out.filter(x=>x.items.length)}
 function renderNav(){
   const items=NAV.filter(n=>(!n.mgr||isManager())&&(!n.dir||isDirection())&&(!n.saisie||isManager()||S.canSaisie));
@@ -1327,6 +1370,48 @@ function paintCren(){
     try{const{data}=await S.sb.rpc("creneaux_jour",{d:LIVE.crDay});LIVE.cren=data}catch(e){}paintCren()});
 }
 
+VIEWS.chiffres=async m=>{
+  S.chMode=S.chMode||"mois";const d0=TODAY().slice(0,8)+"01";
+  const[{data:rows,error},{data:yv}]=await Promise.all([S.sb.from("chiffres_feed").select("*"),S.sb.from("yavin_jour").select("date,cb_total,nb").gte("date",d0)]);
+  const F=Object.fromEntries((rows||[]).map(r=>[r.key,r.data])),D=F[S.chMode];
+  const head=topbar("Mes chiffres","Le chiffre d'affaires HT du parc, comparé aux mêmes jours de l'an dernier",
+    `<div class="seg" id="chSeg"><button data-v="mois" aria-pressed="${S.chMode==="mois"}">Mois en cours</button><button data-v="annee" aria-pressed="${S.chMode==="annee"}">Année</button></div>`);
+  if(error||!D){m.innerHTML=head+`<div class="card"><div class="empty"><img src="assets/illu.svg" alt="">${error?"L'onglet n'est pas encore installé : la direction doit exécuter <b>schema_v25.sql</b> dans Supabase.":"Les chiffres arrivent à la prochaine actualisation du dashboard (dans le quart d'heure)."}</div></div>`;
+    if($("chSeg"))$("chSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.chMode=b.dataset.v;render()}};return}
+  const cats=D.cats||[],mx=Math.max(1,...cats.map(c=>Math.max(c.cur,c.prev||0))),tot=D.total||{},W=D.series||[],mw=Math.max(1,...W.map(w=>Math.max(w.cur,w.prev||0)));
+  const cb=(yv||[]).reduce((a,r)=>a+(+r.cb_total||0),0),cbN=(yv||[]).reduce((a,r)=>a+(+r.nb||0),0);
+  const best=[...cats].filter(c=>c.prev>0).sort((a,b)=>b.cur/b.prev-a.cur/a.prev);
+  const R=52,C=2*Math.PI*R;let off=0;const sumC=cats.reduce((a,c)=>a+Math.max(0,c.cur),0)||1;
+  const donut=cats.filter(c=>c.cur>0).map(c=>{const len=c.cur/sumC*C,seg=`<circle r="${R}" cx="70" cy="70" fill="none" stroke="${CH_COL[c.k][1]}" stroke-width="20" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}"/>`;off+=len;return seg}).join("");
+  const top=[...cats].sort((a,b)=>b.cur-a.cur)[0];
+  m.innerHTML=head+`<p class="ch-per">${esc(D.label)} · du ${fShort(D.from)} au ${fShort(D.to)} · comparé à l'an dernier, mêmes jours de la semaine</p>
+    <div class="lv-top">
+      <div class="lv-big dark" style="--kc:var(--bleu-c)"><span class="kic" style="background:rgba(255,255,255,.15);color:#fff">${ic("chart")}</span><div class="lab">Chiffre d'affaires HT</div><b class="v">${fK(tot.cur)}</b><div class="sub">${evo(tot.cur,tot.prev)} ${tot.prev?`· ${fK(tot.prev)} l'an dernier`:"pas de comparaison"}</div></div>
+      <div class="lv-big" style="--kc:var(--jaune-c);--kf:#c99a2e"><span class="kic">${ic("users")}</span><div class="lab">Entrées</div><b class="v">${fN0(D.entrees.cur)}</b><div class="sub">${evo(D.entrees.cur,D.entrees.prev)} ${D.entrees.prev?`· ${fN0(D.entrees.prev)} l'an dernier`:""}</div></div>
+      <div class="lv-big" style="--kc:var(--rouge-c);--kf:var(--rouge-f)"><span class="kic">${ic("euro")}</span><div class="lab">Panier moyen HT</div><b class="v">${D.entrees.cur?fEur2(tot.cur/D.entrees.cur):"—"}</b><div class="sub">par visiteur${D.entrees.prev&&tot.prev?` · ${fEur2(tot.prev/D.entrees.prev)} l'an dernier`:""}</div></div>
+      <div class="lv-big" style="--kc:var(--vert-c);--kf:#9aab55"><span class="kic">${ic("card")}</span><div class="lab">Cartes ce mois (TTC)</div><b class="v">${fK(cb)}</b><div class="sub">${fN0(cbN)} paiements sur le terminal</div></div>
+    </div>
+    <div class="grid g21" style="margin-top:18px">
+      <div class="card"><div class="card-head"><h3>${ic("bag")} Ce qui se vend</h3><span class="pill info"><i></i>€ HT</span></div>
+        ${cats.map(c=>`<div class="chrow"><div class="chl"><b>${CH_COL[c.k][0]}</b>${evo(c.cur,c.prev)}</div><div class="chv">${fK(c.cur)}</div>
+          <div class="chbar"><i style="width:${Math.max(0,c.cur)/mx*100}%;background:${CH_COL[c.k][1]}"></i>${c.prev>0?`<u style="left:${Math.min(100,c.prev/mx*100)}%" title="L'an dernier : ${fK(c.prev)}"></u>`:""}</div></div>`).join("")}
+        <p class="hint" style="margin:12px 0 0">Le trait noir marque le niveau de l'an dernier aux mêmes jours.</p></div>
+      <div class="card"><div class="card-head"><h3>${ic("target")} D'où vient le chiffre</h3></div>
+        <div class="chdonut"><svg viewBox="0 0 140 140"><g transform="rotate(-90 70 70)">${donut}</g><text x="70" y="66" text-anchor="middle" class="dn">${top?Math.round(top.cur/sumC*100):0} %</text><text x="70" y="84" text-anchor="middle" class="dl">${top?esc(CH_COL[top.k][0].split(",")[0].toLowerCase()):""}</text></svg>
+          <div class="chleg">${cats.filter(c=>c.cur>0).map(c=>`<span><i style="background:${CH_COL[c.k][1]}"></i>${CH_COL[c.k][0]}<b>${Math.round(c.cur/sumC*100)} %</b></span>`).join("")}</div></div></div>
+    </div>
+    <div class="grid g21" style="margin-top:18px">
+      <div class="card"><div class="card-head"><h3>${ic("cal")} ${S.chMode==="mois"?"Le mois, semaine par semaine":"L'année, mois par mois"}</h3><div class="legend-c" style="margin:0;padding:0;border:0"><span><i style="background:var(--bleu-f)"></i>Cette année</span><span><i style="background:var(--line-2)"></i>L'an dernier</span></div></div>
+        <div class="chweeks">${W.map(w=>`<div class="chw"><div class="cols"><i class="cur" style="height:${Math.max(2,w.cur/mw*100)}%" title="${fK(w.cur)}"><em>${fK(w.cur)}</em></i><i class="prev" style="height:${Math.max(2,(w.prev||0)/mw*100)}%" title="L'an dernier : ${fK(w.prev)}"></i></div><span>${esc(w.label)}</span>${evo(w.cur,w.prev)}</div>`).join("")}</div></div>
+      <div class="card"><div class="card-head"><h3>${ic("star")} À retenir</h3></div>
+        ${best.length?`<div class="chnote good"><b>Ce qui progresse le plus</b>${CH_COL[best[0].k][0]} ${evo(best[0].cur,best[0].prev)}</div>
+        <div class="chnote bad"><b>Ce qui recule le plus</b>${CH_COL[best[best.length-1].k][0]} ${evo(best[best.length-1].cur,best[best.length-1].prev)}</div>`:'<div class="empty">Pas encore de comparaison avec l\'an dernier.</div>'}
+        <div class="chnote"><b>Dernier jour saisi</b>${capital(fDay(D.to))}</div>
+        ${isDirection()?`<a class="btn soft" href="pilotage/" style="margin-top:12px;width:100%">${ic("chart","sm")} Ouvrir le dashboard financier complet</a>`:""}</div>
+    </div>`;
+  $("chSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.chMode=b.dataset.v;render()}};
+};
+
 /* ═════════ PRIVATISATIONS ═════════ */
 const PV_TYPE={particulier:"Particulier",entreprise:"Entreprise / CSE",association:"Association",ecole:"École / centre",autre:"Autre"};
 const PV_STAT={demande:["info","Demande"],devis:["warn","Devis envoyé"],option:["warn","Option"],confirme:["ok","Confirmée"],termine:["","Terminée"],annule:["bad","Annulée"]};
@@ -1560,7 +1645,7 @@ VIEWS.planning=async m=>{
       ${days.map(d=>`<div class="hd ${d===today?"today":""}">${parse(d).toLocaleDateString("fr-FR",{weekday:"short"})}<b>${parse(d).getDate()}</b>${resaOn(d).length?`<div style="font-size:11px;color:var(--ink-2)">${resaOn(d).length} résa</div>`:""}</div>`).join("")}
       <div class="hd">Total</div>
       ${team.map(p=>who(p)+days.map(d=>{const list=SH.filter(s=>s.user_id===p.id&&s.day===d).sort((a,b)=>a.a-b.a),off=offOn(d,p.id);
-        return`<div class="cell ${d===today?"today":""} ${off?"off":""} ${editable?"edit":""}" data-uid="${p.id}" data-day="${d}">${off?'<small style="color:var(--rouge-f);font-weight:600">🌴 Congé</small>':""}${list.map(shHtml).join("")}${editable&&!list.length?`<button class="add" data-add>${ic("plus","sm")}</button>`:""}</div>`}).join("")
+        return`<div class="cell ${d===today?"today":""} ${off?"off":""} ${editable?"edit":""}" data-uid="${p.id}" data-day="${d}">${off?'<small style="color:var(--rouge-f);font-weight:600">🌴 Congé</small>':""}${list.map(shHtml).join("")}${editable&&!list.length?`<button class="add" data-add>${ic("plus","sm")}</button>`:!list.length&&!off?'<small class="repos">repos</small>':""}</div>`}).join("")
         +`<div class="tot ${!p.ext&&(hrs[p.id]||0)>35?"over":""}">${fNum(hrs[p.id]||0,1)} h</div>`).join("")}
       <div class="foot" style="text-align:left;padding-left:14px;font-weight:600">Présents</div>
       ${days.map(d=>`<div class="foot">${nbDay(d)} pers. · ${fNum(hDay(d),1)} h</div>`).join("")}
@@ -1578,14 +1663,23 @@ VIEWS.planning=async m=>{
     G.forEach((r,i)=>r.forEach((c,j)=>{if(c.bad)miss.push([days[i],HH[j],c])}));
     const alerts=[];days.forEach(d=>{const m=miss.filter(x=>x[0]===d);if(!m.length)return;const an=[...new Set(m.flatMap(x=>x[2].noAnim.map(a=>a.enfant)))];
       alerts.push(`<b>${capital(fDay(d))}</b> : ${an.length?`animateur à désigner pour l'anniversaire de ${an.map(esc).join(", ")}`:`des réservations de ${m[0][1]} h à ${m[m.length-1][1]+1} h et personne au planning`}`)});
-    return`<div class="card heat"><div class="card-head"><h3>${ic("users")} Qui est là, heure par heure</h3><span class="pill info"><i></i>${wl}</span></div>
+    return{miss,alerts,html:`<div class="card heat"><div class="card-head"><h3>${ic("users")} Qui est là, heure par heure</h3><span class="pill info"><i></i>${wl}</span></div>
       <div class="heat-wrap"><div class="heat-grid">
         <span></span>${HH.map(h=>`<span class="hh">${h} h</span>`).join("")}
         ${days.map((d,i)=>`<span class="hd2 ${d===today?"today":""}">${parse(d).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric"})}</span>`+G[i].map((c,j)=>
           `<i class="hc ${c.bad?"bad":""} ${peak[i]===j?"peak":""}" style="${c.bad?"":`--a:${c.n?(.18+.82*c.n/mx).toFixed(2):0}`}" title="${HH[j]} h · ${c.n} présent${c.n>1?"s":""}${c.names.length?" : "+esc(c.names.join(", ")):""}${c.resa?` · ${c.resa} réservation${c.resa>1?"s":""}`:""}${c.noAnim.length?" · animateur à désigner":""}">${c.n||""}</i>`).join("")).join("")}
       </div></div>
       <div class="heat-leg"><span><i style="--a:.25"></i>1 personne</span><span><i style="--a:1"></i>${mx} et plus</span><span><i class="bad"></i>il manque quelqu'un</span><span><i class="peak" style="--a:.25"></i>pointe des réservations du jour</span></div>
-      ${alerts.length&&isManager()?`<div class="heat-alert">${alerts.join("<br>")}</div>`:""}</div>`};
+      ${alerts.length&&isManager()?`<div class="heat-alert">${alerts.join("<br>")}</div>`:""}</div>`}};
+  const HEAT=SH.length?heat():null,nResa=(anniv||[]).length+(grp||[]).length,totH=Object.values(hrs).reduce((a,b)=>a+b,0);
+  const nSal=[...used].filter(id=>!S.ext.has(id)).length,missDays=HEAT?[...new Set(HEAT.miss.map(x=>x[0]))]:[];
+  const ptile=(c,f,icn,v,l,sub)=>`<div class="ptile" style="--kc:var(${c});--kf:${f}"><span class="kic">${ic(icn)}</span><div><b>${v}</b><span>${l}</span>${sub?`<small>${sub}</small>`:""}</div></div>`;
+  const tiles=()=>!SH.length?"":`<div class="ptiles">
+    ${ptile("--bleu-c","var(--bleu-f)","clock",fNum(totH,0)+" h","planifiées cette semaine",`${fNum(totH/Math.max(1,used.size),1)} h par personne en moyenne`)}
+    ${ptile("--jaune-c","#c99a2e","users",used.size,`personne${used.size>1?"s":""} au planning`,`${nSal} salarié${nSal>1?"s":""}${used.size-nSal?` · ${used.size-nSal} renfort${used.size-nSal>1?"s":""}`:""}`)}
+    ${ptile("--rouge-c","var(--rouge-f)","alert",missDays.length,`jour${missDays.length>1?"s":""} à couvrir`,missDays.length?missDays.map(d=>capital(fShort(d))).join(", "):"tout est couvert ✓")}
+    ${ptile("--vert-c","#9aab55","cake",nResa,`réservation${nResa>1?"s":""} cette semaine`,`${(anniv||[]).length} anniv · ${(grp||[]).length} groupe${(grp||[]).length>1?"s":""}`)}
+  </div>`;
   const day=S.planDay,dl=SH.filter(s=>s.day===day);
   const pct=mn=>((mn-H0*60)/((H1-H0)*60))*100;
   const dayTimeline=()=>`<div class="res-strip">${resaOn(day).map(r=>`<span class="pill" style="background:var(${RESA_COL[r.k][0]})">${ic(RESA_COL[r.k][2],"sm")} ${esc(r.l)}</span>`).join("")||'<span class="pill">Aucune réservation ce jour</span>'}</div>
@@ -1598,9 +1692,8 @@ VIEWS.planning=async m=>{
     `<div class="plan-bar"><button class="btn icon" id="wPrev" aria-label="Semaine précédente">${ic("left")}</button><span class="week">${wl}</span><button class="btn icon" id="wNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="wNow">Aujourd'hui</button>
       <span class="sp"></span>${isManager()?`<button class="btn sm" id="pExt">${ic("plus","sm")} Intérimaire</button>`:""}<div class="seg" id="vSeg"><button data-v="semaine" aria-pressed="${view==="semaine"}">Semaine</button><button data-v="jour" aria-pressed="${view==="jour"}">Jour</button></div></div>`+
     (!isManager()&&!st?`<div class="card empty"><img src="assets/illu.svg" alt="">Le planning de cette semaine n'est pas encore publié.</div>`:
-    (view==="jour"?`<div class="days-tabs" style="margin-bottom:14px">${days.map(d=>`<button data-day="${d}" class="${d===today?"today":""}" aria-pressed="${d===day}">${capital(fShort(d))}</button>`).join("")}</div>`+dayTimeline():weekGrid())+
+    tiles()+(HEAT?HEAT.html:"")+(view==="jour"?`<div class="days-tabs" style="margin-bottom:14px">${days.map(d=>`<button data-day="${d}" class="${d===today?"today":""}" aria-pressed="${d===day}">${capital(fShort(d))}</button>`).join("")}</div>`+dayTimeline():weekGrid())+
     `<p class="plan-hint">${editable&&st==="valide"?"<b>Planning validé : vos changements sont visibles tout de suite par l'équipe.</b> ":""}${editable?(view==="jour"?"✋ Glissez une barre pour décaler l'horaire (ou vers une autre personne) · tirez ses bords pour changer le début ou la fin · dessinez sur la ligne d'une personne pour créer un service · cliquez pour modifier.":"✋ Glissez un service vers un autre jour ou une autre personne · cliquez sur une case vide pour en créer un · cliquez sur un service pour le modifier · passez en vue Jour pour ajuster les heures à la souris."):st==="soumis"?"Planning en attente de validation : il n'est plus modifiable sauf refus.":st==="valide"?"Planning validé : il est visible par toute l'équipe.":""}</p>
-    ${SH.length?heat():""}
     <div class="mplan">${days.map(d=>{const sh=SH.filter(s=>s.day===d).sort((a,b)=>a.a-b.a);return`<div class="mday ${d===today?"today":""}"><h4><span>${capital(fShort(d))}</span><span style="color:var(--muted);font-weight:500">${sh.length?nbDay(d)+" pers.":""}</span></h4>
       ${sh.map(s=>`<div class="mshift" style="--c:${esc(person(s.user_id).color)}" ${editable?`data-shift="${s.id}"`:""}>${avatar(person(s.user_id),28)}<div style="flex:1"><b>${esc(person(s.user_id).full_name)}</b><div style="font-size:13px;color:var(--ink-2)">${TT(s)}${fTime(s.start_time)} – ${fTime(s.end_time)}${PZ(s)}${s.teletravail?" · Télétravail":""}${s.label?" · "+esc(s.label):""}</div></div></div>`).join("")||'<div style="color:var(--muted);font-size:13.5px">Personne</div>'}
       ${(leaves||[]).filter(l=>l.start_date<=d&&l.end_date>=d).map(l=>`<div style="font-size:13px;color:var(--rouge-f);margin-top:6px">🌴 ${esc(person(l.user_id).full_name)} en congé</div>`).join("")}

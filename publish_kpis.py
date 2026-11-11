@@ -180,6 +180,46 @@ def yannika(d, k, tot, label, sfx, tgt_days, w):
              "period": label, "restricted": True} for a, b, v, t, u in out]
 
 
+def chiffres(d):
+    """Chiffres du mois et de l'année pour l'onglet « Mes chiffres » de l'espace équipe (table chiffres_feed,
+    lisible par la direction et les responsables) : CA HT par activité, comparé aux mêmes jours un an avant (J-364)."""
+    by = {r[0]: r for r in d["daily"]}
+    last = d["lastDate"]
+    if not last:
+        return []
+    L = dt.date.fromisoformat(last)
+    CATS = (("parc", (1,)), ("anniv", (2,)), ("b2b", (3, 4)), ("snack", (5,)), ("bout", (6,)), ("event", (7,)))
+    def tot(days, idx, shift=0):
+        out, seen = 0.0, False
+        for x in days:
+            r = by.get((x - dt.timedelta(days=shift)).isoformat())
+            if r:
+                seen = True
+                out += sum(r[i] or 0 for i in idx)
+        return round(out, 2) if seen else None
+    def block(a, label, series):
+        days = [a + dt.timedelta(days=i) for i in range((L - a).days + 1)]
+        pair = lambda idx, dd=days: {"cur": tot(dd, idx) or 0, "prev": tot(dd, idx, 364)}
+        return {"label": label, "from": a.isoformat(), "to": last,
+                "cats": [dict(pair(idx), k=k) for k, idx in CATS],
+                "total": pair((8,)), "entrees": pair((9,)),
+                "series": [dict(pair((8,), dd), label=lab) for lab, dd in series(days) if dd]}
+    MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+    def weeks(days):
+        out = {}
+        for x in days:
+            out.setdefault(x - dt.timedelta(days=x.weekday()), []).append(x)
+        return [(f"sem. du {max(k, days[0]).day}", v) for k, v in sorted(out.items())]
+    def months(days):
+        out = {}
+        for x in days:
+            out.setdefault(x.month, []).append(x)
+        court = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."]
+        return [(court[k - 1], v) for k, v in sorted(out.items())]
+    return [{"key": "mois", "data": block(L.replace(day=1), f"{MOIS[L.month - 1].capitalize()} {L.year}", weeks)},
+            {"key": "annee", "data": block(L.replace(month=1, day=1), f"Année {L.year}", months)}]
+
+
 def main():
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY")
     if not url or not key:
@@ -213,6 +253,20 @@ def main():
             print(f"Espace équipe : {len(fams)} produits de caisse rangés par famille")
         except urllib.error.HTTPError as e:
             print(f"::warning::Familles de produits non publiées (HTTP {e.code} — schema_v20.sql pas encore exécuté ?)")
+    # Chiffres du mois et de l'année pour l'onglet « Mes chiffres » (direction et responsables)
+    try:
+        ch = [dict(r, updated_at=now) for r in chiffres(d)]
+        if ch:
+            req = urllib.request.Request(
+                url.rstrip("/") + "/rest/v1/chiffres_feed?on_conflict=key", data=json.dumps(ch).encode(), method="POST",
+                headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                         "Prefer": "resolution=merge-duplicates,return=minimal"})
+            urllib.request.urlopen(req, timeout=30)
+            print("Espace équipe : chiffres du mois et de l'année publiés (onglet Mes chiffres)")
+    except urllib.error.HTTPError as e:
+        print(f"::warning::Chiffres non publiés (HTTP {e.code} — schema_v25.sql pas encore exécuté ?)")
+    except Exception as e:
+        print(f"::warning::Chiffres non publiés : {e}")
     # journal public (dépôt public) : pas de montants, seulement les pourcentages d'atteinte
     print("Espace équipe : " + " · ".join(
         f"{r['key']}={round(r['value'] / r['target'] * 100) if r['value'] is not None and r['target'] else '—'} %"
