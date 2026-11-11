@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#f4f2f2">
 <title>Palomano · Espace équipe</title>
 <link rel="icon" href="assets/illu.svg">
+<link rel="preconnect" href="https://ezdnqrnzngjgznccuwnr.supabase.co" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playpen+Sans:wght@300..800&display=swap" rel="stylesheet">
@@ -1101,14 +1102,14 @@ async function enter(user){
   if(error){fail(error);showAuth("fLogin");return}
   S.me=me;
   if(!me||!me.role||!me.active){$("pendTxt").textContent=me&&!me.active?"Votre accès a été désactivé. Contactez la direction.":"Votre compte est créé. La direction doit maintenant vous donner accès ; revenez un peu plus tard.";showAuth("vPending");return}
-  await loadPeople();
-  try{const{data}=await S.sb.rpc("can_saisie");S.canSaisie=!!data}catch(e){S.canSaisie=false}   // saisie du jour (schema_v8)
+  // chargements en parallèle (au lieu de l'un après l'autre) : l'espace s'ouvre plus vite
+  await Promise.all([loadPeople(),S.sb.rpc("can_saisie").then(({data})=>{S.canSaisie=!!data},()=>{S.canSaisie=false})]);
   $("vAuth").classList.add("hidden");$("vApp").classList.remove("hidden");
   S.real=null;$("pvBar").classList.add("hidden");paintMe(me);
   $("logout").innerHTML=ic("out");
   let t="today";try{t=sessionStorage.getItem("palo.eq.tab")||"today"}catch(e){}
   playIntro(me.full_name.split(" ")[0]);
-  await refreshBadges();go(t);startLive();countUnseen();
+  go(t);refreshBadges();startLive();countUnseen();   // les pastilles arrivent sans retarder l'affichage
   const pc=pendingPointer();if(pc&&!S.real)pointerCode(pc);
 }
 /* Pointage avec le code de la borne (saisi, ou reçu par le QR code : …/#pointer=123456) */
@@ -1190,11 +1191,15 @@ const fN0=v=>v==null?"—":Number(v).toLocaleString("fr-FR",{maximumFractionDigi
 const ago=t=>{const m=Math.round((Date.now()-new Date(t))/6e4);return m<1?"à l'instant":m<60?`il y a ${m} min`:m<1440?`il y a ${Math.round(m/60)} h`:`il y a ${Math.round(m/1440)} j`};
 async function loadLive(){
   if(!S.sb||!S.me)return;
-  try{const{data,error}=await S.sb.rpc("live_jour");if(error)throw error;LIVE.data=data}catch(e){LIVE.data=null}
-  try{const{data:c}=await S.sb.rpc("live_caisse");   // ventes de caisse par catégorie (lues dans Qweekle toutes les 15 min)
-    if(c&&LIVE.data){["ventes","exclus","snack","boutique"].forEach(k=>{if(c[k])LIVE.data[k]={...(k==="ventes"?{derniere:LIVE.data.ventes&&LIVE.data.ventes.derniere}:{}),...c[k]}});LIVE.data.caisse_maj=c.maj;LIVE.data.lignes_ok=true}}catch(e){}
-  try{const{data,error}=await S.sb.rpc("creneaux_jour",{d:LIVE.crDay||TODAY()});if(error)throw error;LIVE.cren=data}catch(e){LIVE.cren=null}
-  paintMastKpis();if(S.tab==="live")paintLive();
+  if(LIVE.busy)return LIVE.busy;                // un seul chargement à la fois
+  return LIVE.busy=(async()=>{try{
+    const ok=p=>Promise.resolve(p).then(r=>r&&!r.error?r.data:null,()=>null);
+    // les trois lectures partent ensemble : chiffres du jour, caisse Qweekle (toutes les 15 min), créneaux
+    const[live,c,cren]=await Promise.all([ok(S.sb.rpc("live_jour")),ok(S.sb.rpc("live_caisse")),ok(S.sb.rpc("creneaux_jour",{d:LIVE.crDay||TODAY()}))]);
+    LIVE.data=live;LIVE.cren=cren;
+    if(c&&LIVE.data){["ventes","exclus","snack","boutique"].forEach(k=>{if(c[k])LIVE.data[k]={...(k==="ventes"?{derniere:LIVE.data.ventes&&LIVE.data.ventes.derniere}:{}),...c[k]}});LIVE.data.caisse_maj=c.maj;LIVE.data.lignes_ok=true}
+    paintMastKpis();if(S.tab==="live")paintLive();
+  }finally{LIVE.busy=null}})();
 }
 const loadLiveSoon=()=>{clearTimeout(LIVE.soon);LIVE.soon=setTimeout(loadLive,1200)};
 function resaTot(r){return r?(r.anniv+r.centre+r.ecole+r.privat):0}

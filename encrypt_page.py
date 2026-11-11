@@ -8,6 +8,7 @@ Variable d'environnement : DASH_PASSWORD
 Usage :  DASH_PASSWORD=... python3 encrypt_page.py
 """
 import base64
+import gzip
 import json
 import os
 import re
@@ -67,7 +68,11 @@ async function keyFrom(pw){
   return crypto.subtle.deriveKey({name:"PBKDF2",salt:b64(P.salt),iterations:P.iter,hash:"SHA-256"},base,{name:"AES-GCM",length:256},true,["decrypt"]);
 }
 async function open(key){
-  const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(P.iv)},key,b64(P.ct));
+  let pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:b64(P.iv)},key,b64(P.ct));
+  if(P.gz){   // page compressée avant chiffrement : 3 à 4 fois plus légère à télécharger
+    if(!window.DecompressionStream){document.body.innerHTML="<p style='font:16px system-ui;padding:24px'>Ce navigateur est trop ancien pour ouvrir le dashboard : mettez-le à jour.</p>";return}
+    pt=await new Response(new Blob([pt]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  }
   const html=new TextDecoder().decode(pt);
   document.open();document.write(html);document.close();
 }
@@ -105,9 +110,9 @@ def main():
     salt = digest.finalize()[:16]
     key = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=ITERATIONS).derive(pw.encode())
     iv = os.urandom(12)
-    ct = AESGCM(key).encrypt(iv, html.encode("utf-8"), None)
+    ct = AESGCM(key).encrypt(iv, gzip.compress(html.encode("utf-8"), 9), None)   # compressée puis chiffrée
     payload = {"salt": base64.b64encode(salt).decode(), "iv": base64.b64encode(iv).decode(),
-               "iter": ITERATIONS, "ct": base64.b64encode(ct).decode()}
+               "iter": ITERATIONS, "gz": 1, "ct": base64.b64encode(ct).decode()}
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "index.html").write_text(SHELL.replace("__PAYLOAD__", json.dumps(payload)), encoding="utf-8")
     m = re.search(r'"generatedAt":"([^"]+)"', html)
