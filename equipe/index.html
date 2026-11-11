@@ -324,6 +324,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .animbig span{font-weight:600;font-size:14px;opacity:.95}
 .paymini{display:flex;flex-direction:column;align-items:flex-end;font-size:12.5px;color:var(--ink-2);line-height:1.35}.paymini b{font-size:14px;color:var(--ink)}.paymini .due{color:var(--rouge-f);font-weight:700}.paymini .okp{color:#7d9440;font-weight:700}
 .paybox{border:1px solid var(--line,#eee);border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:13.5px}.paybox .ph{font-weight:700;margin-bottom:6px}.paybox .pl{display:flex;justify-content:space-between;gap:12px;padding:2px 0}.paybox .tot{font-weight:700;border-top:1px dashed var(--line,#e5e5e5);margin-top:4px;padding-top:6px}.paybox .due{color:var(--rouge-f)}.paybox .okp{color:#7d9440}
+.sjpend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;padding:12px 16px;border-radius:18px;background:var(--jaune-c);box-shadow:inset 0 0 0 1.5px var(--jaune)}
+.sjpend b{margin-right:4px}.sjpend span{font-size:13px;color:var(--ink-2)}
 .sjauto{margin-bottom:18px}.sjcells{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px}.sjcells>div{background:var(--bg);border-radius:14px;padding:10px 12px}.sjcells small{display:block;color:var(--ink-2);font-weight:600;font-size:12.5px}.sjcells b{display:block;font-size:19px;margin:2px 0}.sjcells span{font-size:12.5px;color:var(--ink-2)}
 .optchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}.optchips span{font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--jaune-c);color:var(--ink)}
 .animtag{display:inline-block;margin-left:8px;padding:2px 10px;border-radius:999px;background:var(--rouge-f);color:#fff;font-size:12.5px;font-weight:700;vertical-align:2px;white-space:nowrap}
@@ -907,7 +909,7 @@ const NAV=[
   {h:"Réservations"},
   {t:"anniv",l:"Anniversaires",i:"cake"},{t:"annivplan",l:"Planning anniversaires",i:"cal"},{t:"centres",l:"Centres de loisirs",i:"tent"},{t:"ecoles",l:"Écoles",i:"school"},{t:"privat",l:"Privatisations",i:"star"},
   {h:"Équipe"},
-  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
+  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true,b:"bSaisie"},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
   {h:"Objectifs"},
   {t:"objectifs",l:"Objectifs",i:"target"},{t:"chiffres",l:"Mes chiffres",i:"chart",mgr:true},
 ];
@@ -1156,6 +1158,17 @@ document.querySelectorAll(".toLogin").forEach(b=>b.onclick=()=>showAuth("fLogin"
 $("pendRetry").onclick=async()=>{const{data:{user}}=await S.sb.auth.getUser();if(user)enter(user);else showAuth("fLogin")};
 $("pendOut").onclick=$("logout").onclick=logout;
 
+/* Journées à valider : des ventes en caisse (Qweekle) mais pas de saisie du jour enregistrée. On regarde les
+   7 derniers jours, jamais le jour même ; résultat gardé 5 min pour ne pas refaire les lectures à chaque écran. */
+async function saisiePending(force){
+  if(!(isManager()||S.canSaisie)||S.real)return[];
+  if(!force&&S.sjPend&&Date.now()-S.sjPend.at<3e5)return S.sjPend.days;
+  try{const t=TODAY(),days=Array.from({length:7},(_,i)=>addDays(t,-(i+1)));
+    const[{data:done},...autos]=await Promise.all([S.sb.from("saisie_jour").select("date").gte("date",days[6]),...days.map(d=>S.sb.rpc("saisie_auto",{d}))]);
+    const have=new Set((done||[]).map(x=>x.date));
+    const out=days.filter((d,i)=>{const c=autos[i].data&&autos[i].data.caisse;return!have.has(d)&&c&&+c.total_ht>0}).sort();
+    S.sjPend={at:Date.now(),days:out};return out}catch(e){return[]}
+}
 async function refreshBadges(){
   try{
     const w=monday(TODAY());
@@ -1172,6 +1185,7 @@ async function refreshBadges(){
     setBadge("bDem",(pend||[]).length+(inc||[]).length);
     setBadge("bPlan",(plans||[]).filter(p=>canValidate()?p.status==="soumis":isManager()?p.status==="refuse":false).length);
     setBadge("bReg",wait||0);
+    setBadge("bSaisie",(await saisiePending()).length);
     if(S.me)renderNav();
   }catch(e){console.error(e)}
 }
@@ -2246,6 +2260,7 @@ VIEWS.saisie=async m=>{
   if(error)return fail(error);
   // Chiffres proposés automatiquement (réservations Qweekle, ventes du webhook, cartes Yavin)
   const{data:auto}=await S.sb.rpc("saisie_auto",{d});const A=auto||{};
+  const PEND=await saisiePending();
   const CA=A.caisse||null,CAISSE_K=["parc_ttc","parc_nb","anniv_ttc","scolaire_ttc","groupe_ttc","snack_ht","snack_ttc","boutique_ht","boutique_ttc","event_ttc"];
   const AV={...A};if(CA)CAISSE_K.forEach(k=>{if(CA[k]!=null&&+CA[k]>0)AV[k]=CA[k]});
   const AUTO_K=["anniv_nb","anniv_entrees","scolaire_nb","groupe_nb",...CAISSE_K];
@@ -2264,6 +2279,7 @@ VIEWS.saisie=async m=>{
       cells.push(`<div><small>Réservations du jour</small><b>${A.anniv_nb||0} anniv. · ${(A.scolaire_nb||0)+(A.groupe_nb||0)} enfants en groupe</b><span>${A.anniv_entrees||0} enfants aux anniversaires · ${A.scolaire_nb||0} scolaires · ${A.groupe_nb||0} centres</span></div>`);
       return`<div class="card sjauto"><h3>${ic("check")} Pour vérifier</h3><div class="sjcells">${cells.join("")}</div>
         <p class="hint" style="margin:8px 0 0">${preCaisse?"<b>Les montants et les entrées ont été pré-remplis depuis la caisse Qweekle : il reste à vérifier puis à enregistrer.</b> Le TTC est calculé à partir du HT avec la TVA réellement appliquée par la caisse Qweekle (par catégorie, et produit par produit pour le snacking). ":""}${prefilled?"Les nombres d'anniversaires, d'enfants et de groupes viennent des réservations. ":""}« Encaissé » = toutes les ventes enregistrées ce jour-là (y compris acomptes en ligne pour d'autres jours) : à comparer avec le Z de caisse ; les cartes Yavin à comparer avec le total CB de la caisse.</p></div>`})()+
+    (PEND.length?`<div class="sjpend"><b>⏳ ${PEND.length} journée${PEND.length>1?"s":""} à valider</b>${PEND.map(x=>`<button type="button" class="btn sm ${x===d?"pri":""}" data-d="${x}">${capital(fShort(x))}</button>`).join("")}<span>Les chiffres sont pré-remplis : ouvrez chaque journée, vérifiez, enregistrez.</span></div>`:"")+
     `<form id="sjForm" class="card"><h3>${ic("cal")} ${capital(fDay(d))} ${row?status(r0):""}</h3>
       <div class="grid g2" style="margin-top:8px">${SJ.map(([t,i,f])=>`<div><h4 style="margin:10px 0 6px">${ic(i,"sm")} ${t}</h4><div class="fgrid">${f.map(([k,l,eur])=>
         `<label class="f">${l}${eur?" (€)":""}${!row&&AUTO_K.includes(k)&&AV[k]?' <span class="pill info" style="font-size:11px;padding:1px 7px;align-self:flex-start">auto</span>':""}<input name="${k}" type="number" inputmode="decimal" min="0" step="${eur?"0.01":"1"}" value="${r[k]??""}"></label>`).join("")}</div></div>`).join("")}</div>
@@ -2280,7 +2296,7 @@ VIEWS.saisie=async m=>{
     const rec={date:d,note:(x.note||"").trim(),dirty:true,sync_error:null,updated_at:new Date().toISOString(),saisi_par:S.user.id};
     SJ_F.forEach(k=>rec[k]=num(x[k]));
     const{error}=await S.sb.from("saisie_jour").upsert(rec,{onConflict:"date"});if(error)return fail(error);
-    toast("Journée enregistrée : copie dans l'Excel dans les minutes qui viennent");render()};
+    toast("Journée enregistrée : copie dans l'Excel dans les minutes qui viennent");S.sjPend=null;refreshBadges();render()};
 };
 
 /* ═════════ OBJECTIFS ═════════ */

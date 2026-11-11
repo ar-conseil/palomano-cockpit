@@ -55,8 +55,9 @@ def r2(x):
 
 # ───────────────────────── Suivi quotidien ─────────────────────────
 def caisse_days():
-    """Ventes de caisse Qweekle par jour (table Supabase ventes_jour, voir sync_ventes.py), pour compléter les
-    journées pas encore saisies. Jamais le jour même : la journée n'est pas finie. {} si Supabase n'est pas joignable."""
+    """Ventes de caisse Qweekle par jour (table Supabase ventes_jour, voir sync_ventes.py). Elles ne servent ici
+    qu'à repérer les journées avec des ventes mais pas encore validées dans la saisie du jour : le dashboard
+    n'affiche que des chiffres validés. Jamais le jour même. {} si Supabase n'est pas joignable."""
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY")
     if not url or not key:
         return {}
@@ -96,13 +97,8 @@ def read_suivi(caisse=None):
             int(num(r[8])),  # 12 entrées parc payantes (hors anniv/groupes)
             int(num(r[14]) + num(r[17])),  # 13 enfants scolaires + centres/groupes
         ])
-    filled = []
-    for x in daily:                                  # journée pas encore saisie : chiffres de la caisse Qweekle
-        c = (caisse or {}).get(x[0])
-        if c and x[8] <= 0 and c[8] > 0:
-            x[1:9] = [r2(v) for v in c[1:9]]
-            x[9] = x[12] = int(c[9])
-            filled.append(x[0])
+    # journées où la caisse a vendu mais que personne n'a encore validées dans la saisie du jour
+    filled = sorted(x[0] for x in daily if x[8] <= 0 and (caisse or {}).get(x[0], [0] * 9)[8] > 0)
     last = max((x[0] for x in daily if x[8] > 0), default=None)
     daily = [x for x in daily if x[0] <= (last or "")]
 
@@ -300,9 +296,9 @@ def main():
     for f in (F_SUIVI, F_YANNIKA, F_COLOR):
         if not f.exists():
             sys.exit(f"Fichier introuvable : {f}")
-    daily, day_obj, day_coef, obj_cal, annual, obj_seg, last, caisse_filled = read_suivi(caisse_days())
-    if caisse_filled:
-        print(f"Dashboard : {len(caisse_filled)} journée(s) pas encore saisie(s), complétée(s) par la caisse Qweekle")
+    daily, day_obj, day_coef, obj_cal, annual, obj_seg, last, a_valider = read_suivi(caisse_days())
+    if a_valider:
+        print(f"Dashboard : {len(a_valider)} journée(s) à valider dans la saisie du jour ({', '.join(a_valider)})")
     yannika = read_yannika()
     color, okr, avis = read_colorhisto()
     f_ventes = find_ventes()
@@ -318,7 +314,7 @@ def main():
     data = {
         "generatedAt": dt.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
         "lastDate": last,
-        "caisseDays": caisse_filled,
+        "aValider": a_valider,
         "sources": {f.name: dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%dT%H:%M")
                     for f in (F_SUIVI, F_YANNIKA, F_COLOR)},
         "daily": daily,

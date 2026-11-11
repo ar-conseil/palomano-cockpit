@@ -272,6 +272,8 @@ header.mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
 .subbar .chip:active{transform:scale(.94)}
 .subbar .chip[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--pshadow),inset 0 -3px 0 var(--rouge-f)}
 .periodline{text-align:center;margin:16px 0 14px}
+.avalider{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;margin:16px auto 0;padding:11px 18px;border-radius:16px;background:var(--jaune-c);box-shadow:inset 0 0 0 1.5px var(--jaune);color:#4a4a49;font-size:14px;max-width:max-content}
+.avalider b{font-weight:800}.avalider a{color:#4a4a49;font-weight:700}
 @media (max-width:760px){.mast-in{padding:0 16px}.mast-logo{width:130px}.mast-hello b{font-size:30px}.subbar .controls{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start;padding:10px 16px}nav.tabs.gtabs{flex-wrap:nowrap;overflow-x:auto;justify-content:flex-start}}
 .ripple{position:absolute;border-radius:50%;pointer-events:none;background:currentColor;opacity:.22;transform:scale(0);animation:ripple .6s ease-out forwards;z-index:0}
 @keyframes ripple{to{transform:scale(1);opacity:0}}
@@ -338,6 +340,7 @@ header.mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
 </header>
 
 <div class="wrap">
+  <div class="avalider" id="aValider" hidden></div>
   <div class="periodline" id="periodLine"></div>
 
   <!-- ═════════ SYNTHÈSE ═════════ -->
@@ -1373,13 +1376,16 @@ function paintMastKpis(){
   el.innerHTML=[...document.querySelectorAll("#kpis .kpi")].slice(0,4).map((k,i)=>{const lab=k.querySelector(".lab span")?.textContent||"",val=k.querySelector(".val")?.textContent||"",meta=k.querySelector(".meta span")?.textContent||"";
     return`<div class="mk" style="--kf:${cols[i]}"><small><i></i>${esc(lab)}</small><b>${esc(val)}</b><span>${esc(meta)}</span></div>`}).join("");
 }
+function renderAValider(){
+  const A=DATA.aValider||[],el=$("aValider");if(!el)return;el.hidden=!A.length;if(!A.length)return;
+  el.innerHTML=`⏳ <span><b>${A.length} journée${A.length>1?"s":""} à valider</b> dans la saisie du jour : ${A.map(d=>d.slice(8)+"/"+d.slice(5,7)).join(", ")}. Leurs chiffres n'apparaissent pas encore ici.</span><a href="../">Ouvrir l'espace équipe →</a>`;
+}
 function renderFresh(){
   const age=Math.round((Date.now()-toD(LAST))/DAY);
   $("freshDot").classList.toggle("stale",age>2);
   const g=new Date(DATA.generatedAt);
-  $("freshTxt").innerHTML=`${(DATA.caisseDays||[]).includes(LAST)?"Dernier jour (caisse)":"Dernière saisie"} <b>${fmtDate(LAST)}</b> · actualisé ${g.toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
-  const CD=DATA.caisseDays||[];
-  $("foot").innerHTML=(CD.length?`<b style="color:var(--ink-2)">${CD.length} journée${CD.length>1?"s":""} pas encore saisie${CD.length>1?"s":""}, complétée${CD.length>1?"s":""} par la caisse Qweekle (HT, hors acomptes et bons cadeaux) : ${CD.map(d=>d.slice(8)+"/"+d.slice(5,7)).join(", ")}. La saisie du jour, une fois enregistrée, fait foi.</b><br>`:"")+`Sources : ${Object.entries(DATA.sources).map(([f,t])=>`${esc(f)} (modifié le ${new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})})`).join(" · ")}.<br>
+  $("freshTxt").innerHTML=`Dernière saisie <b>${fmtDate(LAST)}</b> · actualisé ${g.toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
+  $("foot").innerHTML=`Sources : ${Object.entries(DATA.sources).map(([f,t])=>`${esc(f)} (modifié le ${new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})})`).join(" · ")}.<br>
   Méthode : objectifs journaliers = objectif mensuel réparti selon les coefficients jour/vacances des onglets mensuels · N-1 = même jour de semaine un an avant (J-364) · panier moyen = CA HT total ÷ entrées · snack/visiteur = CA snack ÷ entrées parc payantes · remplissage anniversaires = anniv ÷ (6 × mercredis, samedis, dimanches).`;
 }
 
@@ -1412,7 +1418,7 @@ document.addEventListener("pointerdown",e=>{const b=e.target.closest("nav.tabs b
   sp.style.cssText=`width:${d}px;height:${d}px;left:${e.clientX-r.left-d/2}px;top:${e.clientY-r.top-d/2}px`;b.style.position="relative";b.style.overflow="hidden";b.appendChild(sp);setTimeout(()=>sp.remove(),650)},{passive:true});
 if(!V)$("tabVentes").hidden=true;
 if(!GEO)$("tabClients").hidden=true;
-renderFresh();
+renderFresh();renderAValider();
 let startTab="synth";try{startTab=localStorage.getItem("palo.tab")||"synth"}catch(e){}
 let startP="mtd";try{startP=localStorage.getItem("palo.period")||"mtd"}catch(e){}
 if(startP==="custom")startP="mtd";
