@@ -326,6 +326,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .paybox{border:1px solid var(--line,#eee);border-radius:12px;padding:10px 12px;margin:0 0 12px;font-size:13.5px}.paybox .ph{font-weight:700;margin-bottom:6px}.paybox .pl{display:flex;justify-content:space-between;gap:12px;padding:2px 0}.paybox .tot{font-weight:700;border-top:1px dashed var(--line,#e5e5e5);margin-top:4px;padding-top:6px}.paybox .due{color:var(--rouge-f)}.paybox .okp{color:#7d9440}
 .sjpend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;padding:12px 16px;border-radius:18px;background:var(--jaune-c);box-shadow:inset 0 0 0 1.5px var(--jaune)}
 .sjpend b{margin-right:4px}.sjpend span{font-size:13px;color:var(--ink-2)}
+.sjdone{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:18px;padding:12px 16px;border-radius:18px;background:var(--ok-c);font-size:14px}
+.sjdone span{color:var(--ink-2);flex:1;min-width:260px}.sjdone span b{color:var(--ink)}
+.sjdiff{align-self:flex-start;border:0;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer;background:var(--jaune-c);color:var(--ink);box-shadow:inset 0 0 0 1px var(--jaune)}
+.sjdiff:hover{background:var(--jaune)}
 .sjauto{margin-bottom:18px}.sjcells{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px}.sjcells>div{background:var(--bg);border-radius:14px;padding:10px 12px}.sjcells small{display:block;color:var(--ink-2);font-weight:600;font-size:12.5px}.sjcells b{display:block;font-size:19px;margin:2px 0}.sjcells span{font-size:12.5px;color:var(--ink-2)}
 .optchips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}.optchips span{font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--jaune-c);color:var(--ink)}
 .animtag{display:inline-block;margin-left:8px;padding:2px 10px;border-radius:999px;background:var(--rouge-f);color:#fff;font-size:12.5px;font-weight:700;vertical-align:2px;white-space:nowrap}
@@ -2255,7 +2259,7 @@ VIEWS.saisie=async m=>{
   const d=S.sjDate||TODAY();
   const[{data:row,error},{data:recent},{data:st}]=await Promise.all([
     S.sb.from("saisie_jour").select("*").eq("date",d).maybeSingle(),
-    S.sb.from("saisie_jour").select("*").order("date",{ascending:false}).limit(10),
+    S.sb.from("saisie_jour").select("*").order("date",{ascending:false}).limit(40),
     S.sb.from("sync_state").select("*").eq("key","saisie").maybeSingle()]);
   if(error)return fail(error);
   // Chiffres proposés automatiquement (réservations Qweekle, ventes du webhook, cartes Yavin)
@@ -2267,6 +2271,9 @@ VIEWS.saisie=async m=>{
   const r0=row||{},r={...r0};let prefilled=0,preCaisse=0;
   if(!row)AUTO_K.forEach(k=>{if(AV[k]){r[k]=AV[k];prefilled++;if(CAISSE_K.includes(k))preCaisse++}});
   const num=v=>v===""||v==null?null:+String(v).replace(",",".");
+  // journée déjà validée : écart entre le chiffre enregistré et celui de la caisse (plus de 1 € ou 1 entrée)
+  const diff=k=>row&&CAISSE_K.includes(k)&&AV[k]!=null&&Math.abs((+r0[k]||0)-(+AV[k]||0))>=1;
+  const ECARTS=row?CAISSE_K.filter(diff).length:0;
   const ttc=x=>["parc_ttc","anniv_ttc","scolaire_ttc","groupe_ttc","snack_ttc","boutique_ttc","event_ttc"].reduce((t,k)=>t+(+x[k]||0),0);
   const ent=x=>["parc_nb","anniv_entrees","scolaire_nb","groupe_nb"].reduce((t,k)=>t+(+x[k]||0),0);
   const status=x=>x.sync_error?`<span class="pill bad"><i></i>${esc(x.sync_error)}</span>`:x.dirty?'<span class="pill warn"><i></i>En attente de copie dans l\'Excel</span>':x.synced_at?`<span class="pill ok"><i></i>Dans l'Excel depuis le ${fStamp(x.synced_at)}</span>`:"";
@@ -2280,23 +2287,25 @@ VIEWS.saisie=async m=>{
       return`<div class="card sjauto"><h3>${ic("check")} Pour vérifier</h3><div class="sjcells">${cells.join("")}</div>
         <p class="hint" style="margin:8px 0 0">${preCaisse?"<b>Les montants et les entrées ont été pré-remplis depuis la caisse Qweekle : il reste à vérifier puis à enregistrer.</b> Le TTC est calculé à partir du HT avec la TVA réellement appliquée par la caisse Qweekle (par catégorie, et produit par produit pour le snacking). ":""}${prefilled?"Les nombres d'anniversaires, d'enfants et de groupes viennent des réservations. ":""}« Encaissé » = toutes les ventes enregistrées ce jour-là (y compris acomptes en ligne pour d'autres jours) : à comparer avec le Z de caisse ; les cartes Yavin à comparer avec le total CB de la caisse.</p></div>`})()+
     (PEND.length?`<div class="sjpend"><b>⏳ ${PEND.length} journée${PEND.length>1?"s":""} à valider</b>${PEND.map(x=>`<button type="button" class="btn sm ${x===d?"pri":""}" data-d="${x}">${capital(fShort(x))}</button>`).join("")}<span>Les chiffres sont pré-remplis : ouvrez chaque journée, vérifiez, enregistrez.</span></div>`:"")+
+    (row?`<div class="sjdone"><b>✅ Journée validée</b><span>${row.saisi_par?`par ${esc(firstName(row.saisi_par))} `:""}le ${fStamp(row.updated_at)}. Une erreur ou un oubli ? Corrigez le chiffre ci-dessous puis réenregistrez : l'Excel et le dashboard financier sont mis à jour dans le quart d'heure.${ECARTS?` <b>${ECARTS} chiffre${ECARTS>1?"s":""} différent${ECARTS>1?"s":""} de la caisse Qweekle</b> (signalé${ECARTS>1?"s":""} sous le champ).`:""}</span></div>`:"")+
     `<form id="sjForm" class="card"><h3>${ic("cal")} ${capital(fDay(d))} ${row?status(r0):""}</h3>
       <div class="grid g2" style="margin-top:8px">${SJ.map(([t,i,f])=>`<div><h4 style="margin:10px 0 6px">${ic(i,"sm")} ${t}</h4><div class="fgrid">${f.map(([k,l,eur])=>
-        `<label class="f">${l}${eur?" (€)":""}${!row&&AUTO_K.includes(k)&&AV[k]?' <span class="pill info" style="font-size:11px;padding:1px 7px;align-self:flex-start">auto</span>':""}<input name="${k}" type="number" inputmode="decimal" min="0" step="${eur?"0.01":"1"}" value="${r[k]??""}"></label>`).join("")}</div></div>`).join("")}</div>
+        `<label class="f">${l}${eur?" (€)":""}${!row&&AUTO_K.includes(k)&&AV[k]?' <span class="pill info" style="font-size:11px;padding:1px 7px;align-self:flex-start">auto</span>':""}<input name="${k}" type="number" inputmode="decimal" min="0" step="${eur?"0.01":"1"}" value="${r[k]??""}">${diff(k)?`<button type="button" class="sjdiff" data-fill="${k}" data-v="${AV[k]}">caisse Qweekle : ${eur?fEur2(AV[k]):fNum(AV[k])} · reprendre</button>`:""}</label>`).join("")}</div></div>`).join("")}</div>
       <label class="f full" style="margin-top:12px">Remarque (facultatif)<input name="note" maxlength="200" value="${esc(r.note||"")}"></label>
-      <div style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap"><b id="sjTot"></b><span style="flex:1"></span><button class="btn pri" type="submit">${ic("check","sm")} Enregistrer la journée</button></div>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap"><b id="sjTot"></b><span style="flex:1"></span><button class="btn pri" type="submit">${ic("check","sm")} ${row?"Enregistrer la correction":"Enregistrer la journée"}</button></div>
     </form>
-    <div class="card" style="margin-top:18px"><h3>${ic("clock")} Derniers jours saisis</h3>${st?`<p class="hint" style="margin:0 0 8px;color:${st.ok?"var(--ink-2)":"var(--rouge-f)"}">Dernière copie : ${fStamp(st.synced_at)} · ${esc(st.message||"")}</p>`:""}
-      <div class="list">${(recent||[]).map(x=>`<div class="row click" data-d="${x.date}"><div class="tx"><b>${capital(fDay(x.date))}</b><small>${fEur(ttc(x))} TTC · ${fNum(ent(x))} entrées${x.saisi_par?" · par "+esc(firstName(x.saisi_par)):""}</small></div>${status(x)}</div>`).join("")||'<div class="empty">Aucune journée saisie pour l\'instant.</div>'}</div></div>`;
+    <div class="card" style="margin-top:18px"><h3>${ic("clock")} Journées validées</h3><p class="hint" style="margin:0 0 8px">Cliquez sur une journée pour la rouvrir et la corriger. Pour une date plus ancienne, utilisez le calendrier en haut de la page.</p>${st?`<p class="hint" style="margin:0 0 8px;color:${st.ok?"var(--ink-2)":"var(--rouge-f)"}">Dernière copie : ${fStamp(st.synced_at)} · ${esc(st.message||"")}</p>`:""}
+      <div class="list">${(recent||[]).map(x=>`<div class="row click" data-d="${x.date}"><div class="tx"><b>${capital(fDay(x.date))}</b><small>${fEur(ttc(x))} TTC · ${fNum(ent(x))} entrées${x.saisi_par?" · par "+esc(firstName(x.saisi_par)):""}</small></div>${status(x)}<span class="btn sm soft">${ic("wrench","sm")} Modifier</span></div>`).join("")||'<div class="empty">Aucune journée saisie pour l\'instant.</div>'}</div></div>`;
   const f=$("sjForm"),tot=()=>{const x=Object.fromEntries(new FormData(f));$("sjTot").textContent=`Total ${fEur(ttc(x))} TTC · ${fNum(ent(x))} entrées`};tot();f.oninput=tot;
   $("sjDate").onchange=e=>{S.sjDate=e.target.value||TODAY();render()};
+  m.querySelectorAll("[data-fill]").forEach(b=>b.onclick=()=>{f.elements[b.dataset.fill].value=b.dataset.v;b.remove();tot()});
   m.querySelectorAll("[data-d]").forEach(el=>el.onclick=()=>{S.sjDate=el.dataset.d;render();window.scrollTo(0,0)});
   f.onsubmit=async e=>{e.preventDefault();const x=Object.fromEntries(new FormData(f));
     if(!row&&d<addDays(TODAY(),-1)&&!confirm(`Aucune saisie n'a été faite dans l'espace pour le ${fDay(d)} : ses chiffres sont peut-être déjà dans l'Excel. Enregistrer remplacera la ligne de ce jour dans l'Excel. Continuer ?`))return;
     const rec={date:d,note:(x.note||"").trim(),dirty:true,sync_error:null,updated_at:new Date().toISOString(),saisi_par:S.user.id};
     SJ_F.forEach(k=>rec[k]=num(x[k]));
     const{error}=await S.sb.from("saisie_jour").upsert(rec,{onConflict:"date"});if(error)return fail(error);
-    toast("Journée enregistrée : copie dans l'Excel dans les minutes qui viennent");S.sjPend=null;refreshBadges();render()};
+    toast(row?"Correction enregistrée : l'Excel et le dashboard sont mis à jour dans le quart d'heure":"Journée enregistrée : copie dans l'Excel dans les minutes qui viennent");S.sjPend=null;refreshBadges();render()};
 };
 
 /* ═════════ OBJECTIFS ═════════ */
