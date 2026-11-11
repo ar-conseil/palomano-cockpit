@@ -590,6 +590,7 @@ em.up{color:#4f8a2c}em.down{color:var(--bad)}
 .cfill i{display:block;min-width:6px}
 .cchips{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px;font-size:12.5px;color:var(--ink-2)}
 .cchips span{white-space:nowrap}
+.cchips .fete{background:var(--rouge-c);color:var(--ink);font-weight:700;border-radius:999px;padding:1px 9px}
 .cn{text-align:right}
 .cn b{display:block;font-size:24px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
 .cn small{font-size:11.5px;color:var(--muted);white-space:nowrap}
@@ -1360,8 +1361,8 @@ function paintCren(){
       return`<div class="crow ${past?"past":""} ${isNext?"next":""}">
         <div class="ct"><b>${c.h.replace(":","h")}</b>${isNext?'<em>à venir</em>':""}</div>
         <div class="cbar"><div class="cfill" style="width:${Math.max(4,(+c.nb||0)/mx*100)}%">${Object.keys(CR_FAM).filter(k=>c.fams&&c.fams[k]).map(k=>`<i style="flex:${c.fams[k]};background:${CR_FAM[k][1]}" title="${CR_FAM[k][0]} : ${c.fams[k]}"></i>`).join("")}</div>
-          <div class="cchips">${Object.keys(CR_FAM).filter(k=>c.fams&&c.fams[k]).map(k=>`<span>${CR_FAM[k][2]} ${fN0(c.fams[k])} ${CR_FAM[k][0].toLowerCase()}</span>`).join("")}</div></div>
-        <div class="cn"><b>${fN0(c.nb)}</b><small>pers. · ${fN0(c.resas)} résa${c.resas>1?"s":""}</small></div>
+          <div class="cchips">${Object.keys(CR_FAM).filter(k=>c.fams&&c.fams[k]).map(k=>`<span>${CR_FAM[k][2]} ${fN0(c.fams[k])} ${k==="anniv"?"invités d'anniversaire":CR_FAM[k][0].toLowerCase()}</span>`).join("")}${c.fams&&c.fams.fete?`<span class="fete">🎉 goûter d'anniversaire · ${fN0(c.fams.fete)} enfants</span>`:""}</div></div>
+        <div class="cn">${c.nb?`<b>${fN0(c.nb)}</b><small>pers. · ${fN0(c.resas)} résa${c.resas>1?"s":""}</small>`:`<small>déjà comptés<br>à l'arrivée</small>`}</div>
       </div>`}).join("")}</div>
       <div class="legend-c">${used.map(k=>`<span><i style="background:${CR_FAM[k][1]}"></i>${CR_FAM[k][0]}</span>`).join("")}</div>`
       :`<div class="empty"><img src="assets/illu.svg" alt="">Aucune réservation connue pour ce jour.</div>`}

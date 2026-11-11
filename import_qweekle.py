@@ -242,7 +242,7 @@ def slots(data, exported):
     ix = {h: i for i, h in enumerate(head) if h}
     g = lambda r, k: r[ix[k]] if k in ix and ix[k] < len(r) else None
     since = dt.date.today() - dt.timedelta(days=1)
-    agg = {}
+    agg, seen = {}, {}
     for r in rows:
         if not r or str(g(r, "Actif") or "1") in ("0", "0.0"):
             continue
@@ -253,9 +253,13 @@ def slots(data, exported):
             n = int(float(g(r, "Nbre participants") or 0))
         except ValueError:
             n = 0
-        e = agg.setdefault((start.date().isoformat(), start.strftime("%H:%M"), act), [0, set()])
+        slot = (start.date().isoformat(), start.strftime("%H:%M"))
+        e = agg.setdefault(slot + (act,), [0, set()])
         e[0] += n
-        e[1].add((g(r, "Client") or "", str(g(r, "Réservé le") or "")[:16]))
+        who = (g(r, "Client") or "", str(g(r, "Réservé le") or "")[:16])
+        if who not in seen.setdefault(slot, set()):   # une famille (ligne Enfant + ligne Adulte) = une réservation
+            seen[slot].add(who)
+            e[1].add(who)
     out = [{"date": d, "heure": h, "activite": a, "nb": v[0], "resas": len(v[1]), "exported_at": exported}
            for (d, h, a), v in sorted(agg.items())]
     sb(f"creneaux_export?date=gte.{since.isoformat()}", method="DELETE")
