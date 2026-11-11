@@ -118,6 +118,8 @@ jobs:
         env:
           PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
           TZ: Europe/Paris
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python build_dashboard.py
 
       - name: Chiffrer la page

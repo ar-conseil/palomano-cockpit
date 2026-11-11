@@ -1377,8 +1377,9 @@ function renderFresh(){
   const age=Math.round((Date.now()-toD(LAST))/DAY);
   $("freshDot").classList.toggle("stale",age>2);
   const g=new Date(DATA.generatedAt);
-  $("freshTxt").innerHTML=`Dernière saisie <b>${fmtDate(LAST)}</b> · actualisé ${g.toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
-  $("foot").innerHTML=`Sources : ${Object.entries(DATA.sources).map(([f,t])=>`${esc(f)} (modifié le ${new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})})`).join(" · ")}.<br>
+  $("freshTxt").innerHTML=`${(DATA.caisseDays||[]).includes(LAST)?"Dernier jour (caisse)":"Dernière saisie"} <b>${fmtDate(LAST)}</b> · actualisé ${g.toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
+  const CD=DATA.caisseDays||[];
+  $("foot").innerHTML=(CD.length?`<b style="color:var(--ink-2)">${CD.length} journée${CD.length>1?"s":""} pas encore saisie${CD.length>1?"s":""}, complétée${CD.length>1?"s":""} par la caisse Qweekle (HT, hors acomptes et bons cadeaux) : ${CD.map(d=>d.slice(8)+"/"+d.slice(5,7)).join(", ")}. La saisie du jour, une fois enregistrée, fait foi.</b><br>`:"")+`Sources : ${Object.entries(DATA.sources).map(([f,t])=>`${esc(f)} (modifié le ${new Date(t).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})})`).join(" · ")}.<br>
   Méthode : objectifs journaliers = objectif mensuel réparti selon les coefficients jour/vacances des onglets mensuels · N-1 = même jour de semaine un an avant (J-364) · panier moyen = CA HT total ÷ entrées · snack/visiteur = CA snack ÷ entrées parc payantes · remplissage anniversaires = anniv ÷ (6 × mercredis, samedis, dimanches).`;
 }
 
