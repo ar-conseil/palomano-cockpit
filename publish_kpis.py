@@ -210,7 +210,7 @@ def chiffres(d, caisse=None):
     last = d["lastDate"]
     if not last:
         return []
-    filled = set()
+    filled = set(d.get("aValider") or [])          # déjà complétées (provisoire) par build_dashboard.py
     for day, row in (caisse or {}).items():      # jours pas encore saisis dans le journal : chiffres de la caisse
         if row[8] > 0 and (day not in by or not (by[day][8] or 0)):
             by[day] = row

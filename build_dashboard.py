@@ -98,7 +98,14 @@ def read_suivi(caisse=None):
             int(num(r[14]) + num(r[17])),  # 13 enfants scolaires + centres/groupes
         ])
     # journées où la caisse a vendu mais que personne n'a encore validées dans la saisie du jour
-    filled = sorted(x[0] for x in daily if x[8] <= 0 and (caisse or {}).get(x[0], [0] * 9)[8] > 0)
+    # → affichées en « provisoire » avec les chiffres de la caisse, jusqu'à leur validation
+    filled = []
+    for x in daily:
+        c = (caisse or {}).get(x[0])
+        if c and x[8] <= 0 and c[8] > 0:
+            x[1:9] = [r2(v) for v in c[1:9]]
+            x[9] = x[12] = int(c[9])
+            filled.append(x[0])
     last = max((x[0] for x in daily if x[8] > 0), default=None)
     daily = [x for x in daily if x[0] <= (last or "")]
 
@@ -298,7 +305,7 @@ def main():
             sys.exit(f"Fichier introuvable : {f}")
     daily, day_obj, day_coef, obj_cal, annual, obj_seg, last, a_valider = read_suivi(caisse_days())
     if a_valider:
-        print(f"Dashboard : {len(a_valider)} journée(s) à valider dans la saisie du jour ({', '.join(a_valider)})")
+        print(f"Dashboard : {len(a_valider)} journée(s) provisoire(s) (caisse Qweekle), à valider dans la saisie du jour ({', '.join(a_valider)})")
     yannika = read_yannika()
     color, okr, avis = read_colorhisto()
     f_ventes = find_ventes()
