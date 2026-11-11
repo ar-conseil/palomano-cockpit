@@ -114,6 +114,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 /* Sous-onglets */
 .subbar{background:var(--bg);transition:box-shadow .2s}
 .mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
+.mast::before{background:var(--bg)}
+.mast-art{background:var(--bg)}
 .subnav{max-width:1440px;margin:0 auto;padding:12px 36px;display:flex;gap:6px;justify-content:center;overflow-x:auto;scrollbar-width:none}
 .subnav::-webkit-scrollbar{display:none}
 .subnav a{display:inline-flex;align-items:center;gap:9px;padding:9px 15px;border-radius:14px;color:var(--ink-2);text-decoration:none;font-weight:600;font-size:14.5px;white-space:nowrap;cursor:pointer;position:relative;transition:background .15s,color .15s}
@@ -1013,6 +1015,9 @@ function setBadge(id,n){BADGES[id]=n||0}
 function fitMast(){const m=$("mast"),g=$("gTabs");if(!m||!g||!m.offsetParent)return;
   m.style.setProperty("--mh",(g.offsetTop+g.offsetHeight)+"px");m.style.top=(-g.offsetTop)+"px"}
 addEventListener("resize",fitMast);
+// le bandeau change de hauteur quand les chiffres du jour arrivent ou passent à la ligne : on recale à chaque fois
+if(window.ResizeObserver)new ResizeObserver(()=>fitMast()).observe($("mast"));
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitMast);
 addEventListener("scroll",()=>{const m=$("mast"),g=$("gTabs");if(m&&g)m.classList.toggle("stuck",scrollY>g.offsetTop)},{passive:true});
 function paintClock(){const el=$("mastDate");if(!el)return;const now=new Date();el.innerHTML=`${capital(now.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}))} · <em>${now.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</em> · Espace équipe`}
 setInterval(()=>{if(!document.hidden)paintClock()},20000);
