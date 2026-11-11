@@ -504,6 +504,23 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .feed .nf .tag{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none}
 .feed .nf .tx{flex:1;min-width:0}.feed .nf .tx b{display:block;font-size:14px}.feed .nf .tx small{color:var(--muted);font-size:12.5px}
 .feed .nf .ago{font-size:12px;color:var(--muted);white-space:nowrap}
+/* ── Qui est là, heure par heure ── */
+.heat{margin-top:18px}
+.heat-wrap{overflow-x:auto}
+.heat-grid{display:grid;grid-template-columns:130px repeat(12,minmax(42px,1fr));gap:6px;align-items:center;min-width:700px}
+.heat-grid .hh{text-align:center;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.heat-grid .hd2{text-align:right;padding-right:8px;font-size:13.5px;font-weight:600;color:var(--ink-2);white-space:nowrap}
+.heat-grid .hd2.today{color:var(--rouge-f);font-weight:800}
+.hc{display:grid;place-items:center;height:34px;border-radius:9px;font-style:normal;font-size:12.5px;font-weight:800;font-variant-numeric:tabular-nums;cursor:default;
+  background:color-mix(in srgb,#3f6fa8 calc(var(--a,0)*100%),var(--bg));color:color-mix(in srgb,#fff calc(var(--a,0)*100%),var(--ink-2));transition:transform .2s cubic-bezier(.3,1.6,.5,1)}
+.hc:hover{transform:scale(1.12)}
+.hc.bad{background:var(--rouge-f);color:#fff}
+.hc.peak{box-shadow:0 0 0 2.5px var(--jaune-f)}
+.heat-leg{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:14px;font-size:12.5px;color:var(--ink-2)}
+.heat-leg span{display:inline-flex;align-items:center;gap:7px}
+.heat-leg i{width:16px;height:16px;border-radius:5px;background:color-mix(in srgb,#3f6fa8 calc(var(--a,0)*100%),var(--bg))}
+.heat-leg i.bad{background:var(--rouge-f)}.heat-leg i.peak{box-shadow:0 0 0 2.5px var(--jaune-f)}
+.heat-alert{margin-top:14px;padding:12px 16px;border-radius:16px;background:var(--jaune-c);box-shadow:inset 0 0 0 1.5px var(--jaune);font-size:14px;line-height:1.6}
 /* ── Réservations par créneau ── */
 .cren{margin-top:18px;position:relative;overflow:hidden}
 .cren-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px}
@@ -1549,6 +1566,26 @@ VIEWS.planning=async m=>{
       ${days.map(d=>`<div class="foot">${nbDay(d)} pers. · ${fNum(hDay(d),1)} h</div>`).join("")}
       <div class="foot" style="font-weight:700">${fNum(Object.values(hrs).reduce((a,b)=>a+b,0),1)} h</div>
     </div></div>`;
+  // Qui est là, heure par heure : présents au parc (hors télétravail), réservations sans personne, animateur manquant
+  const heat=()=>{const HH=Array.from({length:12},(_,i)=>i+9);let mx=1,miss=[];
+    const cell=(d,h)=>{const a=h*60,b=a+60,on=new Set(SH.filter(x=>x.day===d&&!x.teletravail&&x.a<b&&x.b>a).map(x=>x.user_id));
+      const an=(anniv||[]).filter(x=>x.date===d&&toMin(x.heure)<b&&toMin(x.heure)+(+x.duree_min||120)>a);
+      const gr=(grp||[]).filter(x=>x.date===d&&x.heure_arrivee&&toMin(x.heure_arrivee)<b&&toMin(x.heure_arrivee)+120>a);
+      const noAnim=an.filter(x=>x.option_animateur&&!animOf(x));
+      return{n:on.size,names:[...on].map(firstName),resa:an.length+gr.length,noAnim,bad:noAnim.length>0||(an.length+gr.length>0&&on.size===0)}};
+    const G=days.map(d=>HH.map(h=>cell(d,h)));G.flat().forEach(c=>{mx=Math.max(mx,c.n)});
+    const peak=G.map(r=>{const m=Math.max(...r.map(c=>c.resa));return m>0?r.findIndex(c=>c.resa===m):-1});
+    G.forEach((r,i)=>r.forEach((c,j)=>{if(c.bad)miss.push([days[i],HH[j],c])}));
+    const alerts=[];days.forEach(d=>{const m=miss.filter(x=>x[0]===d);if(!m.length)return;const an=[...new Set(m.flatMap(x=>x[2].noAnim.map(a=>a.enfant)))];
+      alerts.push(`<b>${capital(fDay(d))}</b> : ${an.length?`animateur à désigner pour l'anniversaire de ${an.map(esc).join(", ")}`:`des réservations de ${m[0][1]} h à ${m[m.length-1][1]+1} h et personne au planning`}`)});
+    return`<div class="card heat"><div class="card-head"><h3>${ic("users")} Qui est là, heure par heure</h3><span class="pill info"><i></i>${wl}</span></div>
+      <div class="heat-wrap"><div class="heat-grid">
+        <span></span>${HH.map(h=>`<span class="hh">${h} h</span>`).join("")}
+        ${days.map((d,i)=>`<span class="hd2 ${d===today?"today":""}">${parse(d).toLocaleDateString("fr-FR",{weekday:"long",day:"numeric"})}</span>`+G[i].map((c,j)=>
+          `<i class="hc ${c.bad?"bad":""} ${peak[i]===j?"peak":""}" style="${c.bad?"":`--a:${c.n?(.18+.82*c.n/mx).toFixed(2):0}`}" title="${HH[j]} h · ${c.n} présent${c.n>1?"s":""}${c.names.length?" : "+esc(c.names.join(", ")):""}${c.resa?` · ${c.resa} réservation${c.resa>1?"s":""}`:""}${c.noAnim.length?" · animateur à désigner":""}">${c.n||""}</i>`).join("")).join("")}
+      </div></div>
+      <div class="heat-leg"><span><i style="--a:.25"></i>1 personne</span><span><i style="--a:1"></i>${mx} et plus</span><span><i class="bad"></i>il manque quelqu'un</span><span><i class="peak" style="--a:.25"></i>pointe des réservations du jour</span></div>
+      ${alerts.length&&isManager()?`<div class="heat-alert">${alerts.join("<br>")}</div>`:""}</div>`};
   const day=S.planDay,dl=SH.filter(s=>s.day===day);
   const pct=mn=>((mn-H0*60)/((H1-H0)*60))*100;
   const dayTimeline=()=>`<div class="res-strip">${resaOn(day).map(r=>`<span class="pill" style="background:var(${RESA_COL[r.k][0]})">${ic(RESA_COL[r.k][2],"sm")} ${esc(r.l)}</span>`).join("")||'<span class="pill">Aucune réservation ce jour</span>'}</div>
@@ -1563,6 +1600,7 @@ VIEWS.planning=async m=>{
     (!isManager()&&!st?`<div class="card empty"><img src="assets/illu.svg" alt="">Le planning de cette semaine n'est pas encore publié.</div>`:
     (view==="jour"?`<div class="days-tabs" style="margin-bottom:14px">${days.map(d=>`<button data-day="${d}" class="${d===today?"today":""}" aria-pressed="${d===day}">${capital(fShort(d))}</button>`).join("")}</div>`+dayTimeline():weekGrid())+
     `<p class="plan-hint">${editable&&st==="valide"?"<b>Planning validé : vos changements sont visibles tout de suite par l'équipe.</b> ":""}${editable?(view==="jour"?"✋ Glissez une barre pour décaler l'horaire (ou vers une autre personne) · tirez ses bords pour changer le début ou la fin · dessinez sur la ligne d'une personne pour créer un service · cliquez pour modifier.":"✋ Glissez un service vers un autre jour ou une autre personne · cliquez sur une case vide pour en créer un · cliquez sur un service pour le modifier · passez en vue Jour pour ajuster les heures à la souris."):st==="soumis"?"Planning en attente de validation : il n'est plus modifiable sauf refus.":st==="valide"?"Planning validé : il est visible par toute l'équipe.":""}</p>
+    ${SH.length?heat():""}
     <div class="mplan">${days.map(d=>{const sh=SH.filter(s=>s.day===d).sort((a,b)=>a.a-b.a);return`<div class="mday ${d===today?"today":""}"><h4><span>${capital(fShort(d))}</span><span style="color:var(--muted);font-weight:500">${sh.length?nbDay(d)+" pers.":""}</span></h4>
       ${sh.map(s=>`<div class="mshift" style="--c:${esc(person(s.user_id).color)}" ${editable?`data-shift="${s.id}"`:""}>${avatar(person(s.user_id),28)}<div style="flex:1"><b>${esc(person(s.user_id).full_name)}</b><div style="font-size:13px;color:var(--ink-2)">${TT(s)}${fTime(s.start_time)} – ${fTime(s.end_time)}${PZ(s)}${s.teletravail?" · Télétravail":""}${s.label?" · "+esc(s.label):""}</div></div></div>`).join("")||'<div style="color:var(--muted);font-size:13.5px">Personne</div>'}
       ${(leaves||[]).filter(l=>l.start_date<=d&&l.end_date>=d).map(l=>`<div style="font-size:13px;color:var(--rouge-f);margin-top:6px">🌴 ${esc(person(l.user_id).full_name)} en congé</div>`).join("")}
