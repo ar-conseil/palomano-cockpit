@@ -180,13 +180,42 @@ def yannika(d, k, tot, label, sfx, tgt_days, w):
              "period": label, "restricted": True} for a, b, v, t, u in out]
 
 
-def chiffres(d):
+def caisse_rows(url, key):
+    """Ventes de caisse par catégorie (table ventes_jour, lue dans Qweekle) → lignes au format du journal,
+    pour compléter les jours pas encore saisis. {date: [date, parc, anniv, scol, grp, snack, bout, event, total, entrées]}"""
+    from read_ventes import famille
+    req = urllib.request.Request(url.rstrip("/") + "/rest/v1/ventes_jour?niveau=eq.cat&select=date,label,nbr,ht&limit=5000",
+                                 headers={"apikey": key, "Authorization": f"Bearer {key}"})
+    out = {}
+    with urllib.request.urlopen(req, timeout=30) as r:
+        for x in json.load(r):
+            fam, lab = famille(x["label"]), x["label"].lower()
+            i = {"entrees": 1, "anniv": 2, "snack": 5, "boutique": 6, "event": 7}.get(fam)
+            if fam == "b2b":
+                i = 3 if "scol" in lab else 4
+            if i is None or "acompte" in lab or "cadeau" in lab:
+                continue
+            row = out.setdefault(x["date"], [x["date"], 0, 0, 0, 0, 0, 0, 0, 0, 0])
+            row[i] += x["ht"] or 0
+            row[8] += x["ht"] or 0
+            if i == 1:
+                row[9] += x["nbr"] or 0
+    return out
+
+
+def chiffres(d, caisse=None):
     """Chiffres du mois et de l'année pour l'onglet « Mes chiffres » de l'espace équipe (table chiffres_feed,
     lisible par la direction et les responsables) : CA HT par activité, comparé aux mêmes jours un an avant (J-364)."""
     by = {r[0]: r for r in d["daily"]}
     last = d["lastDate"]
     if not last:
         return []
+    filled = set()
+    for day, row in (caisse or {}).items():      # jours pas encore saisis dans le journal : chiffres de la caisse
+        if row[8] > 0 and (day not in by or not (by[day][8] or 0)):
+            by[day] = row
+            filled.add(day)
+    last = max([last] + sorted(filled)[-1:])
     L = dt.date.fromisoformat(last)
     CATS = (("parc", (1,)), ("anniv", (2,)), ("b2b", (3, 4)), ("snack", (5,)), ("bout", (6,)), ("event", (7,)))
     def tot(days, idx, shift=0):
@@ -199,8 +228,16 @@ def chiffres(d):
         return round(out, 2) if seen else None
     def block(a, label, series):
         days = [a + dt.timedelta(days=i) for i in range((L - a).days + 1)]
-        pair = lambda idx, dd=days: {"cur": tot(dd, idx) or 0, "prev": tot(dd, idx, 364)}
+        cmp_days = [x for x in days if (x - dt.timedelta(days=364)).isoformat() in by]   # jours qui ont un N-1
+        def pair(idx, dd=days):
+            c = [x for x in dd if x in set(cmp_days)]
+            out = {"cur": tot(dd, idx) or 0, "prev": tot(c, idx, 364) if c else None}
+            if len(c) != len(dd):
+                out["curc"] = tot(c, idx) or 0       # réalisé sur les seuls jours comparables
+            return out
         return {"label": label, "from": a.isoformat(), "to": last,
+                "cmp_from": cmp_days[0].isoformat() if cmp_days else None,
+                "caisse_jours": sum(1 for x in days if x.isoformat() in filled),
                 "cats": [dict(pair(idx), k=k) for k, idx in CATS],
                 "total": pair((8,)), "entrees": pair((9,)),
                 "series": [dict(pair((8,), dd), label=lab) for lab, dd in series(days) if dd]}
@@ -255,7 +292,12 @@ def main():
             print(f"::warning::Familles de produits non publiées (HTTP {e.code} — schema_v20.sql pas encore exécuté ?)")
     # Chiffres du mois et de l'année pour l'onglet « Mes chiffres » (direction et responsables)
     try:
-        ch = [dict(r, updated_at=now) for r in chiffres(d)]
+        try:
+            caisse = caisse_rows(url, key)
+        except Exception as e:
+            print(f"::warning::Ventes de caisse non lues pour Mes chiffres (schema_v28.sql pas encore exécuté ?) : {e}")
+            caisse = None
+        ch = [dict(r, updated_at=now) for r in chiffres(d, caisse)]
         if ch:
             req = urllib.request.Request(
                 url.rstrip("/") + "/rest/v1/chiffres_feed?on_conflict=key", data=json.dumps(ch).encode(), method="POST",

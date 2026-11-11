@@ -90,6 +90,14 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python sync_commandes.py || echo "::warning::Commandes Qweekle en échec"
 
+      - name: Lire les ventes de caisse du jour par catégorie (saisie du jour pré-remplie, En direct)
+        env:
+          QWEEKLE_EMAIL: ${{ secrets.QWEEKLE_EMAIL }}
+          QWEEKLE_PASSWORD: ${{ secrets.QWEEKLE_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python sync_ventes.py || echo "::warning::Ventes Qweekle en échec"
+
       - name: Lire les paiements carte Yavin (bilan du jour)
         env:
           YAVIN_API_KEY: ${{ secrets.YAVIN_API_KEY }}

@@ -928,6 +928,7 @@ const GROUPS={"Au quotidien":{c:"--bleu-c",f:"var(--bleu-f)",i:"home"},"Réserva
 /* ═════════ MES CHIFFRES (direction et responsables) : publiés par publish_kpis.py dans chiffres_feed ═════════ */
 const CH_COL={parc:["Entrées","var(--bleu-f)"],anniv:["Anniversaires","var(--rouge-f)"],b2b:["Écoles, centres et groupes","#9aab55"],snack:["Snacking","#c99a2e"],bout:["Boutique","#8a7fd0"],event:["Évènements","#5aa9a0"]};
 const fK=v=>v==null?"—":Math.abs(v)>=10000?(v/1000).toLocaleString("fr-FR",{maximumFractionDigits:1})+" k€":fE0(v);
+const evoC=x=>evo(x.curc!=null?x.curc:x.cur,x.prev);
 const evo=(c,p)=>p>0?`<em class="${c>=p?"up":"down"}">${c>=p?"▲ +":"▼ −"}${Math.abs((c/p-1)*100).toLocaleString("fr-FR",{maximumFractionDigits:0})} %</em>`:"";
 function navGroups(items){const out=[];let g=null;items.forEach(n=>{if(n.h){g={h:n.h,items:[]};out.push(g)}else if(g)g.items.push(n)});return out.filter(x=>x.items.length)}
 function renderNav(){
@@ -971,7 +972,7 @@ function guardWrites(sb){
   Object.defineProperty(sb,"storage",{value:sb.storage});   // supabase-js recrée le client storage à chaque accès : on le fige pour pouvoir le surveiller
   const from=sb.from.bind(sb),rpc=sb.rpc.bind(sb),st=sb.storage.from.bind(sb.storage);
   sb.from=t=>{const q=from(t);if(!S.real)return q;["insert","update","upsert","delete"].forEach(k=>q[k]=()=>roQuery());return q};
-  const RO_RPC=["live_jour","resa_nouvelles","creneaux_jour"];   // lectures seules : autorisées pendant l'aperçu
+  const RO_RPC=["live_jour","resa_nouvelles","creneaux_jour","live_caisse"];   // lectures seules : autorisées pendant l'aperçu
   sb.rpc=(...a)=>S.real&&!RO_RPC.includes(a[0])?roQuery():rpc(...a);
   sb.storage.from=b=>{const s=st(b);if(S.real){s.upload=async()=>({data:null,error:{message:PV_MSG}});s.remove=s.upload}return s};
 }
@@ -1190,6 +1191,8 @@ const ago=t=>{const m=Math.round((Date.now()-new Date(t))/6e4);return m<1?"à l'
 async function loadLive(){
   if(!S.sb||!S.me)return;
   try{const{data,error}=await S.sb.rpc("live_jour");if(error)throw error;LIVE.data=data}catch(e){LIVE.data=null}
+  try{const{data:c}=await S.sb.rpc("live_caisse");   // ventes de caisse par catégorie (lues dans Qweekle toutes les 15 min)
+    if(c&&LIVE.data){["ventes","exclus","snack","boutique"].forEach(k=>{if(c[k])LIVE.data[k]={...(k==="ventes"?{derniere:LIVE.data.ventes&&LIVE.data.ventes.derniere}:{}),...c[k]}});LIVE.data.caisse_maj=c.maj;LIVE.data.lignes_ok=true}}catch(e){}
   try{const{data,error}=await S.sb.rpc("creneaux_jour",{d:LIVE.crDay||TODAY()});if(error)throw error;LIVE.cren=data}catch(e){LIVE.cren=null}
   paintMastKpis();if(S.tab==="live")paintLive();
 }
@@ -1336,7 +1339,7 @@ function paintLive(){
       ${big("--vert-c","#9aab55","bag","Boutique",M&&bo.ttc!=null?ttc(bo.ttc):bo.articles!=null?fN0(bo.articles):"—",M&&bo.ttc!=null?`${bo.ht!=null?`<b>${fE0(bo.ht)} HT</b> · `:""}${fN0(bo.articles)} articles vendus`:"articles vendus aujourd'hui")}
     </div>
     <div id="lvCren"></div>
-    <p style="margin:10px 2px 0;font-size:12.5px;color:var(--muted)">Chiffres de la journée hors acomptes (réservations en ligne), avoirs et cartes cadeaux${M&&L.exclus&&L.exclus.nb?` · ${fN0(L.exclus.nb)} opération${L.exclus.nb>1?"s":""} écartée${L.exclus.nb>1?"s":""} (${fE0(L.exclus.ttc)})`:""}.</p>
+    <p style="margin:10px 2px 0;font-size:12.5px;color:var(--muted)">${L.caisse_maj?`Ventes, snacking et boutique lus dans la caisse Qweekle à ${new Date(L.caisse_maj).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} (toutes les 15 min) · TTC calculé depuis le HT. `:""}Chiffres de la journée hors acomptes (réservations en ligne), avoirs et cartes cadeaux${M&&L.exclus&&L.exclus.nb?` · ${fN0(L.exclus.nb)} opération${L.exclus.nb>1?"s":""} écartée${L.exclus.nb>1?"s":""} (${fE0(L.exclus.ttc)})`:""}.</p>
     <div class="grid g2" style="margin-top:18px">
       <div class="card"><div class="card-head"><h3>${ic("cup")} Top snacking du jour</h3></div>${tops(sn,"#c99a2e")}</div>
       <div class="card"><div class="card-head"><h3>${ic("bag")} Top boutique du jour</h3></div>${tops(bo,"#9aab55")}</div>
@@ -1398,20 +1401,20 @@ VIEWS.chiffres=async m=>{
     if($("chSeg"))$("chSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.chMode=b.dataset.v;render()}};return}
   const cats=D.cats||[],mx=Math.max(1,...cats.map(c=>Math.max(c.cur,c.prev||0))),tot=D.total||{},W=D.series||[],mw=Math.max(1,...W.map(w=>Math.max(w.cur,w.prev||0)));
   const cb=(yv||[]).reduce((a,r)=>a+(+r.cb_total||0),0),cbN=(yv||[]).reduce((a,r)=>a+(+r.nb||0),0);
-  const best=[...cats].filter(c=>c.prev>0).sort((a,b)=>b.cur/b.prev-a.cur/a.prev);
+  const cc=c=>c.curc!=null?c.curc:c.cur,best=[...cats].filter(c=>c.prev>0).sort((a,b)=>cc(b)/b.prev-cc(a)/a.prev);
   const R=52,C=2*Math.PI*R;let off=0;const sumC=cats.reduce((a,c)=>a+Math.max(0,c.cur),0)||1;
   const donut=cats.filter(c=>c.cur>0).map(c=>{const len=c.cur/sumC*C,seg=`<circle r="${R}" cx="70" cy="70" fill="none" stroke="${CH_COL[c.k][1]}" stroke-width="20" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}"/>`;off+=len;return seg}).join("");
   const top=[...cats].sort((a,b)=>b.cur-a.cur)[0];
-  m.innerHTML=head+`<p class="ch-per">${esc(D.label)} · du ${fShort(D.from)} au ${fShort(D.to)} · comparé à l'an dernier, mêmes jours de la semaine</p>
+  m.innerHTML=head+`<p class="ch-per">${esc(D.label)} · du ${fShort(D.from)} au ${fShort(D.to)} · comparé à l'an dernier, mêmes jours de la semaine${D.cmp_from&&D.cmp_from>D.from?` · <b>évolutions calculées depuis le ${fDate(D.cmp_from)}</b> (le parc a ouvert le 18 juin 2025)`:""}${D.caisse_jours?` · ${D.caisse_jours} jour${D.caisse_jours>1?"s":""} pas encore saisi${D.caisse_jours>1?"s":""}, complété${D.caisse_jours>1?"s":""} par la caisse Qweekle`:""}</p>
     <div class="lv-top">
-      <div class="lv-big dark" style="--kc:var(--bleu-c)"><span class="kic" style="background:rgba(255,255,255,.15);color:#fff">${ic("chart")}</span><div class="lab">Chiffre d'affaires HT</div><b class="v">${fK(tot.cur)}</b><div class="sub">${evo(tot.cur,tot.prev)} ${tot.prev?`· ${fK(tot.prev)} l'an dernier`:"pas de comparaison"}</div></div>
-      <div class="lv-big" style="--kc:var(--jaune-c);--kf:#c99a2e"><span class="kic">${ic("users")}</span><div class="lab">Entrées</div><b class="v">${fN0(D.entrees.cur)}</b><div class="sub">${evo(D.entrees.cur,D.entrees.prev)} ${D.entrees.prev?`· ${fN0(D.entrees.prev)} l'an dernier`:""}</div></div>
+      <div class="lv-big dark" style="--kc:var(--bleu-c)"><span class="kic" style="background:rgba(255,255,255,.15);color:#fff">${ic("chart")}</span><div class="lab">Chiffre d'affaires HT</div><b class="v">${fK(tot.cur)}</b><div class="sub">${evoC(tot)} ${tot.prev?`· ${fK(tot.prev)} l'an dernier`:"pas de comparaison"}</div></div>
+      <div class="lv-big" style="--kc:var(--jaune-c);--kf:#c99a2e"><span class="kic">${ic("users")}</span><div class="lab">Entrées</div><b class="v">${fN0(D.entrees.cur)}</b><div class="sub">${evoC(D.entrees)} ${D.entrees.prev?`· ${fN0(D.entrees.prev)} l'an dernier`:""}</div></div>
       <div class="lv-big" style="--kc:var(--rouge-c);--kf:var(--rouge-f)"><span class="kic">${ic("euro")}</span><div class="lab">Panier moyen HT</div><b class="v">${D.entrees.cur?fEur2(tot.cur/D.entrees.cur):"—"}</b><div class="sub">par visiteur${D.entrees.prev&&tot.prev?` · ${fEur2(tot.prev/D.entrees.prev)} l'an dernier`:""}</div></div>
       <div class="lv-big" style="--kc:var(--vert-c);--kf:#9aab55"><span class="kic">${ic("card")}</span><div class="lab">Cartes ce mois (TTC)</div><b class="v">${fK(cb)}</b><div class="sub">${fN0(cbN)} paiements sur le terminal</div></div>
     </div>
     <div class="grid g21" style="margin-top:18px">
       <div class="card"><div class="card-head"><h3>${ic("bag")} Ce qui se vend</h3><span class="pill info"><i></i>€ HT</span></div>
-        ${cats.map(c=>`<div class="chrow"><div class="chl"><b>${CH_COL[c.k][0]}</b>${evo(c.cur,c.prev)}</div><div class="chv">${fK(c.cur)}</div>
+        ${cats.map(c=>`<div class="chrow"><div class="chl"><b>${CH_COL[c.k][0]}</b>${evoC(c)}</div><div class="chv">${fK(c.cur)}</div>
           <div class="chbar"><i style="width:${Math.max(0,c.cur)/mx*100}%;background:${CH_COL[c.k][1]}"></i>${c.prev>0?`<u style="left:${Math.min(100,c.prev/mx*100)}%" title="L'an dernier : ${fK(c.prev)}"></u>`:""}</div></div>`).join("")}
         <p class="hint" style="margin:12px 0 0">Le trait noir marque le niveau de l'an dernier aux mêmes jours.</p></div>
       <div class="card"><div class="card-head"><h3>${ic("target")} D'où vient le chiffre</h3></div>
@@ -1420,10 +1423,10 @@ VIEWS.chiffres=async m=>{
     </div>
     <div class="grid g21" style="margin-top:18px">
       <div class="card"><div class="card-head"><h3>${ic("cal")} ${S.chMode==="mois"?"Le mois, semaine par semaine":"L'année, mois par mois"}</h3><div class="legend-c" style="margin:0;padding:0;border:0"><span><i style="background:var(--bleu-f)"></i>Cette année</span><span><i style="background:var(--line-2)"></i>L'an dernier</span></div></div>
-        <div class="chweeks">${W.map(w=>`<div class="chw"><div class="cols"><i class="cur" style="height:${Math.max(2,w.cur/mw*100)}%" title="${fK(w.cur)}"><em>${fK(w.cur)}</em></i><i class="prev" style="height:${Math.max(2,(w.prev||0)/mw*100)}%" title="L'an dernier : ${fK(w.prev)}"></i></div><span>${esc(w.label)}</span>${evo(w.cur,w.prev)}</div>`).join("")}</div></div>
+        <div class="chweeks">${W.map(w=>`<div class="chw"><div class="cols"><i class="cur" style="height:${Math.max(2,w.cur/mw*100)}%" title="${fK(w.cur)}"><em>${fK(w.cur)}</em></i><i class="prev" style="height:${Math.max(2,(w.prev||0)/mw*100)}%" title="L'an dernier : ${fK(w.prev)}"></i></div><span>${esc(w.label)}</span>${evoC(w)}</div>`).join("")}</div></div>
       <div class="card"><div class="card-head"><h3>${ic("star")} À retenir</h3></div>
-        ${best.length?`<div class="chnote good"><b>Ce qui progresse le plus</b>${CH_COL[best[0].k][0]} ${evo(best[0].cur,best[0].prev)}</div>
-        <div class="chnote bad"><b>Ce qui recule le plus</b>${CH_COL[best[best.length-1].k][0]} ${evo(best[best.length-1].cur,best[best.length-1].prev)}</div>`:'<div class="empty">Pas encore de comparaison avec l\'an dernier.</div>'}
+        ${best.length?`<div class="chnote good"><b>Ce qui progresse le plus</b>${CH_COL[best[0].k][0]} ${evoC(best[0])}</div>
+        <div class="chnote bad"><b>Ce qui recule le plus</b>${CH_COL[best[best.length-1].k][0]} ${evoC(best[best.length-1])}</div>`:'<div class="empty">Pas encore de comparaison avec l\'an dernier.</div>'}
         <div class="chnote"><b>Dernier jour saisi</b>${capital(fDay(D.to))}</div>
         ${isDirection()?`<a class="btn soft" href="pilotage/" style="margin-top:12px;width:100%">${ic("chart","sm")} Ouvrir le dashboard financier complet</a>`:""}</div>
     </div>`;
@@ -2238,9 +2241,11 @@ VIEWS.saisie=async m=>{
   if(error)return fail(error);
   // Chiffres proposés automatiquement (réservations Qweekle, ventes du webhook, cartes Yavin)
   const{data:auto}=await S.sb.rpc("saisie_auto",{d});const A=auto||{};
-  const AUTO_K=["anniv_nb","anniv_entrees","scolaire_nb","groupe_nb"];
-  const r0=row||{},r={...r0};let prefilled=0;
-  if(!row)AUTO_K.forEach(k=>{if(A[k]){r[k]=A[k];prefilled++}});
+  const CA=A.caisse||null,CAISSE_K=["parc_ttc","parc_nb","anniv_ttc","scolaire_ttc","groupe_ttc","snack_ht","snack_ttc","boutique_ht","boutique_ttc","event_ttc"];
+  const AV={...A};if(CA)CAISSE_K.forEach(k=>{if(CA[k]!=null&&+CA[k]>0)AV[k]=CA[k]});
+  const AUTO_K=["anniv_nb","anniv_entrees","scolaire_nb","groupe_nb",...CAISSE_K];
+  const r0=row||{},r={...r0};let prefilled=0,preCaisse=0;
+  if(!row)AUTO_K.forEach(k=>{if(AV[k]){r[k]=AV[k];prefilled++;if(CAISSE_K.includes(k))preCaisse++}});
   const num=v=>v===""||v==null?null:+String(v).replace(",",".");
   const ttc=x=>["parc_ttc","anniv_ttc","scolaire_ttc","groupe_ttc","snack_ttc","boutique_ttc","event_ttc"].reduce((t,k)=>t+(+x[k]||0),0);
   const ent=x=>["parc_nb","anniv_entrees","scolaire_nb","groupe_nb"].reduce((t,k)=>t+(+x[k]||0),0);
@@ -2249,13 +2254,14 @@ VIEWS.saisie=async m=>{
       `<input type="date" id="sjDate" value="${d}" max="${TODAY()}" style="padding:8px 10px;border-radius:12px;border:1.5px solid var(--line-2);font:inherit">`)+
     (()=>{const y=A.yavin,since=A.webhook_depuis&&new Date(A.webhook_depuis)<=new Date(d+"T23:59:59"),cells=[];
       if(A.ventes_nb||since)cells.push(`<div><small>Encaissé dans Qweekle ce jour-là (hors acomptes, avoirs, cartes cadeaux)</small><b>${A.ventes_nb?fEur2(A.ventes_ttc):"—"}</b><span>${A.ventes_nb?`${A.ventes_nb} vente${A.ventes_nb>1?"s":""} · ${fEur2(A.ventes_ht)} HT`:"aucune vente reçue"}</span></div>`);
+      if(CA)cells.unshift(`<div><small>Caisse Qweekle ce jour-là (hors acomptes et bons cadeaux)</small><b>${fEur2(CA.total_ttc)}</b><span>${fEur2(CA.total_ht)} HT · ${fNum(CA.ventes_nb||0)} ventes · lu ${fStamp(CA.maj)}${+CA.exclus_ht?` · ${fEur2(CA.exclus_ht)} HT d'acomptes et bons cadeaux écartés`:""}</span></div>`);
       cells.push(`<div><small>Cartes bancaires (Yavin)</small><b>${y?fEur2(y.cb_total):"—"}</b><span>${y?`${y.nb} paiement${y.nb>1?"s":""}${+y.rembourse?` · ${fEur2(y.rembourse)} remboursés`:""} · lu ${fStamp(y.synced_at)}`:"pas de paiement carte relevé pour ce jour"}</span></div>`);
       cells.push(`<div><small>Réservations du jour</small><b>${A.anniv_nb||0} anniv. · ${(A.scolaire_nb||0)+(A.groupe_nb||0)} enfants en groupe</b><span>${A.anniv_entrees||0} enfants aux anniversaires · ${A.scolaire_nb||0} scolaires · ${A.groupe_nb||0} centres</span></div>`);
       return`<div class="card sjauto"><h3>${ic("check")} Pour vérifier</h3><div class="sjcells">${cells.join("")}</div>
-        <p class="hint" style="margin:8px 0 0">${prefilled?"Les nombres d'anniversaires, d'enfants et de groupes ont été pré-remplis d'après les réservations : vérifiez-les. ":""}« Encaissé » = toutes les ventes enregistrées ce jour-là (y compris acomptes en ligne pour d'autres jours) : à comparer avec le Z de caisse ; les cartes Yavin à comparer avec le total CB de la caisse.</p></div>`})()+
+        <p class="hint" style="margin:8px 0 0">${preCaisse?"<b>Les montants et les entrées ont été pré-remplis depuis la caisse Qweekle : il reste à vérifier puis à enregistrer.</b> Le TTC est calculé à partir du HT de la caisse (TVA 10 % sur les entrées, scolaires et groupes, 20 % sur les anniversaires, la boutique et les évènements, taux moyen habituel pour le snacking). ":""}${prefilled?"Les nombres d'anniversaires, d'enfants et de groupes viennent des réservations. ":""}« Encaissé » = toutes les ventes enregistrées ce jour-là (y compris acomptes en ligne pour d'autres jours) : à comparer avec le Z de caisse ; les cartes Yavin à comparer avec le total CB de la caisse.</p></div>`})()+
     `<form id="sjForm" class="card"><h3>${ic("cal")} ${capital(fDay(d))} ${row?status(r0):""}</h3>
       <div class="grid g2" style="margin-top:8px">${SJ.map(([t,i,f])=>`<div><h4 style="margin:10px 0 6px">${ic(i,"sm")} ${t}</h4><div class="fgrid">${f.map(([k,l,eur])=>
-        `<label class="f">${l}${eur?" (€)":""}${!row&&AUTO_K.includes(k)&&A[k]?' <span class="pill info" style="font-size:11px;padding:1px 7px">auto</span>':""}<input name="${k}" type="number" inputmode="decimal" min="0" step="${eur?"0.01":"1"}" value="${r[k]??""}"></label>`).join("")}</div></div>`).join("")}</div>
+        `<label class="f">${l}${eur?" (€)":""}${!row&&AUTO_K.includes(k)&&AV[k]?' <span class="pill info" style="font-size:11px;padding:1px 7px;align-self:flex-start">auto</span>':""}<input name="${k}" type="number" inputmode="decimal" min="0" step="${eur?"0.01":"1"}" value="${r[k]??""}"></label>`).join("")}</div></div>`).join("")}</div>
       <label class="f full" style="margin-top:12px">Remarque (facultatif)<input name="note" maxlength="200" value="${esc(r.note||"")}"></label>
       <div style="display:flex;align-items:center;gap:14px;margin-top:16px;flex-wrap:wrap"><b id="sjTot"></b><span style="flex:1"></span><button class="btn pri" type="submit">${ic("check","sm")} Enregistrer la journée</button></div>
     </form>
