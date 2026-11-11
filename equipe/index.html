@@ -340,6 +340,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .sh small{display:block;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sh.edit{cursor:grab}
 .sh.me{outline:2px solid var(--rouge-f);outline-offset:-2px}
+.sh.abs{background:repeating-linear-gradient(135deg,#eceae7 0 7px,#f6f5f3 7px 14px);box-shadow:inset 3px 0 0 var(--muted);color:var(--ink-2)}
+.wk .tot{flex-direction:column;line-height:1.2}.wk .tot small{font-size:10.5px;font-weight:600;color:var(--muted);text-align:center}
 .sh.dragging{opacity:.4}
 .floating{position:fixed;z-index:80;pointer-events:none;transform:translate(-50%,-50%) rotate(-2deg);box-shadow:0 14px 30px -10px rgba(74,74,73,.4)}
 .days-tabs{display:flex;gap:6px;flex-wrap:wrap}
@@ -871,7 +873,12 @@ const ic=(n,cls="")=>`<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="tr
 /* ───────────── état ───────────── */
 const C=window.PALO_CONFIG||{};
 const S={sb:null,user:null,me:null,people:[],byId:new Map(),tab:"today",week:monday(TODAY()),stockKind:"snack",demTab:"conges",resaPast:false};
-const TT=s=>s&&s.teletravail?"🏠 ":"";   // service en télétravail
+const TT=s=>s&&s.absence?(ABS[s.absence]||ABS.autre)[0]+" ":s&&s.teletravail?"🏠 ":"";   // absence ou télétravail
+/* Absences posées au planning (arrêt maladie…) : comptées dans le total d'heures de la semaine, jamais comme présence
+   au parc ni comme créneau à pointer. Les congés payés passent par les Demandes. */
+const ABS={maladie:["🤒","Arrêt maladie"],accident:["🩹","Accident du travail"],enfant:["🧸","Enfant malade"],formation:["🎓","Formation"],ferie:["🎌","Jour férié chômé"],autre:["⏸️","Autre absence"]};
+const shH=s=>(toMin(s.end_time)-toMin(s.start_time)-(s.absence?0:(+s.pause_min||0)))/60;   // durée comptée : pause prévue déduite
+const worked=l=>(l||[]).filter(s=>!s.absence);
 const PZ=s=>s&&+s.pause_min?` · pause ${+s.pause_min>=60&&s.pause_min%60===0?s.pause_min/60+" h":s.pause_min+" min"}`:"";   // pause prévue
 const isManager=()=>S.me&&["direction","responsable"].includes(S.me.role);
 const isDirection=()=>S.me&&S.me.role==="direction";
@@ -1501,7 +1508,7 @@ async function pvForm(r,pay){
 const RESA_COL={privat:["--bleu-c","var(--bleu-f)","star"],anniv:["--rouge-c","var(--rouge-f)","cake"],centre:["--vert-c","#9aab55","tent"],ecole:["--jaune-c","#c99a2e","school"]};
 VIEWS.today=async m=>{
   const d=TODAY();
-  const[{data:shifts},{data:posts},{data:reads},{data:items},{data:done},{data:stock},{data:objs},{data:kpis},{data:anniv},{data:groupes}]=await Promise.all([
+  let[{data:shifts},{data:posts},{data:reads},{data:items},{data:done},{data:stock},{data:objs},{data:kpis},{data:anniv},{data:groupes}]=await Promise.all([
     S.sb.from("shifts").select("*").eq("day",d).order("start_time"),
     S.sb.from("posts").select("*").gte("day",addDays(d,-2)).order("important",{ascending:false}).order("created_at",{ascending:false}),
     S.sb.from("post_reads").select("post_id").eq("user_id",S.user.id),
@@ -1519,6 +1526,7 @@ VIEWS.today=async m=>{
   const wkH=ptHours(myPt||[]);
   const read=new Set((reads||[]).map(r=>r.post_id)),doneBy=new Map((done||[]).map(x=>[x.item_id,x]));
   (shifts||[]).forEach(s=>{if(!s.user_id)s.user_id=s.intervenant_id});
+  const myAbs=(shifts||[]).filter(s=>s.absence&&s.user_id===S.user.id);shifts=worked(shifts);
   const mine=(shifts||[]).filter(s=>s.user_id===S.user.id),others=(shifts||[]).filter(s=>s.user_id!==S.user.id);
   const low=(stock||[]).filter(i=>i.current_qty<=i.min_qty);
   const hr=new Date().getHours();
@@ -1546,7 +1554,7 @@ VIEWS.today=async m=>{
       <div class="mycard">
         <svg class="mc-art" viewBox="0 0 300 200" aria-hidden="true"><circle cx="250" cy="30" r="70" fill="#f7d589" fill-opacity=".9"/><path d="M-20 170 C 60 120, 120 200, 200 150 S 300 110, 330 140" stroke="#ef818e" stroke-width="16" fill="none" stroke-linecap="round" opacity=".8"/><path d="M-20 196 C 70 150, 140 220, 220 178 S 300 150, 330 170" stroke="#c1daf3" stroke-width="16" fill="none" stroke-linecap="round" opacity=".7"/><circle cx="178" cy="52" r="5" fill="#e1ebbd"/><circle cx="292" cy="112" r="4" fill="#f8c9d2"/></svg>
         <div class="mc-head"><span class="mc-eyebrow">Ma journée</span>${openPt?'<span class="mc-live">En poste</span>':""}</div>
-        ${mine.length?mine.map(shiftBlock).join(""):`<div class="mc-none">Pas de service prévu aujourd'hui</div>`}
+        ${mine.length?mine.map(shiftBlock).join(""):`<div class="mc-none">${myAbs.length?`${(ABS[myAbs[0].absence]||ABS.autre).join(" ")} aujourd'hui`:"Pas de service prévu aujourd'hui"}</div>`}
         <button class="clock-btn ${openPt?"on":""}" id="clockBtn"><span class="dot">${ic(openPt?"check":"clock")}</span><span>${openPt?"Je termine ma journée":"Je commence ma journée"}<small id="clockSub">${openPt?`en poste depuis ${new Date(openPt.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})} · ${fDur(ptHours([openPt]))}`:`${fDur(wkH)} pointées cette semaine`}</small></span></button>
       </div>
       <div class="ktiles">
@@ -1622,7 +1630,7 @@ VIEWS.planning=async m=>{
   ]);
   const st=pl?pl.status:null,editable=isManager()&&!!pl&&(["brouillon","refuse"].includes(st)||(st==="valide"&&isDirection()));
   const SH=(shifts||[]).map(s=>({...s,user_id:s.user_id||s.intervenant_id,a:toMin(s.start_time),b:toMin(s.end_time)}));
-  const hrs={};SH.forEach(s=>{hrs[s.user_id]=(hrs[s.user_id]||0)+(s.b-s.a)/60});
+  const hrs={},absH={};SH.forEach(s=>{hrs[s.user_id]=(hrs[s.user_id]||0)+shH(s);if(s.absence)absH[s.user_id]=(absH[s.user_id]||0)+shH(s)});
   const offOn=(d,uid)=>(leaves||[]).some(l=>l.start_date<=d&&l.end_date>=d&&(!uid||l.user_id===uid));
   const used=new Set(SH.map(s=>s.user_id)),EXT_ORD={salarie:0,animateur:1,staffeur:2,autre:3};
   // la direction (Antonin, Alex) n'apparaît pas dans le planning des équipes, sauf si un service lui est prévu cette semaine
@@ -1638,23 +1646,23 @@ VIEWS.planning=async m=>{
   ].join("");
   const sub=st?`<span class="pill ${PLAN_ST[st][0]}"><i></i>${PLAN_ST[st][1]}</span>${pl.comment&&isManager()?` &nbsp;💬 ${esc(pl.comment)}`:""}${st==="valide"&&pl.validated_at?` &nbsp;<span style="font-size:13px">par ${esc(firstName(pl.validated_by))} le ${fStamp(pl.validated_at)}</span>`:""}${st==="soumis"&&pl.submitted_at?` &nbsp;<span style="font-size:13px">envoyé par ${esc(firstName(pl.submitted_by))} le ${fStamp(pl.submitted_at)}</span>`:""}`:(isManager()?"Cette semaine n'est pas encore préparée.":"");
   const who=p=>`<div class="who ${p.ext&&isManager()?"click":""}" ${p.ext?`data-ext="${p.id}"`:""}>${avatar(p,34)}<div style="min-width:0"><b>${esc(p.full_name)}</b><small>${p.ext?esc(INT_TYPE[p.type]+(p.agence?" · "+p.agence:"")):esc(p.poste||ROLE[p.role])}</small></div></div>`;
-  const shHtml=s=>`<div class="sh ${editable?"edit":""} ${s.user_id===S.user.id?"me":""}" data-id="${s.id}" style="--c:${esc(person(s.user_id).color||"#c1daf3")}"><b>${TT(s)}${fTime(s.start_time)}–${fTime(s.end_time)}</b>${s.label||s.teletravail||+s.pause_min?`<small>${s.teletravail?"Télétravail":""}${s.label&&s.teletravail?" · ":""}${esc(s.label||"")}${+s.pause_min?(s.label||s.teletravail?PZ(s):PZ(s).slice(3)):""}</small>`:""}</div>`;
-  const nbDay=d=>new Set(SH.filter(s=>s.day===d).map(s=>s.user_id)).size;
-  const hDay=d=>SH.filter(s=>s.day===d).reduce((t,s)=>t+(s.b-s.a)/60,0);
+  const shHtml=s=>`<div class="sh ${s.absence?"abs":""} ${editable?"edit":""} ${s.user_id===S.user.id?"me":""}" data-id="${s.id}" style="--c:${esc(person(s.user_id).color||"#c1daf3")}"><b>${TT(s)}${fTime(s.start_time)}–${fTime(s.end_time)}</b>${s.absence?`<small>${(ABS[s.absence]||ABS.autre)[1]} · ${fDur(shH(s))} comptées</small>`:s.label||s.teletravail||+s.pause_min?`<small>${s.teletravail?"Télétravail":""}${s.label&&s.teletravail?" · ":""}${esc(s.label||"")}${+s.pause_min?(s.label||s.teletravail?PZ(s):PZ(s).slice(3)):""}</small>`:""}</div>`;
+  const nbDay=d=>new Set(SH.filter(s=>s.day===d&&!s.absence).map(s=>s.user_id)).size;
+  const hDay=d=>SH.filter(s=>s.day===d&&!s.absence).reduce((t,s)=>t+shH(s),0);
   const weekGrid=()=>`<div class="board"><div class="wk">
       <div class="hd" style="text-align:left;padding-left:14px">Équipe</div>
       ${days.map(d=>`<div class="hd ${d===today?"today":""}">${parse(d).toLocaleDateString("fr-FR",{weekday:"short"})}<b>${parse(d).getDate()}</b>${resaOn(d).length?`<div style="font-size:11px;color:var(--ink-2)">${resaOn(d).length} résa</div>`:""}</div>`).join("")}
       <div class="hd">Total</div>
       ${team.map(p=>who(p)+days.map(d=>{const list=SH.filter(s=>s.user_id===p.id&&s.day===d).sort((a,b)=>a.a-b.a),off=offOn(d,p.id);
         return`<div class="cell ${d===today?"today":""} ${off?"off":""} ${editable?"edit":""}" data-uid="${p.id}" data-day="${d}">${off?'<small style="color:var(--rouge-f);font-weight:600">🌴 Congé</small>':""}${list.map(shHtml).join("")}${editable&&!list.length?`<button class="add" data-add>${ic("plus","sm")}</button>`:!list.length&&!off?'<small class="repos">repos</small>':""}</div>`}).join("")
-        +`<div class="tot ${!p.ext&&(hrs[p.id]||0)>35?"over":""}">${fNum(hrs[p.id]||0,1)} h</div>`).join("")}
+        +`<div class="tot ${!p.ext&&(hrs[p.id]||0)>35?"over":""}" title="Pauses prévues déduites">${fNum(hrs[p.id]||0,1)} h${absH[p.id]?`<small>dont ${fNum(absH[p.id],1)} h d'absence</small>`:""}</div>`).join("")}
       <div class="foot" style="text-align:left;padding-left:14px;font-weight:600">Présents</div>
       ${days.map(d=>`<div class="foot">${nbDay(d)} pers. · ${fNum(hDay(d),1)} h</div>`).join("")}
       <div class="foot" style="font-weight:700">${fNum(Object.values(hrs).reduce((a,b)=>a+b,0),1)} h</div>
     </div></div>`;
   // Qui est là, heure par heure : présents au parc (hors télétravail), réservations sans personne, animateur manquant
   const heat=()=>{const HH=Array.from({length:12},(_,i)=>i+9);let mx=1,miss=[];
-    const cell=(d,h)=>{const a=h*60,b=a+60,on=new Set(SH.filter(x=>x.day===d&&!x.teletravail&&x.a<b&&x.b>a).map(x=>x.user_id));
+    const cell=(d,h)=>{const a=h*60,b=a+60,on=new Set(SH.filter(x=>x.day===d&&!x.teletravail&&!x.absence&&x.a<b&&x.b>a).map(x=>x.user_id));
       const an=(anniv||[]).filter(x=>x.date===d&&toMin(x.heure)<b&&toMin(x.heure)+(+x.duree_min||120)>a);
       const gr=(grp||[]).filter(x=>x.date===d&&x.heure_arrivee&&toMin(x.heure_arrivee)<b&&toMin(x.heure_arrivee)+120>a);
       const noAnim=an.filter(x=>x.option_animateur&&!animOf(x));
@@ -1676,7 +1684,7 @@ VIEWS.planning=async m=>{
   const nSal=[...used].filter(id=>!S.ext.has(id)).length,missDays=HEAT?[...new Set(HEAT.miss.map(x=>x[0]))]:[];
   const ptile=(c,f,icn,v,l,sub)=>`<div class="ptile" style="--kc:var(${c});--kf:${f}"><span class="kic">${ic(icn)}</span><div><b>${v}</b><span>${l}</span>${sub?`<small>${sub}</small>`:""}</div></div>`;
   const tiles=()=>!SH.length?"":`<div class="ptiles">
-    ${ptile("--bleu-c","var(--bleu-f)","clock",fNum(totH,0)+" h","planifiées cette semaine",`${fNum(totH/Math.max(1,used.size),1)} h par personne en moyenne`)}
+    ${ptile("--bleu-c","var(--bleu-f)","clock",fNum(totH,0)+" h","planifiées cette semaine",`pauses déduites${Object.keys(absH).length?` · dont ${fNum(Object.values(absH).reduce((a,b)=>a+b,0),1)} h d'absence`:""}`)}
     ${ptile("--jaune-c","#c99a2e","users",used.size,`personne${used.size>1?"s":""} au planning`,`${nSal} salarié${nSal>1?"s":""}${used.size-nSal?` · ${used.size-nSal} renfort${used.size-nSal>1?"s":""}`:""}`)}
     ${ptile("--rouge-c","var(--rouge-f)","alert",missDays.length,`jour${missDays.length>1?"s":""} à couvrir`,missDays.length?missDays.map(d=>capital(fShort(d))).join(", "):"tout est couvert ✓")}
     ${ptile("--vert-c","#9aab55","cake",nResa,`réservation${nResa>1?"s":""} cette semaine`,`${(anniv||[]).length} anniv · ${(grp||[]).length} groupe${(grp||[]).length>1?"s":""}`)}
@@ -1708,19 +1716,20 @@ VIEWS.planning=async m=>{
     <label class="f">Début<input type="time" name="start_time" step="900" value="${(s.start_time||"09:30").slice(0,5)}" required></label>
     <label class="f">Fin<input type="time" name="end_time" step="900" value="${(s.end_time||"18:30").slice(0,5)}" required></label>
     <label class="f full">Pause prévue (non payée)<select name="pause_min">${[0,15,20,30,45,60,75,90,120].map(v=>`<option value="${v}" ${(+s.pause_min||0)===v?"selected":""}>${v?v>=60&&v%60===0?v/60+" h":v+" min":"Aucune"}</option>`).join("")}</select><span class="hint" style="margin:2px 0 0">Déduite automatiquement des heures pointées, sauf si la pause est pointée. Plus de 6 h de travail : 20 min minimum.</span></label>
+    <label class="f full">Type<select name="absence"><option value="">Travail</option>${Object.entries(ABS).map(([k,v])=>`<option value="${k}" ${s.absence===k?"selected":""}>${v[0]} ${v[1]}</option>`).join("")}</select><span class="hint" style="margin:2px 0 0">Absence (arrêt maladie…) : les heures du créneau comptent dans le total de la semaine, sans pointage ni pause. Les congés payés se posent dans Demandes.</span></label>
     <label class="f full">Poste / note (facultatif)<input name="label" value="${esc(s.label||"")}" placeholder="Accueil, snack, anniversaires…" maxlength="60"></label>
     <label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="teletravail" ${s.teletravail?"checked":""} style="width:auto"> 🏠 Télétravail <span class="hint" style="margin:0">— pendant ce créneau, la personne pointe sans la borne (planning validé uniquement)</span></label></div>`;
   const createShift=async(init)=>{
     const r=await modal("Nouveau service",shiftForm(init),{submit:"Ajouter"});if(!r)return;
     if(!r.data.user_id)return fail("Choisissez un salarié");if(r.data.end_time<=r.data.start_time)return fail("L'heure de fin doit être après le début");
-    const{error}=await S.sb.from("shifts").insert(qui({week_start:w,user_id:r.data.user_id,day:r.data.day,start_time:r.data.start_time,end_time:r.data.end_time,label:r.data.label,teletravail:r.data.teletravail==="on",pause_min:+r.data.pause_min||0}));
-    if(error)return fail(error);render()};
+    const{error}=await S.sb.from("shifts").insert(qui({week_start:w,user_id:r.data.user_id,day:r.data.day,start_time:r.data.start_time,end_time:r.data.end_time,label:r.data.label,teletravail:r.data.teletravail==="on"&&!r.data.absence,pause_min:r.data.absence?0:+r.data.pause_min||0,...(r.data.absence?{absence:r.data.absence}:{})}));
+    if(error)return fail(/absence/.test(error.message||"")?"Les absences ne sont pas encore installées : exécutez schema_v27.sql dans Supabase":error);render()};
   const editShift=async s=>{
     const r=await modal(`Service de ${person(s.user_id).full_name}`,shiftForm({...s,start_time:toTime(s.a),end_time:toTime(s.b)}),{danger:"Supprimer"});
     if(!r)return render();
     if(r.action==="danger"){const{error}=await S.sb.from("shifts").delete().eq("id",s.id);if(error)return fail(error);return render()}
     if(r.data.end_time<=r.data.start_time)return fail("L'heure de fin doit être après le début");
-    if(await save(s.id,{user_id:r.data.user_id,day:r.data.day,start_time:r.data.start_time,end_time:r.data.end_time,label:r.data.label,teletravail:r.data.teletravail==="on",pause_min:+r.data.pause_min||0}))render()};
+    if(await save(s.id,{user_id:r.data.user_id,day:r.data.day,start_time:r.data.start_time,end_time:r.data.end_time,label:r.data.label,teletravail:r.data.teletravail==="on"&&!r.data.absence,pause_min:r.data.absence?0:+r.data.pause_min||0,...(r.data.absence||s.absence?{absence:r.data.absence||null}:{})}))render()};
   const lastTimes=uid=>{const s=SH.filter(x=>x.user_id===uid).sort((a,b)=>b.b-a.b)[0];return s?{start_time:s.start_time,end_time:s.end_time,label:s.label,pause_min:s.pause_min}:{start_time:"09:30",end_time:"18:30",pause_min:60}};
 
   /* ── vue semaine : glisser un service d'une case à l'autre ── */
@@ -1803,7 +1812,7 @@ VIEWS.planning=async m=>{
   on("pCopy",async()=>{const{data:prev,error:e1}=await S.sb.from("shifts").select("*").eq("week_start",addDays(w,-7));if(e1)return fail(e1);
     if(!prev?.length)return toast("La semaine précédente est vide");
     const{error}=await S.sb.from("plannings").insert({week_start:w});if(error)return fail(error);
-    const{error:e2}=await S.sb.from("shifts").insert(prev.map(s=>({week_start:w,user_id:s.user_id,intervenant_id:s.intervenant_id,day:addDays(s.day,7),start_time:s.start_time,end_time:s.end_time,label:s.label,teletravail:!!s.teletravail,pause_min:+s.pause_min||0})));
+    const{error:e2}=await S.sb.from("shifts").insert(prev.filter(s=>!s.absence).map(s=>({week_start:w,user_id:s.user_id,intervenant_id:s.intervenant_id,day:addDays(s.day,7),start_time:s.start_time,end_time:s.end_time,label:s.label,teletravail:!!s.teletravail,pause_min:+s.pause_min||0})));
     if(e2)return fail(e2);toast(`${prev.length} services copiés`);render()});
   const extForm=(x={})=>`<div class="fgrid"><label class="f full">Nom<input name="full_name" value="${esc(x.full_name||"")}" required maxlength="80" placeholder="Prénom Nom"></label>
     ${x.type==="salarie"?`<input type="hidden" name="type" value="salarie"><p class="full" style="margin:0;font-size:13px;color:var(--ink-2)">Salarié invité (${esc(x.email||"")}) : dès qu'il crée son compte, ses services lui sont rattachés automatiquement.</p>`
@@ -2366,19 +2375,20 @@ async function exportPaie(month){
   const from=parse(weeks[0]).getTime(),to=parse(addDays(weeks[weeks.length-1],7)).getTime();
   const{data:pts,error}=await S.sb.from("pointages").select("*").gte("start_at",new Date(from-864e5).toISOString()).lt("start_at",new Date(to).toISOString());
   if(error)return fail(error);
-  const{data:shAll}=await S.sb.from("shifts").select("id,user_id,day,start_time,end_time,pause_min").gte("day",weeks[0]).lt("day",addDays(weeks[weeks.length-1],7));
+  const{data:shEvery}=await S.sb.from("shifts").select("*").gte("day",weeks[0]).lt("day",addDays(weeks[weeks.length-1],7));
+  const shAll=worked(shEvery),absIn=(uid,w)=>(shEvery||[]).filter(s=>s.absence&&s.user_id===uid&&s.day>=w&&s.day<addDays(w,7));
   const team=S.people.filter(p=>p.active&&p.role&&(p.contrat_h||p.apprenti));
   const{data:pfs}=await S.sb.rpc("fermeture_preuves",{du:weeks[0],au:addDays(weeks[weeks.length-1],6)});const PF=new Map((pfs||[]).map(x=>[`${x.user_id}|${x.day}`,new Date(x.at).getTime()]));
   const hh=h=>{const m=Math.round(h*60);return`${Math.floor(m/60)}:${String(m%60).padStart(2,"0")}`};
   const q=v=>`"${String(v).replace(/"/g,'""')}"`;
-  const rows=[["Salarié(e)","Contrat","Durée contractuelle (h/sem)","Semaine","Du","Au","Heures travaillées","dont cours CFA/IUT","dont télétravail","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Hors planning non validées (non comptées)","Alertes"]];
-  const recap=[["Salarié(e)","Contrat","Total heures","dont cours","dont télétravail","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Hors planning non validées (non comptées)","Semaines sans pointage","Alertes"]];
-  for(const p of team){const T={tot:0,school:0,hs25:0,hs50:0,hc10:0,hc25:0},al=new Set();let empty=0,horsT=0,ttT=0;
+  const rows=[["Salarié(e)","Contrat","Durée contractuelle (h/sem)","Semaine","Du","Au","Heures travaillées","dont cours CFA/IUT","dont télétravail","Absences (h)","Motif d'absence","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Hors planning non validées (non comptées)","Alertes"]];
+  const recap=[["Salarié(e)","Contrat","Total heures","dont cours","dont télétravail","Absences (h)","Motif d'absence","H. sup. +25 %","H. sup. +50 %","H. compl. +10 %","H. compl. +25 %","Hors planning non validées (non comptées)","Semaines sans pointage","Alertes"]];
+  for(const p of team){const T={tot:0,school:0,hs25:0,hs50:0,hc10:0,hc25:0},al=new Set();let empty=0,horsT=0,ttT=0,absT=0;const absM=new Set();
     for(const w of weeks){const a=parse(w).getTime(),b=parse(addDays(w,7)).getTime(),list=(pts||[]).filter(x=>x.user_id===p.id&&new Date(x.start_at).getTime()>=a&&new Date(x.start_at).getTime()<b);
-      const pc=planCount(list,shAll,p.id,PF),r=payWeek(p,pc.eff,a,b);r.alerts.push(...pc.alerts);const tt=ptHours(pc.eff.filter(x=>x.a_distance),a,b);horsT+=pc.horsH;ttT+=tt;if(!r.tot)empty++;r.alerts.forEach(x=>al.add(x));for(const k in T)T[k]+=r[k];
-      rows.push([p.full_name,contratLabel(p),+p.contrat_h||35,"S"+isoWeekNum(w),fDate(w),fDate(addDays(w,6)),hh(r.tot),hh(r.school),hh(tt),hh(r.hs25),hh(r.hs50),hh(r.hc10),hh(r.hc25),hh(pc.horsH),r.alerts.join(" · ")])}
+      const pc=planCount(list,shAll,p.id,PF),r=payWeek(p,pc.eff,a,b);r.alerts.push(...pc.alerts);const tt=ptHours(pc.eff.filter(x=>x.a_distance),a,b);const ab=absIn(p.id,w),abH=ab.reduce((t,s)=>t+shH(s),0),abL=[...new Set(ab.map(s=>(ABS[s.absence]||ABS.autre)[1]))];absT+=abH;abL.forEach(x=>absM.add(x));horsT+=pc.horsH;ttT+=tt;if(!r.tot&&!abH)empty++;r.alerts.forEach(x=>al.add(x));for(const k in T)T[k]+=r[k];
+      rows.push([p.full_name,contratLabel(p),+p.contrat_h||35,"S"+isoWeekNum(w),fDate(w),fDate(addDays(w,6)),hh(r.tot),hh(r.school),hh(tt),hh(abH),abL.join(", "),hh(r.hs25),hh(r.hs50),hh(r.hc10),hh(r.hc25),hh(pc.horsH),r.alerts.join(" · ")])}
     if(horsT>1/60)al.add(`${hh(horsT)} pointées hors planning non validées par la direction : non comptées`);
-    recap.push([p.full_name,contratLabel(p),hh(T.tot),hh(T.school),hh(ttT),hh(T.hs25),hh(T.hs50),hh(T.hc10),hh(T.hc25),hh(horsT),empty,[...al].join(" · ")])}
+    recap.push([p.full_name,contratLabel(p),hh(T.tot),hh(T.school),hh(ttT),hh(absT),[...absM].join(", "),hh(T.hs25),hh(T.hs50),hh(T.hc10),hh(T.hc25),hh(horsT),empty,[...al].join(" · ")])}
   const label=parse(month+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"});
   const csv="﻿"+[[`PALOMANO LILLE – Heures pour la paie de ${label}`],[`Semaines civiles rattachées au mois de leur dimanche · cours CFA/IUT inclus (art. L6222-24) · seules les heures pointées pendant les créneaux du planning (à ${TOL_MIN} min près) ou validées par la direction sont comptées · généré le ${new Date().toLocaleString("fr-FR")}`],[],["RÉCAPITULATIF À TRANSMETTRE À LA GESTIONNAIRE DE PAIE"],...recap,[],["DÉTAIL PAR SEMAINE"],...rows,[],
     ["Règles : temps plein et apprentis majeurs +25 % de la 36e à la 43e h, +50 % au-delà · temps partiel +10 % jusqu'à 1/10 du contrat, +25 % au-delà, plafond 1/3 · apprentis mineurs 35 h/sem et 8 h/jour max (art. L3162-1) · taux conventionnels IDCC 1790 à confirmer par la gestionnaire."]]
@@ -2392,11 +2402,13 @@ VIEWS.heures=async m=>{
   await loadPeople();
   const w=S.hWeek||monday(TODAY()),days=[...Array(7)].map((_,i)=>addDays(w,i));
   const from=parse(w).getTime(),to=parse(addDays(w,7)).getTime();
-  const[{data:pts,error},{data:shifts}]=await Promise.all([
+  let[{data:pts,error},{data:shifts}]=await Promise.all([
     S.sb.from("pointages").select("*").gte("start_at",new Date(from-864e5).toISOString()).lt("start_at",new Date(to).toISOString()).order("start_at"),
-    S.sb.from("shifts").select("id,user_id,day,start_time,end_time,pause_min").eq("week_start",w),
+    S.sb.from("shifts").select("*").eq("week_start",w),
   ]);
   if(error)return fail(error);
+  const shiftsAll=shifts||[];shifts=worked(shiftsAll);
+  const absOf=uid=>shiftsAll.filter(s=>s.user_id===uid&&s.absence);
   const{data:logs}=await S.sb.from("pointages_log").select("*").gte("at",new Date(from-7*864e5).toISOString()).order("at",{ascending:false}).limit(300);
   const{data:pfs}=await S.sb.rpc("fermeture_preuves",{du:w,au:days[6]});const PF=new Map((pfs||[]).map(x=>[`${x.user_id}|${x.day}`,new Date(x.at).getTime()]));
   const team=S.people.filter(p=>p.active&&p.role);
@@ -2404,7 +2416,7 @@ VIEWS.heures=async m=>{
   const mine=uid=>(pts||[]).filter(p=>p.user_id===uid);
   const open=uid=>mine(uid).find(p=>!p.end_at);
   const rows=team.map(p=>{const pc=planCount(mine(p.id),shifts,p.id,PF),pay=payWeek(p,pc.eff,from,to);pay.alerts.push(...pc.alerts);
-    return{p,done:Math.max(0,ptHours(mine(p.id),from,to)-pc.pauseH),plan:plan(p.id),open:open(p.id),pc,pay}});
+    return{p,done:Math.max(0,ptHours(mine(p.id),from,to)-pc.pauseH),plan:plan(p.id),open:open(p.id),pc,pay,abs:absOf(p.id).reduce((t,s)=>t+shH(s),0),absL:[...new Set(absOf(p.id).map(s=>(ABS[s.absence]||ABS.autre).join(" ")))].join(", ")}});
   const tot=k=>rows.reduce((t,r)=>t+(r[k]||0),0),nOn=rows.filter(r=>r.open).length;
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
   m.innerHTML=topbar("Heures de l'équipe",`Pointages en temps réel · ${nOn?`<span class="live">${nOn} en poste maintenant</span>`:"personne en poste en ce moment"}`,
@@ -2416,12 +2428,12 @@ VIEWS.heures=async m=>{
       <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("users")}</div><div><b>${fNum(team.reduce((t,p)=>t+(+p.contrat_h||0),0),0)} h</b><span>au total des contrats</span></div></div>
     </div>
     <div class="card" style="margin-top:18px"><div class="hours-row hd"><span>Salarié</span><span class="num opt">Contrat</span><span class="num opt">Prévu</span><span class="num">Pointé</span><span class="num opt">Écart</span><span class="opt">H. sup. / compl. · maintenant</span></div>
-      ${rows.map(r=>{const ref=+r.p.contrat_h||r.plan,ec=r.done-(r.plan||0),pc=ref?Math.min(1,r.done/ref):0;
+      ${rows.map(r=>{const ref=+r.p.contrat_h||r.plan,ec=r.done-(r.plan||0),pc=ref?Math.min(1,(r.done+r.abs)/ref):0;
         return`<div class="hours-row click" data-uid="${r.p.id}"><div style="display:flex;gap:10px;align-items:center;min-width:0">${avatar(r.p,36)}<div style="min-width:0"><b style="display:block">${esc(r.p.full_name)}</b><div class="prog" style="height:6px;margin:4px 0 0;width:140px"><i style="width:${pc*100}%;background:${r.done>(+r.p.contrat_h||1e9)?"var(--rouge-f)":"var(--vert-f)"}"></i></div></div></div>
           <span class="num opt" style="font-weight:500">${r.p.contrat_h?fNum(+r.p.contrat_h,0)+" h":"—"}</span><span class="num opt" style="font-weight:500">${fDur(r.plan)}</span><span class="num">${fDur(r.done)}</span>
           <span class="num opt" style="color:${Math.abs(ec)<.25?"var(--muted)":ec>0?"var(--rouge-f)":"var(--bleu-f)"}">${r.plan||r.done?(ec>=0?"+":"−")+fDur(Math.abs(ec)):"—"}</span>
           <span class="opt" style="font-size:12.5px;line-height:1.35">${(()=>{const y=r.pay,parts=[y.hs25&&`+25 % ${fDur(y.hs25)}`,y.hs50&&`+50 % ${fDur(y.hs50)}`,y.hc10&&`compl. +10 % ${fDur(y.hc10)}`,y.hc25&&`compl. +25 % ${fDur(y.hc25)}`].filter(Boolean);
-            return(parts.length?`<b>${parts.join(" · ")}</b><br>`:"")+(y.school?`<span style="color:var(--ink-2)">dont cours ${fDur(y.school)}</span><br>`:"")+(r.pc.horsH>1/60?`<span style="color:var(--rouge-f);font-weight:700">⏱ ${fDur(r.pc.horsH)} hors planning à valider</span><br>`:"")+(y.alerts.length?`<span style="color:var(--bad);font-weight:600">⚠ ${esc(y.alerts[0])}${y.alerts.length>1?` (+${y.alerts.length-1})`:""}</span><br>`:"")+(r.open?`<span class="live">en poste depuis ${new Date(r.open.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>`:"")})()||'<span style="color:var(--muted)">—</span>'}</span></div>`}).join("")}
+            return(r.abs?`<span style="font-weight:700">${esc(r.absL)} · ${fDur(r.abs)}</span><br>`:"")+(parts.length?`<b>${parts.join(" · ")}</b><br>`:"")+(y.school?`<span style="color:var(--ink-2)">dont cours ${fDur(y.school)}</span><br>`:"")+(r.pc.horsH>1/60?`<span style="color:var(--rouge-f);font-weight:700">⏱ ${fDur(r.pc.horsH)} hors planning à valider</span><br>`:"")+(y.alerts.length?`<span style="color:var(--bad);font-weight:600">⚠ ${esc(y.alerts[0])}${y.alerts.length>1?` (+${y.alerts.length-1})`:""}</span><br>`:"")+(r.open?`<span class="live">en poste depuis ${new Date(r.open.start_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>`:"")})()||'<span style="color:var(--muted)">—</span>'}</span></div>`}).join("")}
       <p class="hint" style="margin:12px 8px 0">Heures sup. et complémentaires calculées à la semaine civile selon le contrat ; pour les apprenties, les heures de cours saisies (CFA/IUT) sont incluses. Écart = pointé − prévu au planning. Seules les heures pointées pendant les créneaux du planning (à ${TOL_MIN} min près) comptent pour la paie, pause prévue déduite ; après le dernier service, le temps de fermeture compte jusqu'à la validation de la checklist de fermeture ou du bilan du jour (1 h max) : les heures en dehors restent « à valider » tant que la direction ne les a pas validées. Touchez une ligne pour voir le détail, valider ou corriger (motif obligatoire, tout est historisé). Le contrat se règle dans Réglages.</p></div>`;
   const on=(id,f)=>{const el=$(id);if(el)el.onclick=f};
   on("hExport",async()=>{const now=new Date(),cur=iso(now).slice(0,7),prev=iso(new Date(now.getFullYear(),now.getMonth()-1,1)).slice(0,7);
