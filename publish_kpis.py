@@ -275,11 +275,30 @@ def main():
         sys.exit(f"Espace équipe : échec de publication des indicateurs (HTTP {e.code}) {e.read()[:200]!r}")
     # Produits de caisse → famille (snack, boutique…) : sert à ranger en direct les lignes des factures Qweekle
     v = d.get("ventes") or {}
+    try:
+        tva = json.loads((HERE / "tva.json").read_text(encoding="utf-8"))
+    except Exception:
+        tva = {}
     fams = {}
     for fam, grp, name, _ in v.get("products") or []:
         nom = str(name).strip().lower()
         if nom:
             fams[nom] = {"nom": nom, "famille": fam, "groupe": grp or "", "updated_at": now}
+            if tva:
+                fams[nom]["coef"] = (tva.get("prod") or {}).get(nom)
+    cats = [{"cat": k, "coef": c, "updated_at": now} for k, c in (tva.get("cat") or {}).items() if k and 1 <= c <= 1.25]
+    if cats:
+        req = urllib.request.Request(
+            url.rstrip("/") + "/rest/v1/tva_categorie?on_conflict=cat", data=json.dumps(cats).encode(), method="POST",
+            headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                     "Prefer": "resolution=merge-duplicates,return=minimal"})
+        try:
+            urllib.request.urlopen(req, timeout=30)
+            print(f"Espace équipe : TVA constatée publiée pour {len(cats)} catégories de caisse")
+        except urllib.error.HTTPError as e:
+            print(f"::warning::TVA par catégorie non publiée (HTTP {e.code} — schema_v29.sql pas encore exécuté ?)")
+            for f in fams.values():
+                f.pop("coef", None)
     if fams:
         req = urllib.request.Request(
             url.rstrip("/") + "/rest/v1/produit_famille?on_conflict=nom", data=json.dumps(list(fams.values())).encode(),

@@ -86,6 +86,8 @@ def read_ventes(path):
     accueils = defaultdict(lambda: defaultdict(set))  # jour → loisirs/scolaire/groupe → client (compté, jamais exporté)
     hour = defaultdict(lambda: [0.0, 0.0])          # (jour, heure) → [HT snack, HT boutique]
     cp = defaultdict(lambda: [set(), 0.0])          # (mois, CP) → [ventes, HT]
+    tva_p, tva_c = defaultdict(lambda: [0.0, 0.0]), defaultdict(lambda: [0.0, 0.0])   # produit / catégorie → [TTC, HT]
+    i_ttc = ix.get("Montant TTC")
 
     for r in rows:
         if not r or g(r, "Vente supprimée le") or "annul" in str(g(r, "Statut") or "").lower():
@@ -112,6 +114,11 @@ def read_ventes(path):
         ht = sum(num(r[i]) if i < len(r) else 0.0 for i in ht_cols)
         q = num(g(r, "Quantité"))
         sale = g(r, "Numéro de vente")
+        ttc = num(r[i_ttc]) if i_ttc is not None and i_ttc < len(r) else 0.0
+        if ht > 0 and ttc > 0:                         # TVA réellement appliquée par la caisse
+            for acc, k in ((tva_p, name.lower()), (tva_c, str(cat).strip().lower())):
+                acc[k][0] += ttc
+                acc[k][1] += ht
 
         e = pd[(d, pidx[key])]
         e[0] += q
@@ -144,6 +151,9 @@ def read_ventes(path):
         "acc": {d: {k: len(s) for k, s in ks.items()} for d, ks in sorted(accueils.items())},
         "hr": [[di[d], h, r2(v[0]), r2(v[1])] for (d, h), v in sorted(hour.items()) if d in di and (v[0] or v[1])],
         "cp": [[m, c, len(v[0]), r2(v[1])] for (m, c), v in sorted(cp.items())],
+        # coefficient TTC / HT constaté par produit et par catégorie (retiré avant la génération du dashboard)
+        "tva": {"prod": {k: round(v[0] / v[1], 4) for k, v in tva_p.items() if v[1] > 0},
+                "cat": {k: round(v[0] / v[1], 4) for k, v in tva_c.items() if v[1] > 0}},
     }
 
 

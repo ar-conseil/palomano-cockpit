@@ -285,6 +285,9 @@ def main():
     if f_ventes:
         ventes = read_ventes(f_ventes)
         ventes["file"] = f_ventes.name
+        tva = ventes.pop("tva", None)              # pour publish_kpis.py seulement : pas dans la page
+        if tva:
+            (HERE / "tva.json").write_text(json.dumps(tva, ensure_ascii=False), encoding="utf-8")
         locate_cp(ventes)
 
     data = {
