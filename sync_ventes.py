@@ -50,30 +50,46 @@ def number(s):
         return None
 
 
-def table(page):
-    """Lignes du premier tableau : [{label, nbr, visiteurs, ventes, ht}] d'après les titres de colonnes."""
+def table(page, want=""):
+    """Lignes du premier tableau : [{label, nbr, visiteurs, ventes, ht}] d'après les titres de colonnes.
+    Les tableaux par sous-catégorie et par produit ont une colonne « Catégories » en plus, fusionnée sur
+    plusieurs lignes : les lignes suivantes ont donc moins de cellules. On repère chaque colonne depuis la droite."""
     m = re.search(r"<table\b.*?</table>", page, re.S | re.I)
     if not m:
-        return None
+        return None, []
     t = m.group(0)
-    head = [cell(h).lower() for h in re.findall(r"<th\b[^>]*>(.*?)</th>", t, re.S | re.I)]
+    thead = re.search(r"<thead\b.*?</thead>", t, re.S | re.I)
+    head = [cell(h).lower() for h in re.findall(r"<th\b[^>]*>(.*?)</th>", thead.group(0) if thead else t, re.S | re.I)]
+    n = len(head)
     def col(*names):
         for i, h in enumerate(head):
-            if any(h == n or h.startswith(n) for n in names):
+            if any(h == x or h.startswith(x) for x in names):
                 return i
-    c_nbr, c_vis, c_ven, c_ht = col("nbr", "quantité", "qté"), col("visiteurs"), col("nbr ventes", "nb ventes"), col("montant", "total")
-    if c_nbr is not None and c_ven == c_nbr:          # « Nbr » et « Nbr Ventes » : le premier est la quantité
-        c_ven = next((i for i, h in enumerate(head) if h.startswith("nbr ventes")), None)
+    c_ven = col("nbr ventes", "nb ventes")
+    c_nbr = next((i for i, h in enumerate(head) if (h.startswith("nbr") or h.startswith("qt") or h.startswith("quantit")) and i != c_ven), None)
+    c_vis, c_ht = col("visiteurs"), col("montant", "total")
+    firstnum = min([i for i in (c_nbr, c_vis, c_ven, c_ht) if i is not None] or [1])
+    c_lab = next((i for i, h in enumerate(head) if want and h.startswith(want)), None)
+    if c_lab is None:
+        c_lab = max(firstnum - 1, 0)                 # dernière colonne de texte avant les nombres
     body = re.search(r"<tbody\b.*?</tbody>", t, re.S | re.I)
     out = []
     for tr in re.findall(r"<tr\b.*?</tr>", body.group(0) if body else t, re.S | re.I):
         tds = [cell(x) for x in re.findall(r"<td\b[^>]*>(.*?)</td>", tr, re.S | re.I)]
-        if len(tds) < 2 or not tds[0]:
+        if len(tds) < 2:
             continue
-        get = lambda i: number(tds[i]) if i is not None and i < len(tds) else None
+        shift = len(tds) - n if n else 0             # cellules fusionnées absentes en début de ligne
+        def get(i, num=True):
+            j = i + shift if i is not None else None
+            if j is None or j < 0 or j >= len(tds):
+                return None
+            return number(tds[j]) if num else tds[j]
+        label = get(c_lab, False)
+        if not label:
+            continue
         ht = get(c_ht) if c_ht is not None else number(tds[-1])
-        out.append({"label": tds[0][:200], "nbr": get(c_nbr), "visiteurs": get(c_vis), "ventes": get(c_ven), "ht": ht})
-    return out
+        out.append({"label": label[:200], "nbr": get(c_nbr), "visiteurs": get(c_vis), "ventes": get(c_ven), "ht": ht})
+    return out, head
 
 
 def main():
@@ -102,26 +118,28 @@ def main():
             url, txt = q.get(f"/reporting/sales/{level}?{qs}")
             if url.rstrip("/").endswith("/login"):
                 raise PermissionError("session Qweekle perdue")
-            return table(txt)
+            return table(txt, {"categories": "cat", "subcategories": "sous", "products": "produit"}[level])
 
         today = dt.datetime.now(ZoneInfo("Europe/Paris")).date()
         have = {r["date"] for r in sb("ventes_jour?niveau=eq.cat&select=date", prefer="") or []}
         n = BACKFILL if len(have) < 5 else DAYS
         sig = lambda rows: sorted((r["label"], r["ht"]) for r in rows or [])
-        ref = read(today, "categories")
+        ref, _ = read(today, "categories")
         if ref is None:
             return state(False, "tableau des ventes introuvable dans la page Statistiques (format Qweekle modifié ?)")
         now = dt.datetime.now(dt.timezone.utc).isoformat()
-        done, same = 0, 0
+        done, same, heads = 0, 0, {}
         for i in range(n):
             day = today - dt.timedelta(days=i)
-            cats = ref if i == 0 else read(day, "categories")
+            cats = ref if i == 0 else read(day, "categories")[0]
             if i and ref and sig(cats) == sig(ref):
                 same += 1                      # même tableau qu'aujourd'hui : la date n'a pas été prise en compte
                 continue
             rows = [dict(r, date=day.isoformat(), niveau="cat", synced_at=now) for r in cats or []]
             for niveau, level in LEVELS[1:]:
-                rows += [dict(r, date=day.isoformat(), niveau=niveau, synced_at=now) for r in read(day, level) or []]
+                sub, head = read(day, level)
+                heads[niveau] = head
+                rows += [dict(r, date=day.isoformat(), niveau=niveau, synced_at=now) for r in sub or []]
             seen, uniq = set(), []
             for r in rows:
                 k = (r["niveau"], r["label"])
@@ -135,7 +153,8 @@ def main():
             done += 1
         ca = sum(r["ht"] or 0 for r in ref if not re.search(r"acompte|cadeau", r["label"], re.I))
         state(True, f"aujourd'hui {len(ref)} catégories · {ca:.2f} € HT hors acomptes et bons cadeaux · {done} jour(s) lus"
-                    + (f" · {same} jour(s) passé(s) ignoré(s) (date non prise en compte par Qweekle)" if same else ""))
+                    + (f" · {same} jour(s) passé(s) ignoré(s) (date non prise en compte par Qweekle)" if same else "")
+                    + "".join(f" · colonnes {k} : {' / '.join(v)}" for k, v in heads.items()))
     except PermissionError as e:
         state(False, f"lecture Qweekle impossible : {e}")
     except Exception as e:
