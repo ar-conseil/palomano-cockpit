@@ -81,7 +81,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .mast{position:sticky;z-index:30;isolation:isolate}
 .mast-art{position:absolute;inset:0 0 auto;width:100%;height:var(--mh,190px);z-index:-1;display:block}
 .mast::before{content:"";position:absolute;inset:0 0 auto;height:var(--mh,190px);z-index:-1;border-bottom:1px solid rgba(74,74,73,.06)}
-.mast-illu{position:absolute;right:max(44px,calc(50% - 676px));top:64px;width:84px;z-index:0;filter:drop-shadow(0 12px 16px rgba(74,74,73,.18));animation:floaty 6s ease-in-out infinite;pointer-events:none}
+.mast-illu{position:absolute;right:max(44px,calc(50% - 676px));top:64px;width:104px;z-index:0;filter:drop-shadow(0 12px 16px rgba(74,74,73,.18));animation:floaty 6s ease-in-out infinite;pointer-events:none}
 @keyframes floaty{50%{transform:translateY(-7px) rotate(-2deg)}}
 @media (prefers-reduced-motion:reduce){.mast-illu{animation:none}}
 .mast-in{position:relative;max-width:1440px;margin:0 auto;padding:0 36px}
@@ -89,7 +89,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .mast-logo{width:168px;flex:none}
 .mast-hello{display:flex;flex-direction:column;gap:4px;padding:22px 0 8px;min-width:0;max-width:calc(100% - 260px)}
 .mast-hello .eyebrow{font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);font-weight:700}
-.mast-hello b{font-size:44px;font-weight:800;letter-spacing:-.015em;line-height:1.3;padding-bottom:.08em;white-space:nowrap;overflow:visible}
+.mast-hello b{font-size:30px;font-weight:700;letter-spacing:-.01em;line-height:1.2;padding-bottom:.08em;white-space:nowrap;overflow:visible;color:var(--ink-2)}
+.mast-hello b .who2{display:inline-block;font-size:52px;font-weight:800;letter-spacing:-.02em;line-height:1.2;color:var(--ink)}
 .mast-hello b .wave{display:inline-block;transform-origin:70% 80%;animation:wave 2.6s ease-in-out 1s 2}
 @keyframes wave{0%,60%,100%{transform:rotate(0)}10%,30%{transform:rotate(14deg)}20%,40%{transform:rotate(-8deg)}}
 .mast-hello .eyebrow em{font-style:normal;font-variant-numeric:tabular-nums;color:var(--rouge-f)}
@@ -226,7 +227,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 @media (max-width:700px){.hero{padding:20px}.hero h2{font-size:22px}.hero .illu{width:80px;align-self:flex-start}}
 .mob-hi{display:none;margin:0 0 14px;font-size:24px;font-weight:800}
 @media (max-width:900px){.mob-hi{display:block}}
-@media (max-width:1180px){.mast-hello b{font-size:38px}}
+@media (max-width:1180px){.mast-hello b{font-size:26px}.mast-hello b .who2{font-size:44px}}
 .day{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1.6fr);gap:18px}
 @media (max-width:1100px){.day{grid-template-columns:1fr}}
 .mycard{position:relative;overflow:hidden;isolation:isolate;border-radius:28px;padding:24px 26px;color:#fff;background:linear-gradient(150deg,#3a3846,#2a2934);box-shadow:0 20px 40px -22px rgba(42,41,52,.7);display:flex;flex-direction:column;gap:14px;min-height:250px}
@@ -943,7 +944,7 @@ function renderNav(){
     (isManager()?`<a href="#" class="gear" data-t="reglages" title="Réglages" ${S.tab==="reglages"?'aria-current="page"':""}>${ic("gear")}<span>Réglages</span>${BADGES.bReg?`<span class="badge">${BADGES.bReg}</span>`:""}</a>`:"");
   paintBell();paintMastKpis();
   paintClock();const h=new Date().getHours();
-  $("mastHi").innerHTML=S.me?`${h<5||h>=18?"Bonsoir":h<12?"Bonjour":"Bon après-midi"} ${esc(S.me.full_name.split(" ")[0])} <span class="wave">👋</span>`:"";
+  $("mastHi").innerHTML=S.me?`${h<5||h>=18?"Bonsoir":h<12?"Bonjour":"Bon après-midi"}<br><span class="who2">${esc(S.me.full_name.split(" ")[0])} <span class="wave">👋</span></span>`:"";
   const sum=["bDem","bReg"].reduce((s,k)=>s+(BADGES[k]||0),0);
   $("bNav").innerHTML=BNAV.map(t=>navLink(NAV.find(n=>n.t===t))).join("")+
     `<a href="#" data-t="__more" ${BNAV.includes(S.tab)?"":'aria-current="page"'}>${ic("more")}<span>Plus</span>${sum?`<span class="badge">${sum}</span>`:""}</a>`;
