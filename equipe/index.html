@@ -1387,7 +1387,7 @@ function paintCren(){
   const L=C.creneaux||[],mx=Math.max(1,...L.map(c=>+c.nb||0)),peak=L.reduce((a,c)=>!a||c.nb>a.nb?c:a,null);
   const nowM=new Date().getHours()*60+new Date().getMinutes(),toM=h=>+h.slice(0,2)*60+ +h.slice(3,5);
   const next=day===t0?L.find(c=>toM(c.h)>=nowM-30):null;
-  const used=[...new Set(L.flatMap(c=>Object.keys(c.fams||{})))].sort((a,b)=>Object.keys(CR_FAM).indexOf(a)-Object.keys(CR_FAM).indexOf(b));
+  const used=[...new Set(L.flatMap(c=>Object.keys(c.fams||{})))].filter(k=>CR_FAM[k]).sort((a,b)=>Object.keys(CR_FAM).indexOf(a)-Object.keys(CR_FAM).indexOf(b));
   box.innerHTML=`<div class="card cren">
     <div class="cren-head">
       <div><h3>${ic("cal")} Réservations par créneau</h3>
