@@ -504,6 +504,42 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .feed .nf .tag{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none}
 .feed .nf .tx{flex:1;min-width:0}.feed .nf .tx b{display:block;font-size:14px}.feed .nf .tx small{color:var(--muted);font-size:12.5px}
 .feed .nf .ago{font-size:12px;color:var(--muted);white-space:nowrap}
+/* ── Réservations par créneau ── */
+.cren{margin-top:18px;position:relative;overflow:hidden}
+.cren-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+.cren-days{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px}
+.cren-days::-webkit-scrollbar{display:none}
+.cren-days button{flex:none;min-width:58px;border:0;border-radius:16px;padding:7px 10px 8px;background:var(--bg);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--ink-2);transition:transform .25s cubic-bezier(.3,1.6,.5,1),background .15s,box-shadow .2s}
+.cren-days button small{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.cren-days button b{font-size:19px;font-weight:800;line-height:1.1;color:var(--ink)}
+.cren-days button:hover{transform:translateY(-2px);background:#fff}
+.cren-days button[aria-pressed="true"]{background:var(--ink);color:rgba(255,255,255,.8);box-shadow:0 10px 20px -12px rgba(74,74,73,.7)}
+.cren-days button[aria-pressed="true"] b{color:#fff}
+.cren-days button.today:not([aria-pressed="true"]) small{color:var(--rouge-f)}
+.cren-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.cs{border-radius:18px;padding:12px 14px;background:var(--kc);min-width:0}
+.cs b{display:block;font-size:28px;font-weight:800;line-height:1.1;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:var(--ink)}
+.cs span{font-size:12.5px;font-weight:600;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+@media (max-width:700px){.cren-sum{grid-template-columns:repeat(2,minmax(0,1fr))}.cs b{font-size:22px}}
+.cren-list{display:flex;flex-direction:column;gap:6px}
+.crow{display:grid;grid-template-columns:92px minmax(0,1fr) 110px;gap:14px;align-items:center;padding:10px 12px;border-radius:16px;transition:background .15s}
+.crow:hover{background:var(--bg)}
+.crow.next{background:linear-gradient(90deg,var(--jaune-c),transparent 70%);box-shadow:inset 3px 0 0 var(--jaune-f)}
+.crow.past{opacity:.5}
+.ct b{display:block;font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.ct em{font-style:normal;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c99a2e}
+.cbar{min-width:0}
+.cfill{display:flex;gap:2px;height:16px;border-radius:8px;overflow:hidden;transition:width .7s cubic-bezier(.2,1,.3,1);animation:cgrow .8s cubic-bezier(.2,1,.3,1) both;transform-origin:left}
+@keyframes cgrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.cfill i{display:block;min-width:6px}
+.cchips{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px;font-size:12.5px;color:var(--ink-2)}
+.cchips span{white-space:nowrap}
+.cn{text-align:right}
+.cn b{display:block;font-size:24px;font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums}
+.cn small{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.legend-c{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:14px;padding-top:12px;border-top:1px dashed var(--line-2);font-size:12.5px;color:var(--ink-2)}
+.legend-c span{display:inline-flex;align-items:center;gap:6px}.legend-c i{width:10px;height:10px;border-radius:3px}
+@media (max-width:700px){.crow{grid-template-columns:62px minmax(0,1fr) 74px;gap:10px;padding:8px 6px}.ct b{font-size:17px}.cn b{font-size:19px}}
 /* ── Privatisations ── */
 .pv-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;align-items:start;background:var(--card);border-radius:22px;box-shadow:var(--shadow);padding:16px 18px;margin-top:12px;cursor:pointer;transition:transform .12s;position:relative;overflow:hidden}
 .pv-card:hover{transform:translateY(-2px)}
@@ -862,7 +898,7 @@ function guardWrites(sb){
   Object.defineProperty(sb,"storage",{value:sb.storage});   // supabase-js recrée le client storage à chaque accès : on le fige pour pouvoir le surveiller
   const from=sb.from.bind(sb),rpc=sb.rpc.bind(sb),st=sb.storage.from.bind(sb.storage);
   sb.from=t=>{const q=from(t);if(!S.real)return q;["insert","update","upsert","delete"].forEach(k=>q[k]=()=>roQuery());return q};
-  const RO_RPC=["live_jour","resa_nouvelles"];   // lectures seules : autorisées pendant l'aperçu
+  const RO_RPC=["live_jour","resa_nouvelles","creneaux_jour"];   // lectures seules : autorisées pendant l'aperçu
   sb.rpc=(...a)=>S.real&&!RO_RPC.includes(a[0])?roQuery():rpc(...a);
   sb.storage.from=b=>{const s=st(b);if(S.real){s.upload=async()=>({data:null,error:{message:PV_MSG}});s.remove=s.upload}return s};
 }
@@ -1076,6 +1112,7 @@ const ago=t=>{const m=Math.round((Date.now()-new Date(t))/6e4);return m<1?"à l'
 async function loadLive(){
   if(!S.sb||!S.me)return;
   try{const{data,error}=await S.sb.rpc("live_jour");if(error)throw error;LIVE.data=data}catch(e){LIVE.data=null}
+  try{const{data,error}=await S.sb.rpc("creneaux_jour",{d:LIVE.crDay||TODAY()});if(error)throw error;LIVE.cren=data}catch(e){LIVE.cren=null}
   paintMastKpis();if(S.tab==="live")paintLive();
 }
 const loadLiveSoon=()=>{clearTimeout(LIVE.soon);LIVE.soon=setTimeout(loadLive,1200)};
@@ -1220,6 +1257,7 @@ function paintLive(){
       ${big("--jaune-c","#c99a2e","cup","Snacking",M&&sn.ttc!=null?ttc(sn.ttc):sn.articles!=null?fN0(sn.articles):"—",M&&sn.ttc!=null?`${sn.ht!=null?`<b>${fE0(sn.ht)} HT</b> · `:""}${fN0(sn.articles)} articles vendus`:"articles vendus aujourd'hui")}
       ${big("--vert-c","#9aab55","bag","Boutique",M&&bo.ttc!=null?ttc(bo.ttc):bo.articles!=null?fN0(bo.articles):"—",M&&bo.ttc!=null?`${bo.ht!=null?`<b>${fE0(bo.ht)} HT</b> · `:""}${fN0(bo.articles)} articles vendus`:"articles vendus aujourd'hui")}
     </div>
+    <div id="lvCren"></div>
     <p style="margin:10px 2px 0;font-size:12.5px;color:var(--muted)">Chiffres de la journée hors acomptes (réservations en ligne), avoirs et cartes cadeaux${M&&L.exclus&&L.exclus.nb?` · ${fN0(L.exclus.nb)} opération${L.exclus.nb>1?"s":""} écartée${L.exclus.nb>1?"s":""} (${fE0(L.exclus.ttc)})`:""}.</p>
     <div class="grid g2" style="margin-top:18px">
       <div class="card"><div class="card-head"><h3>${ic("cup")} Top snacking du jour</h3></div>${tops(sn,"#c99a2e")}</div>
@@ -1232,6 +1270,44 @@ function paintLive(){
         ${(LIVE.feed8||[]).length?LIVE.feed8.map(x=>{const[c,f,icn]=RCOL[x.kind]||RCOL.anniv;return`<div class="nf"><div class="tag" style="background:var(${c});color:${f}">${ic(icn)}</div><div class="tx"><b>${esc(x.titre)}</b><small>${capital(fShort(x.date))}${x.heure?" · "+fTime(x.heure):""}${x.nb?` · ${x.nb} pers.`:""}</small></div><span class="ago">${ago(x.created_at)}</span></div>`}).join(""):'<div class="empty">Aucune nouvelle réservation ces 14 derniers jours.</div>'}</div>
     </div>`;
   const lb=$("lvBell");if(lb)lb.onclick=e=>{e.preventDefault();e.stopPropagation();openBell()};
+  paintCren();
+}
+/* Réservations du jour par créneau (export Qweekle + webhooks reçus depuis) */
+const CR_FAM={enfant:["Enfants","var(--jaune-f)","👧"],adulte:["Adultes","var(--bleu-f)","🧑"],anniv:["Anniversaires","var(--rouge-f)","🎂"],
+  centre:["Centres","#9aab55","🏕️"],ecole:["Écoles","#c99a2e","🎒"],privat:["Privatisations","#8a7fd0","✨"],autre:["Autres","var(--muted)","•"]};
+function paintCren(){
+  const box=$("lvCren");if(!box)return;const C=LIVE.cren,day=LIVE.crDay||TODAY(),t0=TODAY();
+  const days=Array.from({length:8},(_,i)=>addDays(t0,i));
+  const chips=days.map((d,i)=>`<button data-crd="${d}" aria-pressed="${d===day}" class="${i===0?"today":""}"><small>${i===0?"Aujourd'hui":i===1?"Demain":parse(d).toLocaleDateString("fr-FR",{weekday:"short"})}</small><b>${parse(d).getDate()}</b></button>`).join("");
+  if(!C){box.innerHTML=`<div class="card cren"><div class="card-head"><h3>${ic("cal")} Réservations par créneau</h3></div><div class="empty">Pas encore installé : la direction doit exécuter <b>schema_v24.sql</b> dans Supabase.</div></div>`;return}
+  const L=C.creneaux||[],mx=Math.max(1,...L.map(c=>+c.nb||0)),peak=L.reduce((a,c)=>!a||c.nb>a.nb?c:a,null);
+  const nowM=new Date().getHours()*60+new Date().getMinutes(),toM=h=>+h.slice(0,2)*60+ +h.slice(3,5);
+  const next=day===t0?L.find(c=>toM(c.h)>=nowM-30):null;
+  const used=[...new Set(L.flatMap(c=>Object.keys(c.fams||{})))].sort((a,b)=>Object.keys(CR_FAM).indexOf(a)-Object.keys(CR_FAM).indexOf(b));
+  box.innerHTML=`<div class="card cren">
+    <div class="cren-head">
+      <div><h3>${ic("cal")} Réservations par créneau</h3>
+        <p class="hint" style="margin:2px 0 0">${capital(fDay(day))}${C.export?` · export Qweekle du ${new Date(C.export).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}, complété en direct`:" · en direct"}</p></div>
+      <div class="cren-days">${chips}</div>
+    </div>
+    <div class="cren-sum">
+      <div class="cs" style="--kc:var(--rouge-c);--kf:var(--rouge-f)"><b>${fN0(C.resas)}</b><span>réservation${C.resas>1?"s":""}</span></div>
+      <div class="cs" style="--kc:var(--jaune-c);--kf:#c99a2e"><b>${fN0(C.personnes)}</b><span>personnes attendues</span></div>
+      <div class="cs" style="--kc:var(--bleu-c);--kf:var(--bleu-f)"><b>${L.length}</b><span>créneau${L.length>1?"x":""}</span></div>
+      <div class="cs" style="--kc:var(--vert-c);--kf:#9aab55"><b>${peak?peak.h.replace(":","h"):"—"}</b><span>${peak?`pic · ${fN0(peak.nb)} pers.`:"pas de pic"}</span></div>
+    </div>
+    ${L.length?`<div class="cren-list">${L.map(c=>{const past=day===t0&&toM(c.h)<nowM-30,isNext=next&&c.h===next.h;
+      return`<div class="crow ${past?"past":""} ${isNext?"next":""}">
+        <div class="ct"><b>${c.h.replace(":","h")}</b>${isNext?'<em>à venir</em>':""}</div>
+        <div class="cbar"><div class="cfill" style="width:${Math.max(4,(+c.nb||0)/mx*100)}%">${Object.keys(CR_FAM).filter(k=>c.fams&&c.fams[k]).map(k=>`<i style="flex:${c.fams[k]};background:${CR_FAM[k][1]}" title="${CR_FAM[k][0]} : ${c.fams[k]}"></i>`).join("")}</div>
+          <div class="cchips">${Object.keys(CR_FAM).filter(k=>c.fams&&c.fams[k]).map(k=>`<span>${CR_FAM[k][2]} ${fN0(c.fams[k])} ${CR_FAM[k][0].toLowerCase()}</span>`).join("")}</div></div>
+        <div class="cn"><b>${fN0(c.nb)}</b><small>pers. · ${fN0(c.resas)} résa${c.resas>1?"s":""}</small></div>
+      </div>`}).join("")}</div>
+      <div class="legend-c">${used.map(k=>`<span><i style="background:${CR_FAM[k][1]}"></i>${CR_FAM[k][0]}</span>`).join("")}</div>`
+      :`<div class="empty"><img src="assets/illu.svg" alt="">Aucune réservation connue pour ce jour.</div>`}
+  </div>`;
+  box.querySelectorAll("[data-crd]").forEach(b=>b.onclick=async()=>{LIVE.crDay=b.dataset.crd;
+    try{const{data}=await S.sb.rpc("creneaux_jour",{d:LIVE.crDay});LIVE.cren=data}catch(e){}paintCren()});
 }
 
 /* ═════════ PRIVATISATIONS ═════════ */

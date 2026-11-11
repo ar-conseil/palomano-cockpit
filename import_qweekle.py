@@ -234,6 +234,36 @@ def parse(data):
 
 
 # ───────────── Option « Animateur » : produit de la commande, visible seulement dans l'export caisse ─────────────
+def slots(data, exported):
+    """Toutes les réservations de l'export (entrées individuelles comprises) regroupées par jour, créneau
+    et activité → table creneaux_export (schema_v24.sql), pour « les réservations du jour par créneau »."""
+    rows = iter_rows(data)
+    head = next(rows)
+    ix = {h: i for i, h in enumerate(head) if h}
+    g = lambda r, k: r[ix[k]] if k in ix and ix[k] < len(r) else None
+    since = dt.date.today() - dt.timedelta(days=1)
+    agg = {}
+    for r in rows:
+        if not r or str(g(r, "Actif") or "1") in ("0", "0.0"):
+            continue
+        act, start = str(g(r, "Activité réservée") or "").strip(), to_dt(g(r, "Créneau réservé"))
+        if not act or not start or start.date() < since:
+            continue
+        try:
+            n = int(float(g(r, "Nbre participants") or 0))
+        except ValueError:
+            n = 0
+        e = agg.setdefault((start.date().isoformat(), start.strftime("%H:%M"), act), [0, set()])
+        e[0] += n
+        e[1].add((g(r, "Client") or "", str(g(r, "Réservé le") or "")[:16]))
+    out = [{"date": d, "heure": h, "activite": a, "nb": v[0], "resas": len(v[1]), "exported_at": exported}
+           for (d, h, a), v in sorted(agg.items())]
+    sb(f"creneaux_export?date=gte.{since.isoformat()}", method="DELETE")
+    for i in range(0, len(out), 500):
+        sb("creneaux_export?on_conflict=date,heure,activite", out[i:i + 500], "POST", "resolution=merge-duplicates,return=minimal")
+    return len(out)
+
+
 def tokens(*names):
     t = unicodedata.normalize("NFKD", " ".join(str(n or "") for n in names)).encode("ascii", "ignore").decode().lower()
     return frozenset(w for w in re.split(r"[^a-z]+", t) if len(w) > 1)
@@ -345,6 +375,10 @@ def main():
     now = dt.datetime.now(dt.timezone.utc).isoformat()
     exported = item["lastModifiedDateTime"].replace("Z", "+00:00")
     fresher = lambda c: bool(c.get("webhook_at")) and c["webhook_at"] > exported   # webhook plus récent que l'export
+    try:                                        # créneaux du jour : ne doit jamais bloquer l'import
+        print(f"Qweekle : {slots(data, exported)} créneaux × activités publiés")
+    except Exception as e:
+        print(f"::warning::Créneaux non publiés (schema_v24.sql pas encore exécuté ?) : {e}")
     created = updated = cancelled = merged = 0
     for table, own in (("anniversaires", own_anniv), ("groupes", OWN_GROUPE)):
         cols = ",".join(own + (["options"] if table == "anniversaires" else []))
