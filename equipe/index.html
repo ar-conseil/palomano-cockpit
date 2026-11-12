@@ -518,6 +518,19 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .feed .nf .tag{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none}
 .feed .nf .tx{flex:1;min-width:0}.feed .nf .tx b{display:block;font-size:14px}.feed .nf .tx small{color:var(--muted);font-size:12.5px}
 .feed .nf .ago{font-size:12px;color:var(--muted);white-space:nowrap}
+/* ── Fluidité : blocs d'attente, flous d'arrière-plan réservés aux boutons du haut ── */
+.view{animation:viewIn .18s ease both}
+@keyframes viewIn{from{opacity:.4}to{opacity:1}}
+.skel{display:flex;flex-direction:column;gap:16px}
+.skel i{display:block;border-radius:18px;background:linear-gradient(90deg,var(--card) 25%,#efecea 37%,var(--card) 63%);background-size:400% 100%;animation:shimmer 1.2s ease infinite}
+@keyframes shimmer{0%{background-position:100% 50%}100%{background-position:0 50%}}
+.skel .sk-t{height:34px;width:260px}.skel .sk-s{height:16px;width:420px;max-width:80%}
+.skel .sk-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.skel .sk-g i{height:110px}
+.skel .sk-b{height:260px}
+@media (max-width:700px){.skel .sk-g{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.gtabs a,.mast-kpis .mk,.mk{backdrop-filter:none;-webkit-backdrop-filter:none}
+.gtabs a{background:rgba(255,255,255,.78)}
+@media (prefers-reduced-motion:reduce){.view,.skel i{animation:none}}
 /* ── Mes chiffres ── */
 .ch-per{margin:-10px 0 16px;color:var(--ink-2);font-size:13.5px}
 em.up,em.down{font-style:normal;font-weight:800;font-size:12.5px;white-space:nowrap}
@@ -759,7 +772,7 @@ th{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.
         <linearGradient id="mBg" x1="0" y1="0" x2="1" y2=".4"><stop offset="0" stop-color="#fdf8f0"/><stop offset=".45" stop-color="#e4eff9"/><stop offset=".8" stop-color="#f8dfe4"/><stop offset="1" stop-color="#f9e2b4"/></linearGradient>
         <radialGradient id="mSun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f7d589"/><stop offset=".7" stop-color="#f7d589" stop-opacity=".55"/><stop offset="1" stop-color="#f7d589" stop-opacity="0"/></radialGradient>
         <pattern id="mDot" width="18" height="18" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="#4a4a49" fill-opacity=".07"/></pattern>
-        <filter id="mGrain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 .29  0 0 0 0 .29  0 0 0 0 .29  0 0 0 .07 0"/></filter>
+        
       </defs>
       <rect width="1600" height="220" fill="url(#mBg)"/>
       <rect width="1600" height="220" fill="url(#mDot)"/>
@@ -781,7 +794,7 @@ th{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.
         <path d="M1060 60 q 10 -14 20 0 t 20 0 t 20 0" fill="none" stroke="#8ab5d7" stroke-width="3" stroke-linecap="round"/>
         <path d="M1440 150 q 8 -12 16 0 t 16 0 t 16 0" fill="none" stroke="#df6276" stroke-width="3" stroke-linecap="round" stroke-opacity=".7"/>
       </g>
-      <rect width="1600" height="220" filter="url(#mGrain)"/>
+
     </svg>
       <img class="mast-illu" src="assets/illu.svg" alt="">
       <div class="mast-in">
@@ -1009,11 +1022,11 @@ function startPreview(id){
   const bar=$("pvBar");bar.classList.remove("hidden");
   bar.innerHTML=`${ic("users")}<span>Vous voyez l'espace de <b>${esc(p.full_name)}</b> (${ROLE[p.role]}) · lecture seule${p.invite?" · son compte n'est pas encore créé : ce qu'elle verra à sa première connexion":""}</span><span class="sp"></span><button class="btn sm" id="pvSwitch">Changer</button><button class="btn sm pri" id="pvExit">Revenir à mon espace</button>`;
   $("pvExit").onclick=stopPreview;$("pvSwitch").onclick=pickPreview;
-  refreshBadges();go("today");
+  clearViews();refreshBadges();go("today");
 }
 function stopPreview(){
   if(!S.real)return;if(S.me.invite)S.byId.delete(S.me.id);S.user=S.real.user;S.me=S.real.me;S.real=null;paintMe(S.me);
-  $("pvBar").classList.add("hidden");refreshBadges();go("today");
+  $("pvBar").classList.add("hidden");clearViews();refreshBadges();go("today");
 }
 $("sheet").onclick=e=>{if(e.target.id==="sheet")$("sheet").classList.add("hidden")};
 function go(t){
@@ -1034,7 +1047,18 @@ if(document.fonts&&document.fonts.ready)document.fonts.ready.then(fitMast);
 addEventListener("scroll",()=>{const m=$("mast"),g=$("gTabs");if(m&&g)m.classList.toggle("stuck",scrollY>g.offsetTop)},{passive:true});
 function paintClock(){const el=$("mastDate");if(!el)return;const now=new Date();el.innerHTML=`${capital(now.toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}))} · <em>${now.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</em> · Espace équipe`}
 setInterval(()=>{if(!document.hidden)paintClock()},20000);
-async function render(){try{await VIEWS[S.tab]($("main"))}catch(e){fail(e)}}
+/* Chaque onglet garde son dernier affichage : en y revenant, il réapparaît tout de suite (puis se met à jour en
+   arrière-plan) au lieu de laisser l'écran précédent le temps que les données arrivent. Un onglet jamais ouvert
+   affiche d'abord des blocs gris. Les écrans cachés sont détachés de la page (pas de doublon d'identifiants). */
+const VCACHE=new Map();let RTOK=0;
+const SKEL=`<div class="skel"><i class="sk-t"></i><i class="sk-s"></i><div class="sk-g"><i></i><i></i><i></i><i></i></div><i class="sk-b"></i><i class="sk-b" style="height:180px"></i></div>`;
+function clearViews(){VCACHE.clear();const m=$("main");if(m)m.replaceChildren()}
+async function render(){
+  const t=S.tab,my=++RTOK,main=$("main");let el=VCACHE.get(t);
+  if(!el){el=document.createElement("div");el.className="view";el.innerHTML=SKEL;VCACHE.set(t,el)}
+  if(main.firstChild!==el)main.replaceChildren(el);
+  try{await VIEWS[t](el)}catch(e){if(my===RTOK&&S.tab===t)fail(e);else console.warn(e)}   // un écran quitté en cours de chargement ne signale rien
+}
 function topbar(title,sub,acts=""){return`<div class="topbar"><div><h1>${title}</h1>${sub?`<div class="sub">${sub}</div>`:""}</div><div class="acts">${acts}</div></div>`}
 
 /* ───────────── modale générique ───────────── */
@@ -1115,7 +1139,7 @@ async function enter(user){
   $("logout").innerHTML=ic("out");
   let t="today";try{t=sessionStorage.getItem("palo.eq.tab")||"today"}catch(e){}
   playIntro(me.full_name.split(" ")[0]);
-  go(t);refreshBadges();startLive();countUnseen();   // les pastilles arrivent sans retarder l'affichage
+  clearViews();go(t);refreshBadges();startLive();countUnseen();   // les pastilles arrivent sans retarder l'affichage
   const pc=pendingPointer();if(pc&&!S.real)pointerCode(pc);
 }
 /* Pointage avec le code de la borne (saisi, ou reçu par le QR code : …/#pointer=123456) */
@@ -1142,7 +1166,7 @@ async function loadPeople(){
   const{data:ext}=await S.sb.from("intervenants").select("*").order("full_name");   // intérimaires + invités sans compte
   S.extAll=ext||[];S.ext=new Map(S.extAll.map(x=>[x.id,{...x,ext:true}]));
 }
-async function logout(){stopLive();try{sessionStorage.removeItem("palo.intro")}catch(e){}await S.sb.auth.signOut();showAuth("fLogin")}
+async function logout(){stopLive();clearViews();try{sessionStorage.removeItem("palo.intro")}catch(e){}await S.sb.auth.signOut();showAuth("fLogin")}
 $("fLogin").onsubmit=async e=>{e.preventDefault();$("lErr").textContent="";
   const{data,error}=await S.sb.auth.signInWithPassword({email:$("lEmail").value.trim(),password:$("lPw").value});
   if(error){$("lErr").textContent=/Invalid/.test(error.message)?"E-mail ou mot de passe incorrect.":/confirm/i.test(error.message)?"Confirmez d'abord votre e-mail (lien reçu par mail).":error.message;return}
@@ -1338,8 +1362,10 @@ function playIntro(name){
 VIEWS.live=async m=>{
   m.innerHTML=topbar("En direct",`<span class="lv-dot">Mis à jour tout seul</span> <span id="lvMaj" style="color:var(--muted);font-size:13px"></span>`,`<button class="btn sm" id="lvRef">${ic("clock","sm")} Actualiser</button>`)+`<div id="lvBody"><div class="empty">Chargement…</div></div>`;
   $("lvRef").onclick=loadLive;
-  const{data:feed}=await S.sb.rpc("resa_nouvelles",{n:8}).then(x=>x,()=>({data:null}));LIVE.feed8=feed||[];
-  await loadLive();if(!LIVE.data)$("lvBody").innerHTML=`<div class="card"><div class="empty">Le direct n'est pas encore installé : la direction doit exécuter <b>schema_v20.sql</b> dans Supabase.</div></div>`;
+  if(LIVE.data)paintLive();                     // derniers chiffres connus tout de suite, mise à jour ensuite
+  const[{data:feed}]=await Promise.all([S.sb.rpc("resa_nouvelles",{n:8}).then(x=>x,()=>({data:null})),LIVE.data?null:loadLive()]);
+  LIVE.feed8=feed||[];
+  if(LIVE.data&&S.tab==="live")paintLive();loadLive();if(!LIVE.data)$("lvBody").innerHTML=`<div class="card"><div class="empty">Le direct n'est pas encore installé : la direction doit exécuter <b>schema_v20.sql</b> dans Supabase.</div></div>`;
 };
 function paintLive(){
   const L=LIVE.data,box=$("lvBody");if(!L||!box)return;
