@@ -897,6 +897,9 @@ function renderDaily(){
     y:{stacked:true,grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtK(v)}}},
     plugins:{legend:{display:false},tooltip:{backgroundColor:css("--ink"),filter:i=>i.parsed.y!==0,callbacks:{title:i=>long?"Semaine du "+fmtDate(i[0].label):fmtDay(i[0].label)+(PROV.has(i[0].label)?" · provisoire (caisse)":""),
       footer:i=>{const t=i.filter(x=>x.dataset.stack).reduce((s,x)=>s+x.parsed.y,0);const o=i.find(x=>!x.dataset.stack);return`Total ${fmtE(t)}${o&&o.parsed.y?` · ${fmtP(t/o.parsed.y,0)} de l'objectif`:""}`},
+      // pastille de couleur pleine : Chart.js ne sait pas dessiner l'infobulle à partir d'un motif hachuré
+      labelColor:c=>{const g=SEG.find(x=>x.lab===c.dataset.label),col=g?css(g.c):css("--muted");return{borderColor:col,backgroundColor:col}},
+      labelTextColor:()=>css("--page"),
       label:c=>` ${c.dataset.label} : ${fmtE(c.parsed.y)}`}}}})});
   // visiteurs
   const vis=days.map(d=>{const r=BY.get(d);return r?r[9]:0}),vo=days.map(d=>dayObjF(d,"vis"));
