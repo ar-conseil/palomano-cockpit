@@ -1053,13 +1053,22 @@ setInterval(()=>{if(!document.hidden)paintClock()},20000);
 const VCACHE=new Map();let RTOK=0;
 const SKEL=`<div class="skel"><i class="sk-t"></i><i class="sk-s"></i><div class="sk-g"><i></i><i></i><i></i><i></i></div><i class="sk-b"></i><i class="sk-b" style="height:180px"></i></div>`;
 function clearViews(){VCACHE.clear();const m=$("main");if(m)m.replaceChildren()}
+// sous-écrans d'un même onglet (Congés / Incidents, À venir / Passés…) : chacun garde aussi son affichage,
+// la bascule est donc immédiate dès la deuxième fois
+const SUBKEY={demandes:()=>S.demTab,factu:()=>S.facTab,stocks:()=>S.stockKind,privat:()=>S.pvMode,chiffres:()=>S.chMode,
+  anniv:()=>S.resaPast?"passe":"avenir",centres:()=>S.resaPast?"passe":"avenir",ecoles:()=>S.resaPast?"passe":"avenir"};
+const SKELB=`<div class="skel"><div class="sk-g" style="grid-template-columns:repeat(2,minmax(0,1fr))"><i style="height:220px"></i><i style="height:220px"></i></div></div>`;
+// structure d'un écran (titre + filtres) écrite une seule fois : en se rafraîchissant, il garde son contenu
+// jusqu'à l'arrivée des nouvelles données au lieu de se vider
+function shellOnce(m,key,html){if(m.dataset.shell!==key||!m.firstElementChild||m.firstElementChild.classList.contains("skel")){m.innerHTML=html;m.dataset.shell=key}}
 async function render(){
-  const t=S.tab,my=++RTOK,main=$("main");let el=VCACHE.get(t);
-  if(!el){el=document.createElement("div");el.className="view";el.innerHTML=SKEL;VCACHE.set(t,el)}
+  const t=S.tab,my=++RTOK,main=$("main"),ck=t+":"+(SUBKEY[t]?SUBKEY[t]():""),y0=window.scrollY;let el=VCACHE.get(ck);
+  if(!el){el=document.createElement("div");el.className="view";el.innerHTML=SKEL;VCACHE.set(ck,el)}
   if(main.firstChild!==el)main.replaceChildren(el);
+  if(window.scrollY<y0)window.scrollTo(0,y0);
   // un écran qui se redessine (filtre, bouton, enregistrement) devient un instant plus court : sans précaution,
   // le navigateur remonte la page. On garde la position où l'on était.
-  const y=window.scrollY,keepY=()=>{if(my===RTOK&&S.tab===t&&window.scrollY<y)window.scrollTo(0,Math.min(y,document.documentElement.scrollHeight-innerHeight))};
+  const y=y0,keepY=()=>{if(my===RTOK&&S.tab===t&&window.scrollY<y)window.scrollTo(0,Math.min(y,document.documentElement.scrollHeight-innerHeight))};
   el.style.minHeight=el.offsetHeight?el.offsetHeight+"px":"";
   try{await VIEWS[t](el);keepY()}catch(e){if(my===RTOK&&S.tab===t)fail(e);else console.warn(e)}   // un écran quitté en cours de chargement ne signale rien
   finally{requestAnimationFrame(()=>{el.style.minHeight="";keepY()})}
@@ -2218,7 +2227,7 @@ VIEWS.stocks=async m=>{
 /* ═════════ DEMANDES ═════════ */
 VIEWS.demandes=async m=>{
   const t=S.demTab;
-  m.innerHTML=topbar("Demandes","Congés de l'équipe, incidents et maintenance",`<div class="seg" id="dSeg"><button data-t="conges" aria-pressed="${t==="conges"}">Congés</button><button data-t="incidents" aria-pressed="${t==="incidents"}">Incidents</button></div>`)+'<div id="dBody"></div>';
+  shellOnce(m,"dem:"+t,topbar("Demandes","Congés de l'équipe, incidents et maintenance",`<div class="seg" id="dSeg"><button data-t="conges" aria-pressed="${t==="conges"}">Congés</button><button data-t="incidents" aria-pressed="${t==="incidents"}">Incidents</button></div>`)+'<div id="dBody">'+SKELB+'</div>');
   $("dSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.demTab=b.dataset.t;render()}};
   const body=$("dBody");
   if(t==="conges"){
@@ -2553,8 +2562,8 @@ const ST_FG={"Payé":"ok","À relancer":"bad","Annulée":"","":"warn"};
 const CAT_FF={animation:"Animateurs",staffing:"Staffing",jouets:"Jouets & boutique",autre:"Autre"};
 VIEWS.factu=async m=>{
   const t=S.facTab||"groupes";
-  m.innerHTML=topbar("Facturation",t==="groupes"?"Écoles & centres · synchronisé avec l'Excel « Suivi facturation » sur SharePoint":"Animateurs & prestataires · factures des animateurs, staffeurs, jouets…",
-    `<div class="seg" id="fSeg"><button data-t="groupes" aria-pressed="${t==="groupes"}">Écoles & centres</button><button data-t="fourn" aria-pressed="${t==="fourn"}">Animateurs & prestataires</button></div>`)+'<div id="fBody"></div>';
+  shellOnce(m,"fac:"+t,topbar("Facturation",t==="groupes"?"Écoles & centres · synchronisé avec l'Excel « Suivi facturation » sur SharePoint":"Animateurs & prestataires · factures des animateurs, staffeurs, jouets…",
+    `<div class="seg" id="fSeg"><button data-t="groupes" aria-pressed="${t==="groupes"}">Écoles & centres</button><button data-t="fourn" aria-pressed="${t==="fourn"}">Animateurs & prestataires</button></div>`)+'<div id="fBody">'+SKELB+'</div>');
   $("fSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.facTab=b.dataset.t;render()}};
   const body=$("fBody");
   if(t==="groupes"){
