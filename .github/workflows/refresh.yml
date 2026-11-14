@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy1.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -145,7 +145,16 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+      # GitHub ne retrouve parfois pas tout de suite le site qu'on vient de lui envoyer (« No artifacts named
+      # github-pages ») : on réessaie une fois après une pause au lieu de signaler un échec.
+      - id: deploy1
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Pause avant le second essai de publication
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 45
       - id: deploy
+        if: steps.deploy1.outcome == 'failure'
         uses: actions/deploy-pages@v4
 
       # GitHub désactive les tâches planifiées d'un dépôt sans activité pendant 60 jours :
