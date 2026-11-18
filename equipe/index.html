@@ -1228,7 +1228,7 @@ async function refreshBadges(){
     setBadge("bFac",aPayer||0);
     setBadge("bStock",STOCK_TEST?0:(items||[]).filter(i=>i.current_qty<=i.min_qty).length);
     setBadge("bDem",(pend||[]).length+(inc||[]).length);
-    setBadge("bPlan",(plans||[]).filter(p=>canValidate()?p.status==="soumis":isManager()?p.status==="refuse":false).length);
+    setBadge("bPlan",0);
     setBadge("bReg",wait||0);
     setBadge("bSaisie",(await saisiePending()).length);
     if(S.me)renderNav();
@@ -1694,7 +1694,7 @@ VIEWS.today=async m=>{
 
 /* ═════════ PLANNING (vue semaine par salarié + frise horaire du jour) ═════════ */
 const H0=8,H1=21,SNAP=15;
-const PLAN_ST={brouillon:["info","Brouillon"],soumis:["warn","En attente de validation d'Alex"],valide:["ok","Validé"],refuse:["bad","Refusé — à corriger"]};
+const PLAN_ST={brouillon:["info","Brouillon"],soumis:["ok","Publié"],valide:["ok","Publié"],refuse:["bad","Refusé — à corriger"]};
 let DRAG=null;
 VIEWS.planning=async m=>{
   const w=S.week,days=[...Array(7)].map((_,i)=>addDays(w,i)),today=TODAY();
@@ -1707,7 +1707,7 @@ VIEWS.planning=async m=>{
     S.sb.from("anniversaires").select("*").gte("date",w).lte("date",days[6]).neq("statut","annule"),
     S.sb.from("groupes").select("date,heure_arrivee,structure,nb_enfants,type").gte("date",w).lte("date",days[6]).neq("statut","annule"),
   ]);
-  const st=pl?pl.status:null,editable=isManager()&&!!pl&&(["brouillon","refuse"].includes(st)||(st==="valide"&&isDirection()));
+  const st=pl?pl.status:null,editable=isManager()&&!!pl&&["brouillon","refuse","valide","soumis"].includes(st);
   const SH=(shifts||[]).map(s=>({...s,user_id:s.user_id||s.intervenant_id,a:toMin(s.start_time),b:toMin(s.end_time)}));
   const hrs={},absH={};SH.forEach(s=>{hrs[s.user_id]=(hrs[s.user_id]||0)+shH(s);if(s.absence)absH[s.user_id]=(absH[s.user_id]||0)+shH(s)});
   const offOn=(d,uid)=>(leaves||[]).some(l=>l.start_date<=d&&l.end_date>=d&&(!uid||l.user_id===uid));
@@ -1719,9 +1719,8 @@ VIEWS.planning=async m=>{
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
   const acts=[
     isManager()&&!pl?`<button class="btn" id="pCopy">${ic("copy","sm")} Copier la semaine précédente</button><button class="btn pri" id="pStart">${ic("plus","sm")} Commencer le planning</button>`:"",
-    editable?`<button class="btn pri" id="pSubmit">Soumettre à Alex</button>`:"",
-    canValidate()&&st==="soumis"?`<button class="btn bad" id="pKo">Refuser</button><button class="btn ok" id="pOk">${ic("check","sm")} Valider le planning</button>`:"",
-    isDirection()&&pl&&["soumis","valide"].includes(st)?`<button class="btn ghost" id="pReopen">Rouvrir</button>`:"",
+    editable&&st!=="valide"?`<button class="btn pri" id="pSubmit">${ic("check","sm")} Publier le planning</button>`:"",
+        isManager()&&pl&&["soumis","valide"].includes(st)?`<button class="btn ghost" id="pReopen">Repasser en brouillon</button>`:"",
   ].join("");
   const sub=st?`<span class="pill ${PLAN_ST[st][0]}"><i></i>${PLAN_ST[st][1]}</span>${pl.comment&&isManager()?` &nbsp;💬 ${esc(pl.comment)}`:""}${st==="valide"&&pl.validated_at?` &nbsp;<span style="font-size:13px">par ${esc(firstName(pl.validated_by))} le ${fStamp(pl.validated_at)}</span>`:""}${st==="soumis"&&pl.submitted_at?` &nbsp;<span style="font-size:13px">envoyé par ${esc(firstName(pl.submitted_by))} le ${fStamp(pl.submitted_at)}</span>`:""}`:(isManager()?"Cette semaine n'est pas encore préparée.":"");
   const who=p=>`<div class="who ${p.ext&&isManager()?"click":""}" ${p.ext?`data-ext="${p.id}"`:""}>${avatar(p,34)}<div style="min-width:0"><b>${esc(p.full_name)}</b><small>${p.ext?esc(INT_TYPE[p.type]+(p.agence?" · "+p.agence:"")):esc(p.poste||ROLE[p.role])}</small></div></div>`;
@@ -1781,7 +1780,7 @@ VIEWS.planning=async m=>{
       <span class="sp"></span>${isManager()?`<button class="btn sm" id="pExt">${ic("plus","sm")} Intérimaire</button>`:""}<div class="seg" id="vSeg"><button data-v="semaine" aria-pressed="${view==="semaine"}">Semaine</button><button data-v="jour" aria-pressed="${view==="jour"}">Jour</button></div></div>`+
     (!isManager()&&!st?`<div class="card empty"><img src="assets/illu.svg" alt="">Le planning de cette semaine n'est pas encore publié.</div>`:
     tiles()+(HEAT?HEAT.html:"")+(view==="jour"?`<div class="days-tabs" style="margin-bottom:14px">${days.map(d=>`<button data-day="${d}" class="${d===today?"today":""}" aria-pressed="${d===day}">${capital(fShort(d))}</button>`).join("")}</div>`+dayTimeline():weekGrid())+
-    `<p class="plan-hint">${editable&&st==="valide"?"<b>Planning validé : vos changements sont visibles tout de suite par l'équipe.</b> ":""}${editable?(view==="jour"?"✋ Glissez une barre pour décaler l'horaire (ou vers une autre personne) · tirez ses bords pour changer le début ou la fin · dessinez sur la ligne d'une personne pour créer un service · cliquez pour modifier.":"✋ Glissez un service vers un autre jour ou une autre personne · cliquez sur une case vide pour en créer un · cliquez sur un service pour le modifier · passez en vue Jour pour ajuster les heures à la souris."):st==="soumis"?"Planning en attente de validation : il n'est plus modifiable sauf refus.":st==="valide"?"Planning validé : il est visible par toute l'équipe.":""}</p>
+    `<p class="plan-hint">${editable&&st==="valide"?"<b>Planning publié : vos changements sont visibles tout de suite par l'équipe.</b> ":""}${editable?(view==="jour"?"✋ Glissez une barre pour décaler l'horaire (ou vers une autre personne) · tirez ses bords pour changer le début ou la fin · dessinez sur la ligne d'une personne pour créer un service · cliquez pour modifier.":"✋ Glissez un service vers un autre jour ou une autre personne · cliquez sur une case vide pour en créer un · cliquez sur un service pour le modifier · passez en vue Jour pour ajuster les heures à la souris."):st==="soumis"?"Planning en attente de validation : il n'est plus modifiable sauf refus.":st==="valide"?"Planning validé : il est visible par toute l'équipe.":""}</p>
     <div class="mplan">${days.map(d=>{const sh=SH.filter(s=>s.day===d).sort((a,b)=>a.a-b.a);return`<div class="mday ${d===today?"today":""}"><h4><span>${capital(fShort(d))}</span><span style="color:var(--muted);font-weight:500">${sh.length?nbDay(d)+" pers.":""}</span></h4>
       ${sh.map(s=>`<div class="mshift" style="--c:${esc(person(s.user_id).color)}" ${editable?`data-shift="${s.id}"`:""}>${avatar(person(s.user_id),28)}<div style="flex:1"><b>${esc(person(s.user_id).full_name)}</b><div style="font-size:13px;color:var(--ink-2)">${TT(s)}${fTime(s.start_time)} – ${fTime(s.end_time)}${PZ(s)}${s.teletravail?" · Télétravail":""}${s.label?" · "+esc(s.label):""}</div></div></div>`).join("")||'<div style="color:var(--muted);font-size:13.5px">Personne</div>'}
       ${(leaves||[]).filter(l=>l.start_date<=d&&l.end_date>=d).map(l=>`<div style="font-size:13px;color:var(--rouge-f);margin-top:6px">🌴 ${esc(person(l.user_id).full_name)} en congé</div>`).join("")}
@@ -1907,12 +1906,12 @@ VIEWS.planning=async m=>{
     const{error}=await S.sb.from("intervenants").update(upd).eq("id",x.id);if(error)return fail(error);await loadPeople();render()}});
   m.querySelectorAll("[data-addday]").forEach(b=>b.onclick=()=>createShift({day:b.dataset.addday,start_time:"09:30",end_time:"18:30"}));
   m.querySelectorAll(".mshift[data-shift]").forEach(el=>el.onclick=()=>editShift(SH.find(x=>x.id===+el.dataset.shift)));
-  on("pSubmit",async()=>{if(!SH.length)return toast("Ajoutez au moins un service");if(!confirm("Envoyer ce planning à Alex pour validation ? Il ne sera plus modifiable sauf refus."))return;
-    const{error}=await S.sb.rpc("submit_planning",{w});if(error)return fail(error);toast("Planning envoyé à Alex");render();refreshBadges()});
+  on("pSubmit",async()=>{if(!SH.length)return toast("Ajoutez au moins un service");if(!confirm("Publier ce planning ? Toute l'équipe le verra tout de suite (il reste modifiable)."))return;
+    const{error}=await S.sb.rpc("submit_planning",{w});if(error)return fail(error);toast("Planning publié : l'équipe le voit");render();refreshBadges()});
   on("pOk",async()=>{const{error}=await S.sb.rpc("decide_planning",{w,ok:true,note:""});if(error)return fail(error);toast("Planning validé : l'équipe le voit");render();refreshBadges()});
   on("pKo",async()=>{const r=await modal("Refuser le planning",`<label class="f">Ce qu'il faut corriger<textarea name="note" required></textarea></label>`,{submit:"Renvoyer pour correction"});if(!r)return;
     const{error}=await S.sb.rpc("decide_planning",{w,ok:false,note:r.data.note});if(error)return fail(error);toast("Planning renvoyé");render();refreshBadges()});
-  on("pReopen",async()=>{if(!confirm("Rouvrir ce planning ? Il disparaîtra de la vue de l'équipe jusqu'à sa nouvelle validation."))return;
+  on("pReopen",async()=>{if(!confirm("Repasser ce planning en brouillon ? Il disparaîtra de la vue de l'équipe jusqu'à sa nouvelle validation."))return;
     const{error}=await S.sb.rpc("reopen_planning",{w});if(error)return fail(error);render();refreshBadges()});
 };
 
