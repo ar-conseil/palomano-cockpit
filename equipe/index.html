@@ -910,6 +910,9 @@ const isDirection=()=>S.me&&S.me.role==="direction";
 const canValidate=()=>isDirection()&&S.me.can_validate_planning;
 const realDirection=()=>((S.real&&S.real.me)||S.me)?.role==="direction";
 const person=id=>S.byId.get(id)||(S.ext&&S.ext.get(id))||{full_name:"—",color:"#9a9895"};
+// prénom de l'enfant (Qweekle le donne dans la réservation) ; sinon « Enfant de … »
+const nomEnfant=a=>a.enfant||"";
+const gouter=a=>a&&a.heure?fTime(a.heure_gouter||toTime(toMin(a.heure)+Math.round((+a.duree_min||150)/2/15)*15)):"";   // goûter : saisi, sinon au milieu de la fête
 const animOf=a=>a&&(a.animateur||a.animateur_ext);   // animateur d'un anniversaire : salarié (compte) ou intervenant
 const needAnim=a=>!!(a&&a.option_animateur);   // option « animateur » prise sur Qweekle
 const animCols=v=>v&&S.ext&&S.ext.has(v)?{animateur:null,animateur_ext:v}:{animateur:v||null,animateur_ext:null};
@@ -1739,7 +1742,7 @@ VIEWS.planning=async m=>{
   // Qui est là, heure par heure : présents au parc (hors télétravail), réservations sans personne, animateur manquant
   const heat=()=>{const HH=Array.from({length:12},(_,i)=>i+9);let mx=1,miss=[];
     const cell=(d,h)=>{const a=h*60,b=a+60,on=new Set(SH.filter(x=>x.day===d&&!x.teletravail&&!x.absence&&x.a<b&&x.b>a).map(x=>x.user_id));
-      const an=(anniv||[]).filter(x=>x.date===d&&toMin(x.heure)<b&&toMin(x.heure)+(+x.duree_min||120)>a);
+      const an=(anniv||[]).filter(x=>x.date===d&&toMin(x.heure)<b&&toMin(x.heure)+(+x.duree_min||150)>a);
       const gr=(grp||[]).filter(x=>x.date===d&&x.heure_arrivee&&toMin(x.heure_arrivee)<b&&toMin(x.heure_arrivee)+120>a);
       const noAnim=an.filter(x=>x.option_animateur&&!animOf(x));
       return{n:on.size,names:[...on].map(firstName),resa:an.length+gr.length,noAnim,bad:noAnim.length>0||(an.length+gr.length>0&&on.size===0)}};
@@ -1984,7 +1987,8 @@ async function resaView(m,kind){
       <label class="f">Âge<input type="number" name="age" min="1" max="18" value="${r.age??""}"></label>
       <label class="f">Date<input type="date" name="date" value="${r.date||today}" required></label>
       <label class="f">Heure<input type="time" name="heure" step="900" value="${(r.heure||"14:00").slice(0,5)}" required></label>
-      <label class="f">Durée (min)<input type="number" name="duree_min" min="30" step="15" value="${r.duree_min||120}"></label>
+      <label class="f">Durée (min)<input type="number" name="duree_min" min="30" step="15" value="${r.duree_min||150}"></label>
+      <label class="f">Heure du goûter<input type="time" name="heure_gouter" step="300" value="${(r.heure_gouter||"").slice(0,5)}" placeholder="auto"><span class="hint" style="margin:2px 0 0">Vide : au milieu de la fête (${(r.heure&&gouter(r))||"arrivée + 1 h 15"})</span></label>
       <label class="f">Nombre d'enfants<input type="number" name="nb_enfants" min="1" value="${r.nb_enfants??""}"></label>
       <label class="f">Formule<input name="formule" list="formules" value="${esc(r.formule||"")}" placeholder="Palo-Fiesta, Goûter Palomano…"><datalist id="formules"><option>Palo-Fiesta</option><option>Goûter Palomano</option><option>Goûter non compris</option><option>Découverte</option></datalist></label>
       <label class="f">Salle<input name="salle" value="${esc(r.salle||"")}" placeholder="Salle 1, Salle 2…"></label>
@@ -2059,7 +2063,7 @@ VIEWS.annivplan=async m=>{
   const annOn=d=>list.filter(a=>a.date===d);
   const card=a=>{const p=animOf(a)?person(animOf(a)):null,cls=!p&&needAnim(a)?"todo":!p?"plain":"";
     return`<button type="button" class="apcard anchip ${cls}" data-ann="${a.id}" ${isManager()?"":"disabled"} style="${p?`--c:${esc(p.color||"#c1daf3")}`:""}">
-      <span class="t">${fTime(a.heure)}${a.duree_min?` – ${fTime(toTime(toMin(a.heure)+a.duree_min))}`:""}</span><b>${esc(a.enfant)}${a.age?` · ${a.age} ans`:""}</b>
+      <span class="t">${fTime(a.heure)}${a.duree_min?` – ${fTime(toTime(toMin(a.heure)+a.duree_min))}`:""} · 🧁 ${gouter(a)}</span><b>${esc(a.enfant)}${a.age?` · ${a.age} ans`:""}</b>
       <small>${[a.nb_enfants&&a.nb_enfants+" enfants",a.salle,a.formule].filter(Boolean).map(esc).join(" · ")}</small>
       <span class="who2">${p?"🎈 "+esc(p.full_name):needAnim(a)?"⚠ Option animateur : à prévoir":"Sans animateur"}</span></button>`};
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
@@ -2075,7 +2079,7 @@ VIEWS.annivplan=async m=>{
   $("aPrint").onclick=()=>printAnniv(list,days);
   $("aPrev").onclick=()=>{S.apWeek=addDays(w,-7);render()};$("aNext").onclick=()=>{S.apWeek=addDays(w,7);render()};$("aNow").onclick=()=>{S.apWeek=null;render()};
   m.querySelectorAll("[data-ann]").forEach(b=>b.onclick=async()=>{if(!isManager())return;const a=(anniv||[]).find(x=>x.id===+b.dataset.ann);if(!a)return;
-    const a0=toMin(a.heure),a1=a0+(a.duree_min||120),fin=toTime(Math.min(a1,23*60+45));
+    const a0=toMin(a.heure),a1=a0+(a.duree_min||150),fin=toTime(Math.min(a1,23*60+45));
     const r=await modal(`Anniversaire de ${a.enfant}`,`<p style="margin:0 0 10px;font-size:15px"><b>${capital(fDay(a.date))}</b> · ${fTime(a.heure)} – ${fTime(fin)}${a.nb_enfants?` · ${a.nb_enfants} enfants`:""}${a.age?` · ${a.age} ans`:""}${a.salle?` · ${esc(a.salle)}`:""}</p>
       <label class="f full" style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="opt" ${a.option_animateur?"checked":""} style="width:auto"> Option animateur prise (vendue sur place sur Qweekle)</label>
       <label class="f full">Animateur·rice<select name="who">${whoOptions(animOf(a),{empty:"—"})}</select></label>
@@ -2101,15 +2105,15 @@ async function printAnniv(list,days){
   if(!r)return;
   const sel=withA.filter(d=>r.data["d:"+d]==="on");if(!sel.length)return toast("Choisissez au moins un jour");
   const perso=r.data.perso==="on",e=esc;
-  const fin=a=>fTime(toTime(Math.min(toMin(a.heure)+(a.duree_min||120),23*60+45)));
+  const fin=a=>fTime(toTime(Math.min(toMin(a.heure)+(a.duree_min||150),23*60+45)));
   // couleur de chaque option, d'après sa famille
   const oc=o=>/animat/i.test(o)?"r":/g[âa]teau/i.test(o)?"y":/sirop|soft|oasis|jus/i.test(o)?"b":/bonbon/i.test(o)?"p":/goodies|chaussette/i.test(o)?"g":"n";
   const block=a=>{const p=animOf(a)?person(animOf(a)):null,opts=annOpts(a,{anim:false}),anim=needAnim(a);
     const facts=[a.nb_enfants&&["Enfants",a.nb_enfants],a.formule&&["Formule",e(a.formule)],a.salle&&["Salle",e(a.salle)],a.theme&&["Thème",e(a.theme)],perso&&a.parent_nom&&["Famille",e(a.parent_nom)]].filter(Boolean);
     return`<article class="${anim?"anim":""}">
-      <div class="tm"><b>${fTime(a.heure)}</b><span>${fin(a)}</span></div>
+      <div class="tm"><b>${fTime(a.heure)}</b><span>${fin(a)}</span><i>🧁 ${gouter(a)}</i></div>
       <div class="bd">
-        <div class="nm">${e(a.enfant)}${a.age?`<em>${a.age} ans</em>`:""}</div>
+        <div class="nm">${e(nomEnfant(a))}${a.age?`<em>${a.age} ans</em>`:""}</div>
         ${facts.length?`<div class="fx">${facts.map(([k,v])=>`<span><small>${k}</small>${v}</span>`).join("")}</div>`:""}
         ${anim?`<div class="rib ${p?"":"todo"}"><span>🎈</span>${p?`Animateur · <b>${e(p.full_name)}</b>`:"Avec animateur · <b>à prévoir</b>"}</div>`:p?`<div class="rib soft"><span>🎈</span>Animateur · <b>${e(p.full_name)}</b></div>`:""}
         ${opts.length?`<div class="op">${opts.map(o=>`<span class="${oc(o)}">${OPT_IC(o)} ${e(o)}</span>`).join("")}</div>`:`<div class="op none">Aucune option</div>`}
@@ -2149,6 +2153,7 @@ async function printAnniv(list,days){
     article.anim{border-color:var(--rose);box-shadow:0 0 0 1.5px var(--rose)}
     .tm{flex:none;width:58px;background:var(--bleuC);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;text-align:center}
     article.anim .tm{background:var(--roseC)}
+    .tm i{margin-top:5px;font-style:normal;font-size:10.5px;font-weight:800;padding:1px 5px;border-radius:999px;background:#fff;white-space:nowrap}
     .tm b{font-size:17px;font-weight:800;line-height:1}.tm span{margin-top:3px;font-size:10.5px;font-weight:600;color:var(--ink2)}.tm span:before{content:"→ "}
     .bd{flex:1;min-width:0;padding:8px 11px 9px}
     .nm{font-size:18px;font-weight:800;line-height:1.15}.nm em{font-style:normal;font-size:11.5px;font-weight:700;margin-left:7px;padding:1px 7px;border-radius:999px;background:var(--jauneC);color:#9a7a2c;vertical-align:3px}
