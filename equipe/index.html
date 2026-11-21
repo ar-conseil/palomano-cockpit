@@ -2497,21 +2497,19 @@ const isoWeekNum=s=>{const d=parse(s);d.setDate(d.getDate()+3-(d.getDay()+6)%7);
      une récupération acceptée ne compte pas : elle consomme le compteur
    · semaine sans pointage ni service au planning publié, ni absence : non suivie (0), signalée dans le détail
    · ajustements de la direction : solde de départ, heures payées, correction. */
+const COMPTEUR_DEBUT="2026-11-02";   // compteur démarré au 1er novembre 2026 (1re semaine complète)
 const AJ_TYPE={depart:["🏁","Solde de départ"],paye:["💶","Heures payées sur la paie"],recup:["🌿","Récupération accordée"],correction:["✏️","Correction"]};
 const sgnDur=h=>Math.abs(h)<1/120?"0 h 00":(h>0?"+":"−")+fDur(Math.abs(h));
 const solCol=h=>Math.abs(h)<.25?"var(--muted)":h>0?"var(--rouge-f)":"var(--bleu-f)";
 async function compteurData(){
   const wNow=monday(TODAY());
   const team=S.people.filter(p=>p.active&&p.role&&(p.contrat_h||p.apprenti));
-  const[{data:aj,error:e1},{data:pls},{data:p0}]=await Promise.all([
+  const[{data:aj,error:e1},{data:pls}]=await Promise.all([
     S.sb.from("compteur_ajust").select("*").order("day"),
-    S.sb.from("plannings").select("week_start,status").eq("status","valide").order("week_start"),
-    S.sb.from("pointages").select("start_at").order("start_at").limit(1)]);
+    S.sb.from("plannings").select("week_start,status").order("week_start")]);
   if(e1)throw e1;
-  const pub=new Set((pls||[]).map(p=>p.week_start));
-  const cands=[...(pls||[]).map(p=>p.week_start),...(p0||[]).map(x=>monday(iso(new Date(x.start_at))))].filter(Boolean).sort();
-  let w0=cands[0]||wNow;if(w0>wNow)w0=wNow;
-  if(w0<addDays(wNow,-7*52))w0=addDays(wNow,-7*52);                       // un an d'historique au plus
+  const pub=new Set((pls||[]).map(p=>p.week_start));                      // planning de la semaine (publié ou non)
+  let w0=COMPTEUR_DEBUT;if(w0>wNow)w0=wNow;
   const end=addDays(wNow,7),weeks=[];for(let w=w0;w<end;w=addDays(w,7))weeks.push(w);
   const[{data:pts},{data:shs},{data:lv},{data:pfs}]=await Promise.all([
     S.sb.from("pointages").select("*").gte("start_at",new Date(parse(w0).getTime()-864e5).toISOString()).lt("start_at",new Date(parse(end).getTime()).toISOString()),
@@ -2558,7 +2556,7 @@ async function compteurView(m,segHtml){
           <span class="num opt" style="color:${solCol(r.proj)}" title="Compteur prévu dimanche soir, d'après le planning de cette semaine">${r.curW?sgnDur(r.proj):"—"}</span>
           <span class="opt" style="display:flex;align-items:center;gap:3px;height:34px">${last.length?last.map(d=>`<i title="Semaine du ${fShort(d.w)} : ${sgnDur(d.delta)}" style="display:block;width:12px;border-radius:3px;height:${4+Math.abs(d.delta)/mx*26}px;background:${d.delta>=0?"var(--rouge)":"var(--bleu)"};align-self:${d.delta>=0?"flex-end":"flex-start"}"></i>`).join(""):`<span style="color:var(--muted);font-size:12.5px">aucune semaine terminée</span>`}</span></div>`}).join("")||`<div class="empty">Aucun salarié avec un contrat renseigné (Réglages › Équipe).</div>`}
     </div>
-    <p class="hint" style="margin:12px 8px 0">Chaque semaine terminée (lundi → dimanche) : heures faites − contrat. Heures faites = heures pointées retenues pour la paie, ou à défaut celles du planning publié (pause déduite). Les absences du planning et les congés acceptés comptent comme faits ; une récupération acceptée consomme le compteur. <b style="color:var(--rouge-f)">+</b> = heures sup. à récupérer ou à payer · <b style="color:var(--bleu-f)">−</b> = heures à rattraper. Cliquez sur une personne pour le détail, un solde de départ ou des heures payées.</p>`;
+    <p class="hint" style="margin:12px 8px 0">Chaque semaine terminée (lundi → dimanche) : heures faites − contrat. Heures faites = heures pointées retenues pour la paie, ou à défaut celles du planning (pause déduite). Les absences du planning et les congés acceptés comptent comme faits ; une récupération acceptée consomme le compteur. <b style="color:var(--rouge-f)">+</b> = heures sup. à récupérer ou à payer · <b style="color:var(--bleu-f)">−</b> = heures à rattraper. Cliquez sur une personne pour le détail, un solde de départ ou des heures payées.</p>`;
   m.querySelectorAll("[data-cuid]").forEach(el=>el.onclick=async()=>{
     const r=rows.find(x=>x.p.id===el.dataset.cuid),det=r.det.filter(d=>!d.skip).slice().reverse();
     const res=await modal(`Compteur de ${r.p.full_name}`,`<div style="display:flex;gap:18px;align-items:baseline;margin-bottom:6px"><b style="font-size:26px;color:${solCol(r.sol)}">${sgnDur(r.sol)}</b><span style="color:var(--ink-2)">${r.sol>=.25?"heures sup. à récupérer ou à payer":r.sol<=-.25?"heures à rattraper":"compteur à jour"} · contrat ${fNum(r.c,1)} h</span></div>
