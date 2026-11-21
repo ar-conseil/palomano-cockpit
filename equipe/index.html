@@ -1058,7 +1058,7 @@ const SKEL=`<div class="skel"><i class="sk-t"></i><i class="sk-s"></i><div class
 function clearViews(){VCACHE.clear();const m=$("main");if(m)m.replaceChildren()}
 // sous-écrans d'un même onglet (Congés / Incidents, À venir / Passés…) : chacun garde aussi son affichage,
 // la bascule est donc immédiate dès la deuxième fois
-const SUBKEY={demandes:()=>S.demTab,factu:()=>S.facTab,stocks:()=>S.stockKind,privat:()=>S.pvMode,chiffres:()=>S.chMode,
+const SUBKEY={demandes:()=>S.demTab,factu:()=>S.facTab,stocks:()=>S.stockKind,privat:()=>S.pvMode,chiffres:()=>S.chMode,heures:()=>S.hMode||"semaine",
   anniv:()=>S.resaPast?"passe":"avenir",centres:()=>S.resaPast?"passe":"avenir",ecoles:()=>S.resaPast?"passe":"avenir"};
 const SKELB=`<div class="skel"><div class="sk-g" style="grid-template-columns:repeat(2,minmax(0,1fr))"><i style="height:220px"></i><i style="height:220px"></i></div></div>`;
 // structure d'un écran (titre + filtres) écrite une seule fois : en se rafraîchissant, il garde son contenu
@@ -2488,8 +2488,106 @@ async function exportPaie(month){
 }
 const isoWeekNum=s=>{const d=parse(s);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/864e5-3+(w1.getDay()+6)%7)/7)};
 
+/* ═════════ COMPTEUR D'HEURES : heures sup. à récupérer / heures à rattraper ═════════
+   Par semaine civile terminée : heures faites − contrat.
+   · heures faites = heures pointées retenues pour la paie ; si personne n'a pointé cette semaine-là,
+     heures prévues au planning publié (pause déduite)
+   · absences du planning (maladie, formation…) et congés acceptés (contrat ÷ 5 par jour, 5 jours max) comptent comme faites ;
+     une récupération acceptée ne compte pas : elle consomme le compteur
+   · semaine sans pointage ni service au planning publié, ni absence : non suivie (0), signalée dans le détail
+   · ajustements de la direction : solde de départ, heures payées, correction. */
+const AJ_TYPE={depart:["🏁","Solde de départ"],paye:["💶","Heures payées sur la paie"],recup:["🌿","Récupération accordée"],correction:["✏️","Correction"]};
+const sgnDur=h=>Math.abs(h)<1/120?"0 h 00":(h>0?"+":"−")+fDur(Math.abs(h));
+const solCol=h=>Math.abs(h)<.25?"var(--muted)":h>0?"var(--rouge-f)":"var(--bleu-f)";
+async function compteurData(){
+  const wNow=monday(TODAY());
+  const team=S.people.filter(p=>p.active&&p.role&&(p.contrat_h||p.apprenti));
+  const[{data:aj,error:e1},{data:pls},{data:p0}]=await Promise.all([
+    S.sb.from("compteur_ajust").select("*").order("day"),
+    S.sb.from("plannings").select("week_start,status").eq("status","valide").order("week_start"),
+    S.sb.from("pointages").select("start_at").order("start_at").limit(1)]);
+  if(e1)throw e1;
+  const pub=new Set((pls||[]).map(p=>p.week_start));
+  const cands=[...(pls||[]).map(p=>p.week_start),...(p0||[]).map(x=>monday(iso(new Date(x.start_at))))].filter(Boolean).sort();
+  let w0=cands[0]||wNow;if(w0>wNow)w0=wNow;
+  if(w0<addDays(wNow,-7*52))w0=addDays(wNow,-7*52);                       // un an d'historique au plus
+  const end=addDays(wNow,7),weeks=[];for(let w=w0;w<end;w=addDays(w,7))weeks.push(w);
+  const[{data:pts},{data:shs},{data:lv},{data:pfs}]=await Promise.all([
+    S.sb.from("pointages").select("*").gte("start_at",new Date(parse(w0).getTime()-864e5).toISOString()).lt("start_at",new Date(parse(end).getTime()).toISOString()),
+    S.sb.from("shifts").select("*").gte("day",w0).lt("day",end),
+    S.sb.from("leaves").select("*").eq("status","acceptee").lte("start_date",addDays(end,-1)).gte("end_date",w0),
+    S.sb.rpc("fermeture_preuves",{du:w0,au:addDays(end,-1)})]);
+  const PF=new Map((pfs||[]).map(x=>[`${x.user_id}|${x.day}`,new Date(x.at).getTime()]));
+  const shW=worked(shs);
+  const rows=team.map(p=>{const c=+p.contrat_h||35,det=[];let sol=0;
+    for(const w of weeks){const a=parse(w).getTime(),b=parse(addDays(w,7)).getTime(),cur=w===wNow;
+      const list=(pts||[]).filter(x=>x.user_id===p.id&&new Date(x.start_at).getTime()>=a&&new Date(x.start_at).getTime()<b);
+      const mineSh=(shs||[]).filter(s=>s.user_id===p.id&&s.day>=w&&s.day<addDays(w,7));
+      const absH=mineSh.filter(s=>s.absence).reduce((t,s)=>t+shH(s),0);
+      const lvs=(lv||[]).filter(l=>l.user_id===p.id);let cg=0,rc=0;
+      for(let i=0;i<7;i++){const d=addDays(w,i),l=lvs.find(l=>l.start_date<=d&&l.end_date>=d);if(!l)continue;if(l.kind==="recup")rc++;else cg++}
+      const congeH=Math.min(cg,5)*c/5;
+      let fait=0,src="";
+      if(list.length){const pc=planCount(list,shW,p.id,PF);fait=payWeek(p,pc.eff,a,b).tot;src="pointé"}
+      else if(pub.has(w)&&mineSh.length){fait=mineSh.filter(s=>!s.absence).reduce((t,s)=>t+shH(s),0);src="planning"}
+      if(!src&&!absH&&!congeH){if(!cur)det.push({w,skip:true});continue}
+      const delta=fait+absH+congeH-c;
+      det.push({w,cur,src,fait,absH,congeH,cg,rc,delta});if(!cur)sol+=delta}
+    const adj=(aj||[]).filter(x=>x.user_id===p.id),adjT=adj.reduce((t,x)=>t+(+x.heures||0),0);
+    const curW=det.find(d=>d.cur);
+    return{p,c,det,adj,sol:sol+adjT,proj:sol+adjT+(curW?curW.delta:0),curW}});
+  return{rows,w0,wNow,pub}
+}
+async function compteurView(m,segHtml){
+  let D;try{D=await compteurData()}catch(e){
+    if(/compteur_ajust/.test(e.message||""))return m.innerHTML=topbar("Compteur d'heures","",segHtml)+`<div class="card empty">Le compteur n'est pas encore installé : exécuter <b>schema_v34.sql</b> dans Supabase.</div>`;return fail(e)}
+  const{rows,w0,wNow}=D,tot=k=>rows.reduce((t,r)=>t+r[k],0),plus=rows.filter(r=>r.sol>=.25),moins=rows.filter(r=>r.sol<=-.25);
+  m.innerHTML=topbar("Compteur d'heures",`Heures sup. à récupérer ou à payer · heures à rattraper · depuis la semaine du ${parse(w0).toLocaleDateString("fr-FR",{day:"numeric",month:"long"})}`,segHtml)+
+    `<div class="grid g4">
+      <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("clock")}</div><div><b>${sgnDur(plus.reduce((t,r)=>t+r.sol,0))}</b><span>heures sup. à récupérer (${plus.length} pers.)</span></div></div>
+      <div class="stat"><div class="tile-ic" style="background:var(--bleu-c);color:var(--bleu-f)">${ic("clock")}</div><div><b>${sgnDur(moins.reduce((t,r)=>t+r.sol,0))}</b><span>heures à rattraper (${moins.length} pers.)</span></div></div>
+      <div class="stat"><div class="tile-ic" style="background:var(--jaune-c);color:#c99a2e">${ic("cal")}</div><div><b>${sgnDur(tot("proj")-tot("sol"))}</b><span>cette semaine, d'après le planning</span></div></div>
+      <div class="stat"><div class="tile-ic" style="background:var(--vert-c);color:#9aab55">${ic("users")}</div><div><b>${rows.length}</b><span>salariés suivis</span></div></div>
+    </div>
+    <div class="card" style="margin-top:18px"><div class="hours-row hd"><span>Salarié</span><span class="num opt">Contrat</span><span class="num">Compteur</span><span class="num opt">Fin de semaine</span><span class="opt">8 dernières semaines</span></div>
+      ${rows.map(r=>{const last=r.det.filter(d=>!d.cur&&!d.skip).slice(-8),mx=Math.max(2,...last.map(d=>Math.abs(d.delta)));
+        return`<div class="hours-row click" data-cuid="${r.p.id}"><div style="display:flex;gap:10px;align-items:center;min-width:0">${avatar(r.p,36)}<div style="min-width:0"><b style="display:block">${esc(r.p.full_name)}</b><small style="color:var(--ink-2)">${r.sol>=.25?"à récupérer ou à payer":r.sol<=-.25?"à rattraper":"à jour"}</small></div></div>
+          <span class="num opt" style="font-weight:500">${fNum(r.c,0)} h</span>
+          <span class="num" style="font-weight:800;font-size:16px;color:${solCol(r.sol)}">${sgnDur(r.sol)}</span>
+          <span class="num opt" style="color:${solCol(r.proj)}" title="Compteur prévu dimanche soir, d'après le planning de cette semaine">${r.curW?sgnDur(r.proj):"—"}</span>
+          <span class="opt" style="display:flex;align-items:center;gap:3px;height:34px">${last.length?last.map(d=>`<i title="Semaine du ${fShort(d.w)} : ${sgnDur(d.delta)}" style="display:block;width:12px;border-radius:3px;height:${4+Math.abs(d.delta)/mx*26}px;background:${d.delta>=0?"var(--rouge)":"var(--bleu)"};align-self:${d.delta>=0?"flex-end":"flex-start"}"></i>`).join(""):`<span style="color:var(--muted);font-size:12.5px">aucune semaine terminée</span>`}</span></div>`}).join("")||`<div class="empty">Aucun salarié avec un contrat renseigné (Réglages › Équipe).</div>`}
+    </div>
+    <p class="hint" style="margin:12px 8px 0">Chaque semaine terminée (lundi → dimanche) : heures faites − contrat. Heures faites = heures pointées retenues pour la paie, ou à défaut celles du planning publié (pause déduite). Les absences du planning et les congés acceptés comptent comme faits ; une récupération acceptée consomme le compteur. <b style="color:var(--rouge-f)">+</b> = heures sup. à récupérer ou à payer · <b style="color:var(--bleu-f)">−</b> = heures à rattraper. Cliquez sur une personne pour le détail, un solde de départ ou des heures payées.</p>`;
+  m.querySelectorAll("[data-cuid]").forEach(el=>el.onclick=async()=>{
+    const r=rows.find(x=>x.p.id===el.dataset.cuid),det=r.det.filter(d=>!d.skip).slice().reverse();
+    const res=await modal(`Compteur de ${r.p.full_name}`,`<div style="display:flex;gap:18px;align-items:baseline;margin-bottom:6px"><b style="font-size:26px;color:${solCol(r.sol)}">${sgnDur(r.sol)}</b><span style="color:var(--ink-2)">${r.sol>=.25?"heures sup. à récupérer ou à payer":r.sol<=-.25?"heures à rattraper":"compteur à jour"} · contrat ${fNum(r.c,1)} h</span></div>
+      <div class="list">${det.map(d=>`<div class="row"><div class="tx"><b>Semaine du ${fShort(d.w)}${d.cur?" · en cours (prévu)":""}</b><small>${d.src?`${fDur(d.fait)} ${d.src==="pointé"?"pointées":"au planning"}`:"pas d'heures"}${d.absH?` · absences ${fDur(d.absH)}`:""}${d.cg?` · congés ${d.cg} j (${fDur(d.congeH)})`:""}${d.rc?` · récup ${d.rc} j`:""} − contrat ${fDur(r.c)}</small></div><b style="color:${solCol(d.delta)};white-space:nowrap">${sgnDur(d.delta)}</b></div>`).join("")}
+        ${r.adj.slice().reverse().map(x=>`<div class="row"><div class="tx"><b>${(AJ_TYPE[x.type]||AJ_TYPE.correction).join(" ")}</b><small>${fDate(x.day)}${x.motif?" · "+esc(x.motif):""}${x.by_user?" · par "+esc(firstName(x.by_user)):""}</small></div><b style="color:${solCol(+x.heures)};white-space:nowrap">${sgnDur(+x.heures)}</b><button type="submit" class="btn sm ghost" value="del:${x.id}" formnovalidate aria-label="Supprimer">✕</button></div>`).join("")}
+        ${r.det.some(d=>d.skip)?`<p class="hint" style="margin:8px 0 0">Non comptées (ni pointage, ni service au planning publié, ni absence) : ${r.det.filter(d=>d.skip).map(d=>"semaine du "+fShort(d.w)).join(", ")}.</p>`:""}
+        ${!det.length&&!r.adj.length?`<div class="empty">Rien encore : le compteur démarre dès qu'un planning est publié ou que des heures sont pointées.</div>`:""}</div>
+      <p class="hint" style="margin:14px 0 4px">Ajouter un mouvement :</p>
+      <div class="fgrid"><label class="f">Type<select name="type">${Object.entries(AJ_TYPE).map(([k,[i,l]])=>`<option value="${k}">${i} ${l}</option>`).join("")}</select></label>
+        <label class="f">Date<input type="date" name="day" value="${TODAY()}"></label>
+        <label class="f">Heures<input name="h" placeholder="ex. 3h30 ou -2" inputmode="text"></label>
+        <label class="f">Motif<input name="motif" maxlength="120" placeholder="ex. payées sur la paie de novembre"></label></div>
+      <p class="hint" style="margin:4px 0 0">Solde de départ : + si la personne avait des heures sup. d'avance, − si elle en devait. Heures payées et récupération accordée : indiquez le nombre d'heures, elles sont retirées du compteur.</p>`,{submit:"Ajouter"});
+    if(!res)return;
+    if(String(res.action).startsWith("del:")){if(!confirm("Supprimer ce mouvement ?"))return;const{error}=await S.sb.from("compteur_ajust").delete().eq("id",+res.action.slice(4));if(error)return fail(error);toast("Mouvement supprimé");return render()}
+    const t=res.data.type,raw=String(res.data.h||"").trim().replace(",",".");
+    const mm=raw.match(/^([-+−]?)\s*(\d+(?:\.\d+)?)\s*(?:h\s*(\d{1,2})?)?\s*(?:min)?$/i);
+    if(!mm)return fail("Indiquez un nombre d'heures, par exemple 3h30, 2.5 ou -2");
+    let h=+mm[2]+(mm[3]?+mm[3]/60:0);if(mm[1]==="-"||mm[1]==="−")h=-h;
+    if(t==="paye"||t==="recup")h=-Math.abs(h);
+    if(!h)return fail("Le nombre d'heures ne peut pas être nul");
+    const{error}=await S.sb.from("compteur_ajust").insert({user_id:r.p.id,day:res.data.day||TODAY(),type:t,heures:Math.round(h*100)/100,motif:(res.data.motif||"").trim()});
+    if(error)return fail(error);toast(`${AJ_TYPE[t][1]} : ${sgnDur(h)}`);render()});
+}
+
 VIEWS.heures=async m=>{
   await loadPeople();
+  const hSeg=`<div class="seg" id="hSeg"><button data-v="semaine" aria-pressed="${S.hMode!=="compteur"}">Semaine</button><button data-v="compteur" aria-pressed="${S.hMode==="compteur"}">Compteur d'heures</button></div>`;
+  const hSegOn=()=>{if($("hSeg"))$("hSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.hMode=b.dataset.v;render()}}};
+  if(S.hMode==="compteur"){await compteurView(m,hSeg);return hSegOn()}
   const w=S.hWeek||monday(TODAY()),days=[...Array(7)].map((_,i)=>addDays(w,i));
   const from=parse(w).getTime(),to=parse(addDays(w,7)).getTime();
   let[{data:pts,error},{data:shifts}]=await Promise.all([
@@ -2510,7 +2608,7 @@ VIEWS.heures=async m=>{
   const tot=k=>rows.reduce((t,r)=>t+(r[k]||0),0),nOn=rows.filter(r=>r.open).length;
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
   m.innerHTML=topbar("Heures de l'équipe",`Pointages en temps réel · ${nOn?`<span class="live">${nOn} en poste maintenant</span>`:"personne en poste en ce moment"}`,
-      `<button class="btn" id="hExport">${ic("copy","sm")} Export paie</button><button class="btn icon" id="hPrev" aria-label="Semaine précédente">${ic("left")}</button><b style="min-width:190px;text-align:center">${wl}</b><button class="btn icon" id="hNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="hNow">Cette semaine</button>`)+
+      hSeg+`<button class="btn" id="hExport">${ic("copy","sm")} Export paie</button><button class="btn icon" id="hPrev" aria-label="Semaine précédente">${ic("left")}</button><b style="min-width:190px;text-align:center">${wl}</b><button class="btn icon" id="hNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="hNow">Cette semaine</button>`)+
     `<div class="grid g4">
       <div class="stat"><div class="tile-ic" style="background:var(--vert-c);color:#9aab55">${ic("users")}</div><div><b>${nOn}</b><span>en poste maintenant</span></div></div>
       <div class="stat"><div class="tile-ic" style="background:var(--bleu-c);color:var(--bleu-f)">${ic("clock")}</div><div><b>${fNum(tot("done"),1)} h</b><span>pointées cette semaine</span></div></div>
@@ -2531,6 +2629,7 @@ VIEWS.heures=async m=>{
       <label class="f">Mois de paie<input type="month" name="month" value="${prev}" max="${cur}" required></label>
       <p class="hint" style="margin:0">Chaque semaine (lundi → dimanche) est rattachée au mois de son dimanche, comme dans votre tableau actuel.</p>`,{submit:"Télécharger"});
     if(r)exportPaie(r.data.month)});
+  hSegOn();
   on("hPrev",()=>{S.hWeek=addDays(w,-7);render()});on("hNext",()=>{S.hWeek=addDays(w,7);render()});on("hNow",()=>{S.hWeek=null;render()});
   m.querySelectorAll(".hours-row[data-uid]").forEach(el=>el.onclick=async()=>{
     const p=person(el.dataset.uid),list=mine(p.id).filter(x=>new Date(x.start_at).getTime()<to);
