@@ -930,7 +930,7 @@ const NAV=[
   {h:"Réservations"},
   {t:"anniv",l:"Anniversaires",i:"cake"},{t:"annivplan",l:"Planning anniversaires",i:"cal"},{t:"centres",l:"Centres de loisirs",i:"tent"},{t:"ecoles",l:"Écoles",i:"school"},{t:"privat",l:"Privatisations",i:"star"},
   {h:"Équipe"},
-  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",dir:true},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true,b:"bSaisie"},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
+  {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",mgr:true},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true,b:"bSaisie"},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
   {h:"Objectifs"},
   {t:"objectifs",l:"Objectifs",i:"target"},{t:"chiffres",l:"Mes chiffres",i:"chart",mgr:true},
 ];
@@ -1034,7 +1034,7 @@ function stopPreview(){
 }
 $("sheet").onclick=e=>{if(e.target.id==="sheet")$("sheet").classList.add("hidden")};
 function go(t){
-  if(!VIEWS[t]||((t==="reglages"||t==="factu")&&!isManager())||(t==="heures"&&!isDirection()))t="today";
+  if(!VIEWS[t]||((t==="reglages"||t==="factu")&&!isManager())||(t==="heures"&&!isManager()))t="today";
   S.tab=t;try{sessionStorage.setItem("palo.eq.tab",t)}catch(e){}
   // si le bandeau a déjà défilé, on reste calé sous les onglets au lieu de remonter tout en haut
   const g=$("gTabs"),keep=g&&g.offsetParent?Math.min(window.scrollY,g.offsetTop):0;
