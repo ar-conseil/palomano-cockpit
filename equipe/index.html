@@ -396,6 +396,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu-f);
 .live{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ok)}
 .live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse 1.6s infinite}
 @keyframes pulse{50%{opacity:.35}}
+.hseg{display:flex;justify-content:center;margin:0 0 14px}
 .hours-row{display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(4,minmax(80px,1fr)) minmax(160px,1.3fr);gap:10px;align-items:center;padding:12px 8px;border-top:1px solid var(--line)}
 .hours-row.hd{border-top:0;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
 .hours-row .num{font-variant-numeric:tabular-nums;font-weight:700;text-align:right}
@@ -2540,9 +2541,9 @@ async function compteurData(){
 }
 async function compteurView(m,segHtml){
   let D;try{D=await compteurData()}catch(e){
-    if(/compteur_ajust/.test(e.message||""))return m.innerHTML=topbar("Compteur d'heures","",segHtml)+`<div class="card empty">Le compteur n'est pas encore installé : exécuter <b>schema_v34.sql</b> dans Supabase.</div>`;return fail(e)}
+    if(/compteur_ajust/.test(e.message||""))return m.innerHTML=segHtml+topbar("Compteur d'heures","")+`<div class="card empty">Le compteur n'est pas encore installé : exécuter <b>schema_v34.sql</b> dans Supabase.</div>`;return fail(e)}
   const{rows,w0,wNow}=D,tot=k=>rows.reduce((t,r)=>t+r[k],0),plus=rows.filter(r=>r.sol>=.25),moins=rows.filter(r=>r.sol<=-.25);
-  m.innerHTML=topbar("Compteur d'heures",`Heures sup. à récupérer ou à payer · heures à rattraper · depuis la semaine du ${parse(w0).toLocaleDateString("fr-FR",{day:"numeric",month:"long"})}`,segHtml)+
+  m.innerHTML=segHtml+topbar("Compteur d'heures",`Heures sup. à récupérer ou à payer · heures à rattraper · depuis la semaine du ${parse(w0).toLocaleDateString("fr-FR",{day:"numeric",month:"long"})}`)+
     `<div class="grid g4">
       <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("clock")}</div><div><b>${sgnDur(plus.reduce((t,r)=>t+r.sol,0))}</b><span>heures sup. à récupérer (${plus.length} pers.)</span></div></div>
       <div class="stat"><div class="tile-ic" style="background:var(--bleu-c);color:var(--bleu-f)">${ic("clock")}</div><div><b>${sgnDur(moins.reduce((t,r)=>t+r.sol,0))}</b><span>heures à rattraper (${moins.length} pers.)</span></div></div>
@@ -2585,7 +2586,7 @@ async function compteurView(m,segHtml){
 
 VIEWS.heures=async m=>{
   await loadPeople();
-  const hSeg=`<div class="seg" id="hSeg"><button data-v="semaine" aria-pressed="${S.hMode!=="compteur"}">Semaine</button><button data-v="compteur" aria-pressed="${S.hMode==="compteur"}">Compteur d'heures</button></div>`;
+  const hSeg=`<div class="hseg"><div class="seg" id="hSeg"><button data-v="semaine" aria-pressed="${S.hMode!=="compteur"}">Semaine</button><button data-v="compteur" aria-pressed="${S.hMode==="compteur"}">Compteur d'heures</button></div></div>`;
   const hSegOn=()=>{if($("hSeg"))$("hSeg").onclick=e=>{const b=e.target.closest("button");if(b){S.hMode=b.dataset.v;render()}}};
   if(S.hMode==="compteur"){await compteurView(m,hSeg);return hSegOn()}
   const w=S.hWeek||monday(TODAY()),days=[...Array(7)].map((_,i)=>addDays(w,i));
@@ -2607,8 +2608,8 @@ VIEWS.heures=async m=>{
     return{p,done:Math.max(0,ptHours(mine(p.id),from,to)-pc.pauseH),plan:plan(p.id),open:open(p.id),pc,pay,abs:absOf(p.id).reduce((t,s)=>t+shH(s),0),absL:[...new Set(absOf(p.id).map(s=>(ABS[s.absence]||ABS.autre).join(" ")))].join(", ")}});
   const tot=k=>rows.reduce((t,r)=>t+(r[k]||0),0),nOn=rows.filter(r=>r.open).length;
   const wl=`${parse(w).toLocaleDateString("fr-FR",{day:"numeric",month:"short"})} – ${parse(days[6]).toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"})}`;
-  m.innerHTML=topbar("Heures de l'équipe",`Pointages en temps réel · ${nOn?`<span class="live">${nOn} en poste maintenant</span>`:"personne en poste en ce moment"}`,
-      hSeg+`<button class="btn" id="hExport">${ic("copy","sm")} Export paie</button><button class="btn icon" id="hPrev" aria-label="Semaine précédente">${ic("left")}</button><b style="min-width:190px;text-align:center">${wl}</b><button class="btn icon" id="hNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="hNow">Cette semaine</button>`)+
+  m.innerHTML=hSeg+topbar("Heures de l'équipe",`Pointages en temps réel · ${nOn?`<span class="live">${nOn} en poste maintenant</span>`:"personne en poste en ce moment"}`,
+      `<button class="btn" id="hExport">${ic("copy","sm")} Export paie</button><button class="btn icon" id="hPrev" aria-label="Semaine précédente">${ic("left")}</button><b style="min-width:190px;text-align:center">${wl}</b><button class="btn icon" id="hNext" aria-label="Semaine suivante">${ic("right")}</button><button class="btn sm ghost" id="hNow">Cette semaine</button>`)+
     `<div class="grid g4">
       <div class="stat"><div class="tile-ic" style="background:var(--vert-c);color:#9aab55">${ic("users")}</div><div><b>${nOn}</b><span>en poste maintenant</span></div></div>
       <div class="stat"><div class="tile-ic" style="background:var(--bleu-c);color:var(--bleu-f)">${ic("clock")}</div><div><b>${fNum(tot("done"),1)} h</b><span>pointées cette semaine</span></div></div>
