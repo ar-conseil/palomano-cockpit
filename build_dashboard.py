@@ -369,6 +369,9 @@ def main():
         "avis": avis,
         "ventes": ventes,
     }
+    # Rentabilité : comptabilité tenue par Rodolph (Supabase), sinon l'ancienne vue sur les objectifs BP
+    import rentabilite
+    data["renta"] = rentabilite.depuis_supabase(data)
     html = TEMPLATE.read_text(encoding="utf-8").replace(
         "/*__DATA__*/null", json.dumps(data, ensure_ascii=False, separators=(",", ":")))
     OUT.write_text(html, encoding="utf-8")

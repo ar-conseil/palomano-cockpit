@@ -360,6 +360,7 @@ body[data-cmp="obj"] #t-n1{display:none!important}
 #cptToast{border-radius:4px}
 .cpt-agent{border-radius:4px}
 table.cpt-bal td:nth-child(2){text-align:left;white-space:normal}
+#tCost td:nth-child(2){white-space:normal;min-width:120px;font-size:12px}
 table.cpt-bal tr.cpt-cls td{font-weight:600;background:var(--surface-2)}
 table.cpt-bal tr.cpt-key td{font-weight:700;border-top:1.5px solid var(--axis)}
 @media (max-width:960px){
@@ -675,20 +676,20 @@ table.cpt-bal tr.cpt-key td{font-weight:700;border-top:1.5px solid var(--axis)}
     <div class="grid g4" id="costKpis"></div>
     <div class="grid g2" style="margin-top:14px">
       <div class="card">
-        <h3>Charges pilotables HT vs CA HT — par mois</h3>
+        <h3>Charges HT par rubrique vs CA HT — par mois</h3>
         <p class="hint" id="costHint"></p>
-        <div class="legend"><span><i style="background:var(--s1)"></i>Masse salariale</span><span><i style="background:var(--s2)"></i>Achats</span><span><i style="background:var(--s3)"></i>Autres</span><span><i class="line" style="background:var(--ink)"></i>CA réalisé</span></div>
+        <div class="legend" id="costLegend"><span><i style="background:var(--s1)"></i>Masse salariale</span><span><i style="background:var(--s2)"></i>Achats</span><span><i style="background:var(--s3)"></i>Autres</span><span><i class="line" style="background:var(--ink)"></i>CA réalisé</span></div>
         <div class="chart"><canvas id="cCost"></canvas></div>
       </div>
       <div class="card">
         <h3>Ratio masse salariale / CA HT</h3>
-        <p class="hint">Masse salariale chargée ÷ CA HT réalisé du mois (cible BP ≈ 19 %)</p>
+        <p class="hint">Masse salariale ÷ CA HT du mois · pointillés : BP</p>
         <div class="chart"><canvas id="cMsRatio"></canvas></div>
       </div>
     </div>
     <div class="card" style="margin-top:14px">
-      <h3>Détail mensuel — marge sur charges pilotables</h3>
-      <p class="hint">CA HT réalisé − charges pilotables HT (réel si saisi dans « Suivi Charges », sinon objectif BP)</p>
+      <h3>Détail mensuel — EBE de l'exercice (mai → avril)</h3>
+      <p class="hint" id="tCostHint"></p>
       <div class="tablewrap"><table id="tCost"></table></div>
     </div>
   </section>
@@ -1211,7 +1212,53 @@ function renderQual(){
 }
 
 /* ───────────── CHARGES ───────────── */
+const RUB=[["achats","Achats","--s4"],["franchise","Franchise Palomano","--s5"],["interim","Intérim","--s7"],["ms","Masse salariale","--s1"],["structure","Structure","--s3"]];
+const ETAT={reel:"Réel",reel_bp:"Réel (BP)",encours:"En cours",prev:"Projection",vide:"—"};
+/* Rentabilité tenue par Rodolph : mêmes rubriques que le fichier « avec TVA - AVENANT » (réel du grand livre, projection du BP) */
+function renderRenta(R){
+  const rows=R.rows,past=rows.filter(r=>(r.etat==="reel"||r.etat==="reel_bp")&&r.ca!=null),fut=rows.filter(r=>r.etat==="prev"),enc=rows.find(r=>r.etat==="encours");
+  const sum=(L,k)=>L.reduce((a,r)=>a+(r[k]||0),0);
+  const bpE=r=>r.bp?r.bp.ca-RUB.reduce((b,[k])=>b+(r.bp[k]||0),0):null;
+  const ca=sum(past,"ca"),ch=sum(past,"charges"),ebe=ca-ch,ms=sum(past,"ms"),encE=enc?(bpE(enc)??enc.ebe):0,land=ebe+encE+sum(fut,"ebe");
+  const bpPast=past.filter(r=>r.bp),bpEbe=bpPast.reduce((a,r)=>a+(r.bp.ca-RUB.reduce((b,[k])=>b+(r.bp[k]||0),0)),0);
+  const prov=sum(rows,"prov"),verif=sum(rows,"verif"),rod=R.rodolph;
+  $("costHint").textContent="Même structure que le fichier BP : réel du grand livre tenu par Rodolph, projection du business plan pour les mois à venir";
+  $("tCostHint").innerHTML=`EBE = CA HT − achats − franchise − intérim − masse salariale − structure (avant amortissements et frais financiers).`+
+    (prov||verif?` <b>${prov?`${prov} provision${prov>1?"s":""} de Rodolph`:""}${prov&&verif?" · ":""}${verif?`${verif} écriture${verif>1?"s":""} à vérifier`:""}</b> dans Comptabilité.`:"")+
+    (rod?` <span class="muted">Rodolph : ${esc((rod.message||"").split(" ‖ ")[0].slice(0,160))}</span>`:"");
+  $("costKpis").innerHTML=[
+    {lab:"CA HT des mois clôturés",val:fmtE(ca),meta:[`${past.length} mois · mai → ${mLabel(past.length?past[past.length-1].k:"2026-05")}`]},
+    {lab:"EBE des mois clôturés",val:fmtE(ebe),meta:[`${fmtP(ebe/ca)} du CA`,bpPast.length?`BP ${fmtE(bpEbe)} · écart ${sgn(ebe-bpEbe,fmtE)}`:""].filter(Boolean)},
+    {lab:"Masse salariale / CA HT",val:fmtP(ms/ca),meta:[`${fmtE(ms)} sur l'exercice à date`]},
+    {lab:"EBE de l'exercice (atterrissage)",val:fmtE(land),meta:[`réel clôturé + projection BP de ${fut.length+(enc?1:0)} mois`]},
+  ].map(o=>kpiCard(Object.assign({st:false,ratio:NaN},o))).join("");
+  const lab=rows.map(r=>mLabel(r.k)),dim=r=>r.etat==="prev";
+  $("costLegend").innerHTML=`<span><i class="line" style="background:var(--ink)"></i>CA HT</span>`+RUB.map(([,l,c])=>`<span><i style="background:var(${c})"></i>${l}</span>`).join("")+`<span class="muted">couleurs pâles : projection BP</span>`;
+  chart("cCost",{type:"bar",data:{labels:lab,datasets:[
+    {type:"line",label:"CA HT",data:rows.map(r=>r.ca),borderColor:css("--ink"),backgroundColor:css("--ink"),borderWidth:2,pointRadius:3,order:0,segment:{borderDash:c=>dim(rows[c.p1DataIndex])?[5,4]:undefined}},
+    ...RUB.map(([k,l,c],i)=>({label:l,data:rows.map(r=>r[k]),backgroundColor:rows.map(r=>dim(r)?css(c)+"66":css(c)),stack:"c",order:1,maxBarThickness:30,
+      borderRadius:i===RUB.length-1?{topLeft:3,topRight:3}:0}))]},
+    options:baseOpts({scales:{x:{stacked:true,grid:{display:false},ticks:{color:css("--muted"),font:{size:11}}},y:{stacked:true,grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtK(v)}}}})});
+  chart("cMsRatio",{type:"bar",data:{labels:lab,datasets:[
+    {type:"line",label:"BP",data:rows.map(r=>r.bp&&r.bp.ca?r.bp.ms/r.bp.ca:null),borderColor:css("--muted"),borderDash:[5,4],borderWidth:2,pointRadius:0,fmt:v=>fmtP(v)},
+    {label:"Masse salariale / CA HT",data:rows.map(r=>r.ca?r.ms/r.ca:null),backgroundColor:rows.map(r=>dim(r)?css("--s1")+"66":r.bp&&r.bp.ca&&r.ca&&r.ms/r.ca>r.bp.ms/r.bp.ca*1.1?css("--crit"):css("--s1")),borderRadius:3,maxBarThickness:30,fmt:v=>fmtP(v)}]},
+    options:baseOpts({scales:{x:{grid:{display:false},ticks:{color:css("--muted"),font:{size:11}}},y:{grid:{color:css("--grid")},border:{display:false},ticks:{color:css("--muted"),callback:v=>fmtP(v,0)},beginAtZero:true}}})});
+  const td=v=>`<td>${v==null?"—":fmtE(v)}</td>`;
+  const landCA=ca+(enc?(enc.bp?enc.bp.ca:enc.ca):0)+sum(fut,"ca");
+  $("tCost").innerHTML=`<thead><tr><th>Mois</th><th>Source</th><th>CA HT</th>${RUB.map(([,l])=>`<th>${l}</th>`).join("")}<th>EBE</th><th>Marge</th><th>vs BP</th></tr></thead><tbody>`+
+    rows.map(r=>{const e=bpE(r),cl=r.etat==="reel"||r.etat==="reel_bp",part=r.etat==="encours";
+      return`<tr class="${cl?"":"future"}"><td>${mLabel(r.k)}</td><td class="muted">${ETAT[r.etat]}${part?" (charges partielles)":""}${r.prov?` · ${r.prov} prov.`:""}${r.verif?` · ${r.verif} à vérif.`:""}</td>${td(r.ca)}${RUB.map(([k])=>td(r[k])).join("")}
+      <td><b class="${r.ebe<0?"cpt-dn":""}">${r.ebe==null?"—":fmtE(r.ebe)}</b></td><td>${r.ca&&!part?fmtP(r.ebe/r.ca,0):"—"}</td><td>${cl&&e!=null&&r.ebe!=null?`<span class="${r.ebe>=e?"cpt-up":"cpt-dn"}" title="EBE BP ${fmtE(e)}">${sgn(r.ebe-e,fmtE)}</span>`:"—"}</td></tr>`}).join("")+
+    `<tr class="tot"><td>Mois clôturés</td><td></td>${td(ca)}${RUB.map(([k])=>td(sum(past,k))).join("")}<td>${fmtE(ebe)}</td><td>${fmtP(ebe/ca,0)}</td><td>${bpPast.length?`<span class="${ebe>=bpEbe?"cpt-up":"cpt-dn"}">${sgn(ebe-bpEbe,fmtE)}</span>`:"—"}</td></tr>
+     <tr class="tot"><td>Atterrissage exercice</td><td class="muted">clôturé + projection BP</td>${td(landCA)}${RUB.map(([k])=>td(sum(past,k)+(enc?(enc.bp?enc.bp[k]:enc[k])||0:0)+sum(fut,k))).join("")}<td>${fmtE(land)}</td><td>${fmtP(land/landCA,0)}</td><td></td></tr></tbody>`;
+  renderContrats();
+}
+function renderContrats(){
+  $("tContrats").innerHTML=`<thead><tr><th>Contrat</th><th>Brut/mois</th><th>Chargé/mois</th>${BPM.map(k=>`<th>${mLabel(k)}</th>`).join("")}</tr></thead><tbody>`+
+    DATA.bp.contrats.filter(c=>c.planning.some(v=>v)).map(c=>`<tr><td>${esc(c.nom)}</td><td>${fmtE(c.brut)}</td><td>${fmtE(c.charge)}</td>${c.planning.map(v=>`<td>${v||'<span class="muted">·</span>'}</td>`).join("")}</tr>`).join("")+"</tbody>";
+}
 function renderCost(M){
+  if(DATA.renta&&DATA.renta.rows&&DATA.renta.rows.length)return renderRenta(DATA.renta);
   const R=DATA.bp.rows,real=DATA.bp.chargesReal;
   const has=k=>{const x=real.find(r=>r.mois===k);return x&&x.total>0?x:null};
   let T={ca:0,ch:0,ms:0,obj:0};
@@ -1220,8 +1267,8 @@ function renderCost(M){
     const ca=past?m.tot:null;
     if(past){T.ca+=ca;T.ch+=ch;T.ms+=ms;T.obj+=R.ca[i]}
     return{k,i,ms,ach,aut,ch,ca,rr,past}});
-  const costTxt=DATA.bp.chargesEntries?`${DATA.bp.chargesEntries} lignes saisies dans « Suivi Charges »`:"Aucune charge saisie dans « Suivi Charges » : valeurs = objectifs BP";
-  $("costHint").textContent=costTxt;
+  $("costHint").textContent="Valeurs indicatives : objectifs du fichier « Objectifs Yannika »";
+  $("tCostHint").innerHTML=`<b class="cpt-dn">Rodolph n'a pas encore votre comptabilité.</b> Déposez le grand livre « 2026 LPP PALOMANO LILLE » et le business plan « … avec TVA - AVENANT … » dans Comptabilité › Transmission à l'expert-comptable : cette page passera alors sur le réel et la projection du BP.`;
   const marge=T.ca-T.ch;
   $("costKpis").innerHTML=[
     {lab:"CA HT réalisé (mai → à date)",val:fmtE(T.ca),meta:[`Objectif ${fmtE(T.obj)} · ${fmtP(T.ca/T.obj,0)}`]},
@@ -1242,8 +1289,7 @@ function renderCost(M){
   $("tCost").innerHTML=`<thead><tr><th>Mois</th><th>CA HT réalisé</th><th>Obj. CA HT</th><th>Masse sal.</th><th>Achats</th><th>Autres</th><th>Total charges HT</th><th>Source</th><th>Marge HT</th><th>Marge %</th></tr></thead><tbody>`+
     lines.map(l=>`<tr class="${l.past?"":"future"}"><td>${mLabel(l.k)}</td><td>${l.ca!=null?fmtE(l.ca):"—"}</td><td>${fmtE(R.ca[l.i])}</td><td>${fmtE(l.ms)}</td><td>${fmtE(l.ach)}</td><td>${fmtE(l.aut)}</td><td>${fmtE(l.ch)}</td><td class="muted">${l.rr?"réel":"objectif"}</td><td>${l.ca!=null?`<b>${fmtE(l.ca-l.ch)}</b>`:"—"}</td><td>${l.ca!=null?fmtP((l.ca-l.ch)/l.ca,0):"—"}</td></tr>`).join("")+
     `<tr class="tot"><td>Cumul à date</td><td>${fmtE(T.ca)}</td><td>${fmtE(T.obj)}</td><td>${fmtE(T.ms)}</td><td></td><td></td><td>${fmtE(T.ch)}</td><td></td><td>${fmtE(marge)}</td><td>${fmtP(marge/T.ca,0)}</td></tr></tbody>`;
-  $("tContrats").innerHTML=`<thead><tr><th>Contrat</th><th>Brut/mois</th><th>Chargé/mois</th>${BPM.map(k=>`<th>${mLabel(k)}</th>`).join("")}</tr></thead><tbody>`+
-    DATA.bp.contrats.filter(c=>c.planning.some(v=>v)).map(c=>`<tr><td>${esc(c.nom)}</td><td>${fmtE(c.brut)}</td><td>${fmtE(c.charge)}</td>${c.planning.map(v=>`<td>${v||'<span class="muted">·</span>'}</td>`).join("")}</tr>`).join("")+"</tbody>";
+  renderContrats();
 }
 
 
@@ -1571,7 +1617,8 @@ async function cptLoad(){
     cptAll(()=>sb.from("factures_fournisseurs").select("id,fournisseur,numero,date_facture,periode,montant_ht,montant_ttc,statut,fichier_path,paye_le,categorie"))]);
   CPT.PLAN={};plan.forEach(p=>CPT.PLAN[p.compte]=p);
   try{const[pc,ag]=await Promise.all([cptAll(()=>sb.from("compta_pieces").select("id,fichier_path,fournisseur,numero,statut,note,recu_le,expediteur,nom_fichier").gte("recu_le",(+y-1)+"-12-01")),
-      sb.from("sync_state").select("*").eq("key","agent_factures").maybeSingle()]);CPT.PC={};pc.forEach(p=>CPT.PC[p.id]=p);CPT.AG=ag.data}catch(e){CPT.PC={};CPT.AG=null}   // agent factures (schema_v38)
+      sb.from("sync_state").select("*").in("key",["rodolph","agent_factures"])]);CPT.PC={};pc.forEach(p=>CPT.PC[p.id]=p);
+    const st=ag.data||[];CPT.AG=st.find(x=>x.key==="rodolph")||st.find(x=>x.key==="agent_factures")||null}catch(e){CPT.PC={};CPT.AG=null}   // Rodolph (sinon ancien agent factures)
   CPT.E=E;CPT.B=B;CPT.FF=FF;CPT.BP={};BP.forEach(r=>{(CPT.BP[r.mois]=CPT.BP[r.mois]||{})[r.ligne]=+r.montant});
   if(!CPT.mois){const t=cptToday().slice(0,7);CPT.mois=t.startsWith(y)?t:y+"-12"}
 }
@@ -1713,7 +1760,7 @@ function cptEcr(v){
   v.querySelectorAll(".cpt-pj").forEach(x=>x.onclick=()=>x.dataset.pc?cptPiece(0,CPT.PC[+x.dataset.pc]):cptPiece(+x.dataset.ff));
 }
 function cptAgentLine(){const a=CPT.AG;if(!a)return"";const pend=Object.values(CPT.PC).filter(p=>p.statut==="erreur").length;
-  return`<div class="cpt-agent ${a.ok?"":"bad"}">🤖 <b>Agent factures</b> · ${esc(a.message||"")} <span class="muted">· ${a.synced_at?new Date(a.synced_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</span>${pend?` · ⚠ ${pend} pièce${pend>1?"s":""} illisible${pend>1?"s":""}`:""}</div>`}
+  return`<div class="cpt-agent ${a.ok?"":"bad"}"><b>Rodolph</b>, agent financier · ${esc((a.message||"").replace(" ‖ "," · "))} <span class="muted">· ${a.synced_at?new Date(a.synced_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</span>${pend?` · ⚠ ${pend} pièce${pend>1?"s":""} illisible${pend>1?"s":""}`:""}</div>`}
 async function cptPiece(id,pc){const f=pc||CPT.FF.find(x=>x.id===id);if(!f||!f.fichier_path)return cptToast("Pas de fichier");
   const w=window.open("","_blank");const{data,error}=await CPT.sb.storage.from("factures").createSignedUrl(f.fichier_path,900);if(error){w&&w.close();return cptFail(error)}if(w)w.location=data.signedUrl}
 function cptSuggest(four){const l=(four||"").trim().toLowerCase();if(!l)return null;const c={};CPT.E.filter(e=>e.fournisseur.toLowerCase()===l&&!String(e.compte).startsWith("7")).forEach(e=>{const x=e.compte+"|"+(e.taux??"");c[x]=(c[x]||0)+1});
@@ -1865,14 +1912,36 @@ function cptExp(v){
   v.innerHTML=`<div class="grid g2">
     <div class="card"><h3>Pour l'expert-comptable — ${cptMois(k)}</h3><p class="hint">L'Excel reprend exactement les colonnes de l'onglet GRAND LIVRE du fichier LPP (on peut le coller à la suite), plus le relevé bancaire du mois et son rapprochement.</p>
       <div class="controls"><button class="btn cpt-pri" id="cptXl">⬇ Grand livre ${MOISL[+k.slice(5)-1]} (Excel · ${n} lignes)</button><button class="btn" id="cptXlY">⬇ Grand livre ${CPT.yr} complet</button><button class="btn" id="cptZip">⬇ Factures du mois (ZIP · ${ff.length})</button></div></div>
-    <div class="card"><h3>Reprendre des données existantes</h3><p class="hint"><b>Grand livre LPP</b> : remplace les écritures « grand livre » et le CA de ${CPT.yr} par le contenu de l'onglet GRAND LIVRE du fichier (les écritures créées ici et les factures de l'équipe sont conservées).<br><b>Business Plan</b> : reprend le CA, l'EBE, le résultat, les amortissements et la trésorerie prévus de chaque mois (ouvrir et enregistrer le fichier dans Excel avant, pour que les calculs soient à jour).</p>
-      <div class="controls"><label class="btn" style="cursor:pointer">⬆ Grand livre LPP (.xlsx)<input type="file" id="cptGL" accept=".xlsx" hidden></label><label class="btn" style="cursor:pointer">⬆ Business Plan (.xlsx)<input type="file" id="cptBPF" accept=".xlsx" hidden></label></div></div></div>`;
+    <div class="card"><h3>Déposer chez Rodolph</h3><p class="hint">Glissez ici vos fichiers Excel, Rodolph s'occupe du reste :<br>
+      <b>Relevés CIC</b> (export Excel du site, compte et carte) : importés tout de suite, Rodolph les rapproche et passe les lignes sans facture.<br>
+      <b>Grand livre « 2026 LPP PALOMANO LILLE »</b> : repris tel quel (il remplace le grand livre et ce que Rodolph avait passé sur la même période).<br>
+      <b>Business plan « … avec TVA - AVENANT … »</b> : projection des mois à venir, ligne par ligne.<br>
+      Les fichiers Excel sont traités au prochain passage de Rodolph (dans les 15 minutes).</p>
+      <label class="btn cpt-pri" style="cursor:pointer">⬆ Déposer des fichiers (.xlsx)<input type="file" id="cptDrop" accept=".xlsx" multiple hidden></label>
+      <div id="cptDropList" style="margin-top:10px"></div>
+      ${CPT.AG?`<div style="margin-top:12px">${cptAgentLine()}</div>`:""}</div></div>`;
   $("cptXl").onclick=()=>cptExportXL(CPT.E.filter(e=>e.date.startsWith(k)),k);
   $("cptXlY").onclick=()=>cptExportXL(CPT.E,CPT.yr);
   $("cptZip").onclick=()=>cptZipMonth(ff,k);
-  $("cptGL").onchange=e=>e.target.files[0]&&cptImportGL(e.target.files[0]);
-  $("cptBPF").onchange=e=>e.target.files[0]&&cptImportBP(e.target.files[0]);
+  $("cptDrop").onchange=e=>cptDeposer([...e.target.files]);
+  cptDepots();
 }
+/* Dépôt chez Rodolph : les relevés CIC sont importés tout de suite ; grand livre et BP vont dans le stockage
+   (factures/rodolph/depot/), où Rodolph les lit au passage suivant. */
+async function cptDeposer(files){
+  if(!files.length)return;
+  try{await cptXLSX();const bank=[],rod=[];
+    for(const f of files){const wb=XLSX.read(await f.arrayBuffer(),{bookSheets:true});const n=wb.SheetNames||[];
+      if(n.some(x=>/^(cpt|cb)\b/i.test(x)))bank.push(f);else if(n.includes("GRAND LIVRE")||n.some(x=>/^Projection \d{4}$/.test(x)))rod.push(f);
+      else cptToast(`« ${f.name} » : ni relevé CIC, ni grand livre, ni business plan`)}
+    if(bank.length)await cptImportBank(bank);
+    for(const f of rod){const stamp=new Date().toISOString().replace(/[-:]/g,"").slice(0,15),nom=f.name.normalize("NFD").replace(/[^\w.\- ]+/g,"").replace(/\s+/g,"_");
+      const{error}=await CPT.sb.storage.from("factures").upload(`rodolph/depot/${stamp}-${nom}`,f,{contentType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});if(error)throw error}
+    if(rod.length)cptToast(`${rod.length} fichier${rod.length>1?"s":""} déposé${rod.length>1?"s":""} : Rodolph les traite dans les 15 minutes`);
+    cptDepots()}catch(e){cptFail(e)}}
+async function cptDepots(){const el=$("cptDropList");if(!el)return;
+  const{data}=await CPT.sb.storage.from("factures").list("rodolph/depot",{limit:20});const L=(data||[]).filter(x=>x.id);
+  el.innerHTML=L.length?`<p class="hint" style="margin:0">En attente de Rodolph : ${L.map(x=>esc(x.name.replace(/^\d{8}T\d{6}-/,""))).join(", ")}</p>`:""}
 async function cptExportXL(E,label){
   await cptXLSX();
   const H=["N° compte général","Libellé compte","Fournisseur","Libellé écriture","Date","Mois","Année","Taux TVA","Débit HT","Crédit HT","Montant HT","TVA","Montant TTC","Commentaire","Type","Rgpmt 1","Rgpmt 2","Rgpmt 3","Rgpmt 4","Catégorie","Statut","Pièce jointe"];

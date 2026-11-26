@@ -82,7 +82,7 @@ jobs:
           PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
         run: python import_qweekle.py || echo "::warning::Import Qweekle en échec"
 
-      - name: Agent factures (lit les factures reçues par e-mail et les passe en comptabilité)
+      - name: Rodolph, agent financier (fichiers déposés, factures et paie reçues par e-mail, banque, provisions)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
@@ -90,7 +90,7 @@ jobs:
           MS_TOKEN_DIR: .ms_token
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python agent_factures.py || echo "::warning::Agent factures en échec"
+        run: python rodolph.py || echo "::warning::Rodolph en échec"
 
       - name: Lire les commandes Qweekle des anniversaires (options, total, acompte, reste à payer)
         env:
@@ -131,6 +131,13 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python build_dashboard.py
+
+      - name: Rodolph · CA des mois terminés (d'après la saisie du jour)
+        env:
+          TZ: Europe/Paris
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python rodolph.py --ca || echo "::warning::Rodolph (CA) en échec"
 
       - name: Chiffrer la page
         env:
