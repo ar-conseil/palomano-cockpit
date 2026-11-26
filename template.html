@@ -278,6 +278,32 @@ header.mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
 .ripple{position:absolute;border-radius:50%;pointer-events:none;background:currentColor;opacity:.22;transform:scale(0);animation:ripple .6s ease-out forwards;z-index:0}
 @keyframes ripple{to{transform:scale(1);opacity:0}}
 @media (prefers-reduced-motion:reduce){nav.tabs.gtabs button,nav.tabs.gtabs .gi,.gtabs.intro-in button{animation:none!important;transition:none!important}.ripple{display:none}}
+
+/* ── Comptabilité ── */
+.cpt-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.cpt-months{display:flex;gap:4px;flex-wrap:wrap;flex:1}.cpt-months .chip{padding:4px 10px;font-size:12.5px}
+.cpt-n{display:inline-block;min-width:16px;padding:0 5px;border-radius:999px;background:var(--crit);color:#fff;font-size:10.5px;font-weight:700;line-height:16px;text-align:center}
+.cpt-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.cpt-head select,.cpt-head input{border:1px solid var(--ring);background:var(--surface);border-radius:8px;padding:5px 8px;font:inherit;color:inherit}
+.btn.cpt-pri{background:var(--ink);color:var(--page);border-color:var(--ink);font-weight:600}.btn.cpt-bad{color:var(--crit-ink)}
+table.cpt-pl td,table.cpt-pl th{padding:6px 7px}table.cpt-pl .cpt-grp td{font-weight:650}table.cpt-pl .cpt-key td{font-weight:800;border-top:1.5px solid var(--axis)}
+table.cpt-pl .cpt-det td{color:var(--ink-2);font-size:12px}table.cpt-pl .cpt-bp td{color:var(--muted);font-size:11.5px;font-style:italic}
+.cpt-sub{padding-left:22px;display:inline-block}.cpt-tg{border:0;background:none;cursor:pointer;color:var(--ink-2);padding:0 4px;font-size:12px}
+.cpt-cur{background:color-mix(in srgb,var(--s1) 7%,transparent)}.cpt-live{font-style:italic;color:var(--ink-2)}.cpt-tot{font-weight:700}
+.cpt-up{color:var(--good-ink)}.cpt-dn{color:var(--crit-ink)}
+table.cpt-tab td{vertical-align:top}.cpt-wrap{white-space:normal!important;text-align:left!important;min-width:240px;max-width:520px}
+table.cpt-tab td:nth-child(2){text-align:left}.cpt-click{cursor:pointer}.cpt-click:hover td{background:var(--surface-2)}
+.cpt-st{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good-ink)}
+.cpt-st.warn{background:color-mix(in srgb,var(--warn) 25%,transparent);color:#8a5a00}.cpt-st.prov{background:color-mix(in srgb,var(--s7) 16%,transparent);color:var(--s7)}
+.cpt-st.in{background:color-mix(in srgb,var(--s1) 14%,transparent);color:var(--s1)}.cpt-st.hors{background:var(--surface-2);color:var(--ink-2)}
+#cptDlg{border:0;border-radius:18px;padding:0;max-width:min(620px,94vw);width:100%;background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+#cptDlg::backdrop{background:rgba(20,20,20,.35)}#cptDlgF{padding:20px 22px}#cptDlgF h3{margin:0 0 12px}
+.cpt-form{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}.cpt-form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-2);font-weight:600}.cpt-form .full{grid-column:1/-1}
+.cpt-form input,.cpt-form select{border:1px solid var(--ring);background:var(--page);color:var(--ink);border-radius:9px;padding:7px 9px;font:inherit;font-size:13.5px}
+.cpt-acts{display:flex;gap:8px;margin-top:14px;align-items:center}
+#cptToast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(30px);opacity:0;background:var(--ink);color:var(--page);padding:10px 16px;border-radius:12px;font-size:13.5px;transition:.25s;pointer-events:none;z-index:50;max-width:90vw}
+#cptToast.on{opacity:1;transform:translateX(-50%)}
+@media (max-width:700px){.cpt-form{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -322,6 +348,7 @@ header.mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
       <button role="tab" data-t="obj" style="--gc:var(--jaune-c);--gf:var(--jaune-f)" title="Objectifs & OKR"><span class="gi"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/></svg></span>Objectifs</button>
       <button role="tab" data-t="qual" style="--gc:var(--rouge-c);--gf:var(--rouge-f)" title="Qualité & équipe"><span class="gi"><svg viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span>Qualité</button>
       <button role="tab" data-t="cost" style="--gc:var(--vert-c);--gf:var(--vert-f)" title="Charges & rentabilité"><span class="gi"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6.5" rx="7" ry="2.8"/><path d="M5 6.5v5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5M5 11.5v5c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-5"/></svg></span>Charges</button>
+      <button role="tab" data-t="compta" style="--gc:var(--bleu-c);--gf:var(--bleu-f)" title="Comptabilité : résultat, écritures, banque, trésorerie"><span class="gi"><svg viewBox="0 0 24 24"><rect x="4.5" y="3.5" width="15" height="17" rx="2.5"/><path d="M8 8h8M8 12h2M12 12h2M16 12h0M8 16h2M12 16h2M16 16h0"/></svg></span>Comptabilité</button>
     </nav>
   </div>
   <div class="subbar"><div class="controls" id="periods">
@@ -610,6 +637,9 @@ header.mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
       <div class="tablewrap"><table id="tContrats"></table></div>
     </div>
   </section>
+
+  <section class="tab" id="t-compta"><div id="cptBody"></div></section>
+  <dialog id="cptDlg"><form id="cptDlgF" method="dialog"></form></dialog><div id="cptToast"></div>
 
   <footer id="foot"></footer>
 </div>
@@ -1401,6 +1431,371 @@ function renderFresh(){
   Méthode : objectifs journaliers = objectif mensuel réparti selon les coefficients jour/vacances des onglets mensuels · N-1 = même jour de semaine un an avant (J-364) · panier moyen = CA HT total ÷ entrées · snack/visiteur = CA snack ÷ entrées parc payantes · remplissage anniversaires = anniv ÷ (6 × mercredis, samedis, dimanches).`;
 }
 
+/* ═════════════════════════ COMPTABILITÉ (onglet réservé à la direction) ═════════════════════════
+   Données dans Supabase (schema_v37), lues avec la session de l'espace équipe (même site, même connexion).
+   · Résultat     : compte de résultat mensuel 2026, même structure que le P&L du fichier LPP, comparé au BP
+   · Écritures    : le grand livre (factures, charges, CA) — ajout, correction, pièces jointes
+   · Banque       : import des exports CIC (compte + carte), rapprochement automatique avec les écritures
+   · Trésorerie   : solde réel fin de mois vs prévision du BP, reste à payer
+   · Export       : Excel au format du grand livre pour l'expert-comptable + ZIP des factures du mois
+   Le CA vient de la saisie du jour (DATA.daily) : enregistré automatiquement en écritures pour chaque mois terminé. */
+const CPT={sb:null,tab:"res",mois:null,yr:"2026",E:[],B:[],BP:{},PLAN:{},FF:[],loaded:false,filt:"",q:""};
+const CPT_ORDER=["01. CA","02. COGS","03. Frais PaloMano","04. Frais Généraux","05. Masse Salariale"];
+const CPT_GLAB={"01. CA":"Chiffre d'affaires","02. COGS":"Achats consommés","03. Frais PaloMano":"Frais Palomano (franchiseur)","04. Frais Généraux":"Frais généraux","05. Masse Salariale":"Masse salariale","Résultat Financier":"Charges financières"};
+const CPT_TAUX=[["0","0 %"],["0.055","5,5 %"],["0.1","10 %"],["0.2","20 %"],["","Mixte"]];
+const cptE=v=>isFinite(v)&&v!==null?new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",minimumFractionDigits:2,maximumFractionDigits:2}).format(v):"—";
+const cptE0=v=>isFinite(v)&&v!==null&&Math.abs(v)>=.5?new Intl.NumberFormat("fr-FR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(v):"—";
+const cptD=s=>s?s.slice(8,10)+"/"+s.slice(5,7)+"/"+s.slice(0,4):"";
+const cptMois=k=>MOISL[+k.slice(5,7)-1]+" "+k.slice(0,4);
+const cptToday=()=>new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Paris"});
+const cptEnd=k=>{const[y,m]=k.split("-").map(Number);return new Date(Date.UTC(y,m,0)).toISOString().slice(0,10)};
+const cptRnd=v=>Math.round(v*100)/100;
+const cptTTC=e=>cptRnd((+e.ht||0)+(+e.tva||0));
+async function cptLib(src,ok){if(ok())return;await new Promise((r,j)=>{const s=document.createElement("script");s.src=src;s.onload=r;s.onerror=()=>j(new Error("Chargement impossible : "+src));document.head.appendChild(s)})}
+function cptMsg(html){$("cptBody").innerHTML=`<div class="card" style="max-width:640px;margin:30px auto;text-align:center;line-height:1.6">${html}</div>`}
+function cptToast(t){const el=$("cptToast");el.textContent=t;el.classList.add("on");clearTimeout(cptToast.t);cptToast.t=setTimeout(()=>el.classList.remove("on"),3200)}
+function cptFail(e){console.error(e);cptToast("⚠ "+(e&&e.message||e))}
+
+async function cptOpen(){
+  if(CPT.loaded)return cptRender();
+  cptMsg("Chargement de la comptabilité…");
+  try{
+    await cptLib("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js",()=>window.supabase);
+    await cptLib("../config.js",()=>window.PALO_CONFIG);
+    const C=window.PALO_CONFIG;
+    CPT.sb=CPT.sb||supabase.createClient(C.supabaseUrl,C.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+    const{data:{session}}=await CPT.sb.auth.getSession();
+    if(!session)return cptMsg(`<h3 style="margin-top:0">Connexion nécessaire</h3><p>La comptabilité utilise votre compte de l'espace équipe (réservé à la direction).</p><p><a class="btn" href="../" target="_blank" rel="noopener">Se connecter à l'espace équipe</a> puis revenir ici et rouvrir l'onglet.</p>`);
+    const{data:me}=await CPT.sb.from("profiles").select("role").eq("id",session.user.id).maybeSingle();
+    if(!me||me.role!=="direction")return cptMsg("<h3 style='margin-top:0'>Accès réservé à la direction</h3><p>Votre compte n'a pas accès à la comptabilité.</p>");
+    await cptLoad();CPT.loaded=true;
+    await cptAutoCA();
+    cptRender();
+  }catch(e){cptMsg(`<p>La comptabilité n'a pas pu se charger : ${esc(e.message||e)}</p>${/compta_/.test(e.message||"")?"<p>Le script <b>schema_v37.sql</b> n'est pas encore exécuté dans Supabase.</p>":""}`)}
+}
+async function cptAll(q){const out=[];for(let i=0;;i+=1000){const{data,error}=await q().range(i,i+999);if(error)throw error;out.push(...data);if(data.length<1000)break}return out}
+async function cptLoad(){
+  const y=CPT.yr,sb=CPT.sb;
+  const[plan,E,B,BP,FF]=await Promise.all([
+    cptAll(()=>sb.from("compta_plan").select("*")),
+    cptAll(()=>sb.from("compta_ecritures").select("*").gte("date",y+"-01-01").lte("date",y+"-12-31").order("date").order("id")),
+    cptAll(()=>sb.from("compta_banque").select("*").gte("date",(+y-1)+"-12-01").order("date").order("cle")),
+    cptAll(()=>sb.from("compta_bp").select("*")),
+    cptAll(()=>sb.from("factures_fournisseurs").select("id,fournisseur,numero,date_facture,periode,montant_ht,montant_ttc,statut,fichier_path,paye_le,categorie"))]);
+  CPT.PLAN={};plan.forEach(p=>CPT.PLAN[p.compte]=p);
+  CPT.E=E;CPT.B=B;CPT.FF=FF;CPT.BP={};BP.forEach(r=>{(CPT.BP[r.mois]=CPT.BP[r.mois]||{})[r.ligne]=+r.montant});
+  if(!CPT.mois){const t=cptToday().slice(0,7);CPT.mois=t.startsWith(y)?t:y+"-12"}
+}
+const cptG1=e=>{const g=(CPT.PLAN[e.compte]||{}).rgpmt1||(String(e.compte).startsWith("7")?"01. CA":"04. Frais Généraux");return g==="Frais Généraux"?"04. Frais Généraux":g};
+const cptG2=e=>(CPT.PLAN[e.compte]||{}).rgpmt2||(CPT.PLAN[e.compte]||{}).libelle||String(e.compte);
+const cptVal=e=>(e.sens==="C"?1:-1)*(+e.ht||0);   // produit +, charge −
+
+/* ── CA depuis la saisie du jour (DATA.daily, HT) ── */
+const CA_MAP=[[1,"706300","Entrées parc / Billetterie",.1],[2,"706400","Anniversaires",.2],[3,"706500","Groupes scolaires",.1],[4,"706500","Centres de loisirs / Groupes",.1],[5,"707100","Snacking",null],[6,"707200","Vente boutique",.2],[7,"706300","Évènements",.1]];
+function cptCaFromDaily(k){const rows=DATA.daily.filter(r=>r[0].startsWith(k));const s=CA_MAP.map(([i,c,l,t])=>({c,l,t,ht:cptRnd(rows.reduce((a,r)=>a+(+r[i]||0),0))}));
+  const days=rows.filter(r=>r[8]>0).length,prov=rows.filter(r=>PROV.has(r[0])).length;return{s,days,prov,tot:s.reduce((a,x)=>a+x.ht,0)}}
+async function cptAutoCA(){   // mois terminés sans écriture de CA (et sans journée provisoire) → écritures créées
+  const today=cptToday(),done=[];
+  for(let m=1;m<=12;m++){const k=CPT.yr+"-"+String(m).padStart(2,"0");if(cptEnd(k)>=today)break;
+    const has=CPT.E.some(e=>e.date.startsWith(k)&&String(e.compte).startsWith("7")&&e.statut!=="provisoire");if(has)continue;
+    const c=cptCaFromDaily(k);if(!c.tot||c.prov)continue;
+    const old=CPT.E.filter(e=>e.date.startsWith(k)&&String(e.compte).startsWith("7")).map(e=>e.id);
+    if(old.length){const{error}=await CPT.sb.from("compta_ecritures").delete().in("id",old);if(error)return cptFail(error)}
+    const rows=c.s.filter(x=>x.ht>0).map(x=>({date:cptEnd(k),compte:x.c,fournisseur:"QWEEKLE",libelle:x.l,taux:x.t,sens:"C",ht:x.ht,tva:cptRnd(x.ht*(x.t??.089)),
+      commentaire:`CA ${cptMois(k)} - saisie du jour validée (${c.days} jours)`+(x.t==null?" - TVA mixte estimée":""),statut:"ok",source:"ca"}));
+    const{data,error}=await CPT.sb.from("compta_ecritures").insert(rows).select();if(error)return cptFail(error);
+    CPT.E=CPT.E.filter(e=>!old.includes(e.id)).concat(data);done.push(cptMois(k))}
+  if(done.length)setTimeout(()=>cptToast("CA enregistré automatiquement : "+done.join(", ")),400)}
+
+/* ── P&L mensuel ── */
+function cptPL(){const M={};const months=[...Array(12)].map((_,i)=>CPT.yr+"-"+String(i+1).padStart(2,"0"));
+  for(const k of months)M[k]={g:{},d:{},live:false,prov:0,ca:0,tva:0};
+  const isCA=e=>String(e.compte).startsWith("7"),today0=cptToday().slice(0,7);
+  const provCA=new Set(months.filter(k=>{const c=CPT.E.filter(e=>e.date.startsWith(k)&&isCA(e));return c.length&&c.every(e=>e.statut==="provisoire")&&cptCaFromDaily(k).tot>0}));   // CA provisoire : remplacé par la saisie du jour en direct
+  for(const e of CPT.E){const k=e.date.slice(0,7),o=M[k];if(!o)continue;if(provCA.has(k)&&isCA(e))continue;const g=cptG1(e);if(g==="BILAN")continue;
+    const v=cptVal(e);o.g[g]=(o.g[g]||0)+v;const d=g+"|"+cptG2(e);o.d[d]=(o.d[d]||0)+v;if(e.statut==="provisoire")o.prov++;
+    o.tva+=(e.sens==="C"?1:-1)*(+e.tva||0)}
+  const today=cptToday();
+  for(const k of months){const o=M[k];if(o.g["01. CA"]||k>today.slice(0,7))continue;   // mois en cours sans CA enregistré : CA en direct
+    const c=cptCaFromDaily(k);if(!c.tot)continue;o.live=true;o.g["01. CA"]=c.tot;
+    for(const x of c.s){const pl=(CPT.PLAN[x.c]||{}).rgpmt2||x.l;o.d["01. CA|"+pl]=(o.d["01. CA|"+pl]||0)+x.ht;o.tva+=x.ht*(x.t??.089)}}
+  for(const k of months){const o=M[k],g=o.g;o.ca=g["01. CA"]||0;
+    o.ebe=CPT_ORDER.reduce((a,x)=>a+(g[x]||0),0);o.dap=-(CPT.BP[k]?.DAP||0);o.fin=g["Résultat Financier"]||0;o.res=o.ebe+o.dap+o.fin;
+    o.has=Object.keys(g).length>0}
+  return{M,months}}
+
+function cptRender(){
+  const b=$("cptBody");if(!CPT.loaded)return;
+  const tabs=[["res","Résultat"],["ecr","Écritures"],["bq","Banque"],["tr","Trésorerie"],["exp","Export & imports"]];
+  const nV=CPT.E.filter(e=>e.statut!=="ok").length,nB=cptBank().filter(x=>x.st==="todo").length;
+  const months=[...Array(12)].map((_,i)=>CPT.yr+"-"+String(i+1).padStart(2,"0"));
+  b.innerHTML=`<div class="cpt-bar"><div class="seg" id="cptTabs">${tabs.map(([k,l])=>`<button data-k="${k}" aria-pressed="${CPT.tab===k}">${l}${k==="ecr"&&nV?` <span class="cpt-n">${nV}</span>`:""}${k==="bq"&&nB?` <span class="cpt-n">${nB}</span>`:""}</button>`).join("")}</div>
+    <div class="cpt-months" id="cptMonths">${months.map(k=>`<button class="chip" data-m="${k}" aria-pressed="${CPT.mois===k}">${MOIS[+k.slice(5)-1]}</button>`).join("")}</div>
+    <button class="btn" id="cptReload" title="Recharger les données">↻</button></div><div id="cptView"></div>`;
+  $("cptTabs").onclick=e=>{const x=e.target.closest("button");if(x){CPT.tab=x.dataset.k;cptRender()}};
+  $("cptMonths").onclick=e=>{const x=e.target.closest("button");if(x){CPT.mois=x.dataset.m;cptRender()}};
+  $("cptReload").onclick=async()=>{CPT.loaded=false;await cptOpen()};
+  ({res:cptRes,ecr:cptEcr,bq:cptBq,tr:cptTr,exp:cptExp})[CPT.tab]($("cptView"));
+}
+
+function cptRes(v){
+  const{M,months}=cptPL(),k=CPT.mois,o=M[k],bp=CPT.BP[k]||{};
+  const cmp=(x,y)=>isFinite(y)&&y?`<span class="${x>=y?"cpt-up":"cpt-dn"}">${x>=y?"+":"−"}${cptE0(Math.abs(x-y))} vs BP</span>`:"";
+  const ytd=months.filter(m=>m<=k).reduce((a,m)=>({ca:a.ca+M[m].ca,ebe:a.ebe+M[m].ebe,res:a.res+M[m].res}),{ca:0,ebe:0,res:0});
+  const card=(lab,val,sub)=>`<div class="card kpi"><div class="lab"><span>${lab}</span></div><div class="val">${val}</div><div class="meta">${sub.filter(Boolean).map(x=>`<span>${x}</span>`).join("")}</div></div>`;
+  const groups=CPT_ORDER.filter(g=>months.some(m=>M[m].g[g]));
+  const det=g=>[...new Set(months.flatMap(m=>Object.keys(M[m].d).filter(d=>d.startsWith(g+"|"))))].map(d=>d.split("|")[1]).sort();
+  const cell=(m,val,cls="")=>`<td class="${cls}${m===k?" cpt-cur":""}${M[m].live&&cls.includes("ca")?" cpt-live":""}">${M[m].has||M[m].live?cptE0(val):"—"}</td>`;
+  const row=(lab,f,cls="",tot=true)=>`<tr class="${cls}"><td>${lab}</td>${months.map(m=>cell(m,f(m),cls)).join("")}${tot?`<td class="cpt-tot">${cptE0(months.reduce((a,m)=>a+f(m),0))}</td>`:"<td></td>"}</tr>`;
+  let rows="";
+  for(const g of groups){rows+=row(`<button class="cpt-tg" data-g="${esc(g)}">${CPT.open?.[g]?"▾":"▸"}</button> ${esc(CPT_GLAB[g]||g)}`,m=>M[m].g[g]||0,g==="01. CA"?"cpt-grp ca":"cpt-grp");
+    if(CPT.open?.[g])for(const d of det(g))rows+=row(`<span class="cpt-sub">${esc(d)}</span>`,m=>M[m].d[g+"|"+d]||0,g==="01. CA"?"cpt-det ca":"cpt-det")}
+  rows+=row("<b>EBE</b>",m=>M[m].ebe,"cpt-key")+row("Amortissements",m=>M[m].dap)+(months.some(m=>M[m].fin)?row("Charges financières",m=>M[m].fin):"")+row("<b>Résultat</b>",m=>M[m].res,"cpt-key")
+    +`<tr class="cpt-bp"><td>BP — CA prévu</td>${months.map(m=>`<td class="${m===k?"cpt-cur":""}">${cptE0(CPT.BP[m]?.CA)}</td>`).join("")}<td></td></tr>`
+    +`<tr class="cpt-bp"><td>BP — résultat prévu</td>${months.map(m=>`<td class="${m===k?"cpt-cur":""}">${cptE0(CPT.BP[m]?.RESULTAT)}</td>`).join("")}<td></td></tr>`;
+  const nv=CPT.E.filter(e=>e.date.startsWith(k)&&e.statut!=="ok").length;
+  v.innerHTML=`<div class="grid g4">
+      ${card("CA HT — "+cptMois(k),cptE0(o.ca),[cmp(o.ca,bp.CA),o.live?"⏳ en direct (saisie du jour), pas encore clôturé":"",`Cumul ${CPT.yr} : ${cptE0(ytd.ca)}`])}
+      ${card("EBE",cptE0(o.ebe),[cmp(o.ebe,bp.EBE),o.ca?`Marge EBE ${fmtP(o.ebe/o.ca,1)}`:"",`Cumul : ${cptE0(ytd.ebe)}`])}
+      ${card("Résultat (après amortissements)",cptE0(o.res),[cmp(o.res,bp.RESULTAT),`Cumul : ${cptE0(ytd.res)}`])}
+      ${card("TVA du mois (collectée − déductible)",cptE0(o.tva),[o.tva>=0?"à payer le mois suivant":"crédit de TVA",nv?`⚠ ${nv} écriture${nv>1?"s":""} à vérifier ou provisoire${nv>1?"s":""}`:"✓ toutes les écritures sont validées"])}
+    </div>
+    <div class="card" style="margin-top:14px"><h3>Compte de résultat ${CPT.yr} (HT)</h3>
+      <p class="hint">Même structure que le P&L du fichier LPP. Cliquez ▸ pour le détail. CA des mois terminés : écritures enregistrées ; mois en cours : saisie du jour en direct (en italique). Amortissements : plan du BP.</p>
+      <div class="tablewrap"><table class="cpt-pl"><thead><tr><th></th>${months.map(m=>`<th class="${m===k?"cpt-cur":""}">${MOIS[+m.slice(5)-1]}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  v.querySelectorAll(".cpt-tg").forEach(x=>x.onclick=()=>{CPT.open=CPT.open||{};CPT.open[x.dataset.g]=!CPT.open[x.dataset.g];cptRender()});
+}
+
+/* ── Écritures ── */
+function cptEcr(v){
+  const k=CPT.mois,f=CPT.filt,q=CPT.q.toLowerCase();
+  const L=CPT.E.filter(e=>e.date.startsWith(k)&&(!f||(f==="nok"?e.statut!=="ok":f==="ca"?String(e.compte).startsWith("7"):f==="nopiece"?!e.facture_id&&!String(e.compte).startsWith("7"):e.source===f))&&(!q||(e.fournisseur+" "+e.libelle+" "+e.commentaire+" "+e.compte).toLowerCase().includes(q)))
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id);
+  const sum=x=>x.reduce((a,e)=>a+cptVal(e),0);
+  const ST={ok:["","OK"],a_verifier:["warn","À vérifier"],provisoire:["prov","Provisoire"]};
+  v.innerHTML=`<div class="card"><div class="cpt-head"><h3 style="margin:0">Écritures — ${cptMois(k)}</h3>
+      <div class="controls"><select id="cptF"><option value="">Toutes (${CPT.E.filter(e=>e.date.startsWith(k)).length})</option><option value="nok" ${f==="nok"?"selected":""}>À vérifier / provisoires</option><option value="ca" ${f==="ca"?"selected":""}>Chiffre d'affaires</option><option value="nopiece" ${f==="nopiece"?"selected":""}>Charges sans facture jointe</option><option value="facture" ${f==="facture"?"selected":""}>Factures déposées par l'équipe</option></select>
+      <input id="cptQ" placeholder="Rechercher…" value="${esc(CPT.q)}"><button class="btn cpt-pri" id="cptAdd">+ Ajouter une écriture</button></div></div>
+    <p class="hint">${L.length} ligne${L.length>1?"s":""} · produits ${cptE(sum(L.filter(e=>e.sens==="C")))} · charges ${cptE(-sum(L.filter(e=>e.sens==="D")))}. Cliquez une ligne pour la modifier. Les factures déposées par l'équipe arrivent ici toutes seules.</p>
+    <div class="tablewrap"><table class="cpt-tab"><thead><tr><th>Date</th><th>Compte</th><th>Fournisseur / libellé</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th></th></tr></thead><tbody>
+    ${L.map(e=>`<tr data-id="${e.id}" class="cpt-click"><td>${cptD(e.date)}</td><td title="${esc((CPT.PLAN[e.compte]||{}).libelle||"")}">${esc(e.compte)}<br><small class="muted">${esc(cptG2(e))}</small></td>
+      <td class="cpt-wrap"><b>${esc(e.fournisseur)}</b> · ${esc(e.libelle)}${e.commentaire?`<br><small class="muted">${esc(e.commentaire)}</small>`:""}</td>
+      <td class="${e.sens==="C"?"cpt-up":""}">${e.sens==="C"?"+":""}${cptE(+e.ht)}</td><td>${cptE(+e.tva)}</td><td>${cptE(cptTTC(e))}</td>
+      <td><span class="cpt-st ${ST[e.statut][0]}">${ST[e.statut][1]}</span></td><td>${e.facture_id?`<button class="btn cpt-pj" data-ff="${e.facture_id}" title="Voir la facture">📎</button>`:""}</td></tr>`).join("")||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Aucune écriture.</td></tr>`}
+    </tbody></table></div></div>`;
+  $("cptF").onchange=e=>{CPT.filt=e.target.value;cptRender()};
+  $("cptQ").oninput=e=>{CPT.q=e.target.value;clearTimeout(cptEcr.t);cptEcr.t=setTimeout(()=>{cptRender();const i=$("cptQ");i.focus();i.setSelectionRange(i.value.length,i.value.length)},350)};
+  $("cptAdd").onclick=()=>cptEdit({date:k<cptToday().slice(0,7)?cptEnd(k):cptToday(),sens:"D",taux:.2,statut:"ok"});
+  v.querySelectorAll("tr[data-id]").forEach(tr=>tr.onclick=e=>{if(e.target.closest(".cpt-pj"))return;cptEdit(CPT.E.find(x=>x.id===+tr.dataset.id))});
+  v.querySelectorAll(".cpt-pj").forEach(x=>x.onclick=()=>cptPiece(+x.dataset.ff));
+}
+async function cptPiece(id){const f=CPT.FF.find(x=>x.id===id);if(!f||!f.fichier_path)return cptToast("Pas de fichier");
+  const w=window.open("","_blank");const{data,error}=await CPT.sb.storage.from("factures").createSignedUrl(f.fichier_path,900);if(error){w&&w.close();return cptFail(error)}if(w)w.location=data.signedUrl}
+function cptSuggest(four){const l=(four||"").trim().toLowerCase();if(!l)return null;const c={};CPT.E.filter(e=>e.fournisseur.toLowerCase()===l&&!String(e.compte).startsWith("7")).forEach(e=>{const x=e.compte+"|"+(e.taux??"");c[x]=(c[x]||0)+1});
+  const best=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];if(!best)return null;const[cp,t]=best[0].split("|");return{compte:cp,taux:t===""?null:+t}}
+function cptDialog(title,html,{ok="Enregistrer",del=false}={}){return new Promise(res=>{const d=$("cptDlg"),f=$("cptDlgF");
+  f.innerHTML=`<h3>${title}</h3>${html}<div class="cpt-acts">${del?`<button type="submit" value="del" class="btn cpt-bad" formnovalidate>Supprimer</button>`:""}<span style="flex:1"></span><button type="submit" value="cancel" class="btn" formnovalidate>Annuler</button><button type="submit" value="ok" class="btn cpt-pri">${ok}</button></div>`;
+  f.onsubmit=e=>{e.preventDefault();const a=e.submitter?.value||"cancel";const data=Object.fromEntries(new FormData(f));d.close();res(a==="cancel"?null:{a,data})};d.oncancel=()=>res(null);d.showModal()})}
+async function cptEdit(e,prefill){
+  e=e||{};const opts=Object.values(CPT.PLAN).sort((a,b)=>String(a.compte).localeCompare(String(b.compte))).map(p=>`<option value="${esc(p.compte)}" ${String(p.compte)===String(e.compte)?"selected":""}>${esc(p.compte)} — ${esc(p.libelle||"")}</option>`).join("");
+  const fours=[...new Set(CPT.E.map(x=>x.fournisseur).filter(Boolean))].sort();
+  const pr=cptDialog(e.id?"Modifier l'écriture":"Nouvelle écriture",`<div class="cpt-form">
+    <label>Date<input type="date" name="date" value="${e.date||""}" required></label>
+    <label>Sens<select name="sens"><option value="D" ${e.sens!=="C"?"selected":""}>Charge</option><option value="C" ${e.sens==="C"?"selected":""}>Produit (CA)</option></select></label>
+    <label class="full">Fournisseur / client<input name="fournisseur" list="cptFours" value="${esc(e.fournisseur||"")}" required><datalist id="cptFours">${fours.map(x=>`<option value="${esc(x)}">`).join("")}</datalist></label>
+    <label class="full">Compte<select name="compte" required><option value="">Choisir…</option>${opts}</select></label>
+    <label class="full">Libellé<input name="libelle" value="${esc(e.libelle||"")}"></label>
+    <label>Montant HT<input type="number" step="0.01" name="ht" value="${e.ht??""}" required></label>
+    <label>Taux TVA<select name="taux">${CPT_TAUX.map(([v,l])=>`<option value="${v}" ${String(e.taux??"")===v||(+v===+e.taux&&v!=="")?"selected":""}>${l}</option>`).join("")}</select></label>
+    <label>TVA<input type="number" step="0.01" name="tva" value="${e.tva??""}"></label>
+    <label>TTC<input type="number" step="0.01" name="ttc" value="${e.ht!=null?cptTTC(e):""}"></label>
+    <label>Statut<select name="statut">${[["ok","OK"],["a_verifier","À vérifier"],["provisoire","Provisoire"]].map(([v,l])=>`<option value="${v}" ${e.statut===v?"selected":""}>${l}</option>`).join("")}</select></label><span></span>
+    <label class="full">Commentaire<input name="commentaire" value="${esc(e.commentaire||"")}"></label></div>
+    <p class="hint">Saisissez le HT ou le TTC : l'autre montant et la TVA se calculent avec le taux. Le compte est proposé d'après l'historique du fournisseur.</p>`,{del:!!e.id});
+  const F=$("cptDlgF"),g=n=>F.elements[n],rate=()=>g("taux").value===""?null:+g("taux").value;
+  const fromHT=()=>{const r=rate();if(r!=null&&g("ht").value!==""){g("tva").value=cptRnd(+g("ht").value*r);g("ttc").value=cptRnd(+g("ht").value*(1+r))}};
+  const fromTTC=()=>{const r=rate();if(r!=null&&g("ttc").value!==""){g("ht").value=cptRnd(+g("ttc").value/(1+r));g("tva").value=cptRnd(+g("ttc").value-+g("ht").value)}};
+  g("ht").oninput=fromHT;g("taux").onchange=fromHT;g("ttc").oninput=fromTTC;g("tva").oninput=()=>{g("ttc").value=cptRnd(+g("ht").value+ +g("tva").value)};
+  g("fournisseur").onchange=()=>{if(g("compte").value)return;const s=cptSuggest(g("fournisseur").value);if(s){g("compte").value=s.compte;if(s.taux!=null){g("taux").value=String(s.taux);fromHT()}}};
+  if(prefill)prefill(F);
+  const r=await pr;if(!r)return;
+  if(r.a==="del"){if(!confirm("Supprimer cette écriture ?"))return;const{error}=await CPT.sb.from("compta_ecritures").delete().eq("id",e.id);if(error)return cptFail(error);CPT.E=CPT.E.filter(x=>x.id!==e.id);cptToast("Écriture supprimée");return cptRender()}
+  const d=r.data,row={date:d.date,sens:d.sens,fournisseur:d.fournisseur.trim(),compte:d.compte,libelle:d.libelle.trim(),ht:cptRnd(+d.ht),taux:d.taux===""?null:+d.taux,tva:cptRnd(+d.tva||0),statut:d.statut,commentaire:d.commentaire.trim(),updated_at:new Date().toISOString()};
+  if(e.banque_cle)row.banque_cle=e.banque_cle;
+  const q=e.id?CPT.sb.from("compta_ecritures").update(row).eq("id",e.id).select():CPT.sb.from("compta_ecritures").insert({...row,source:e.source||"manuel"}).select();
+  const{data,error}=await q;if(error)return cptFail(error);
+  CPT.E=CPT.E.filter(x=>x.id!==data[0].id).concat(data);
+  if(e.banque_cle){await CPT.sb.from("compta_banque").update({ecriture_id:data[0].id}).eq("cle",e.banque_cle);const bl=CPT.B.find(x=>x.cle===e.banque_cle);if(bl)bl.ecriture_id=data[0].id}
+  cptToast(e.id?"Écriture modifiée":"Écriture ajoutée");cptRender()}
+
+/* ── Banque : classement et rapprochement ── */
+const BQ_IN=/QWEEKLE.*SWEEP|TRANSFERT YAVIN|^VIR SGC|COMMUNITY|UNION FRANCAISE|DRFIP.*ANCV|^VRST|^REM CHQ|CENTRE SOCIAL|PROXI|COMMUNE|MAIRIE/i;
+const BQ_OUT=[[/DIRECTION GENERALE.*TVA|DGFIP.*TVA/i,"TVA payée (hors résultat)"],[/^RELEVE CARTE/i,"Total carte (détail dans le relevé carte)"],[/REMBOURSEMENT EMPRUNT|ECHEANCE PRET/i,"Prêt (hors résultat)"]];
+const BQ_RULES=[[/SALAIRE\s+([A-Z]+)/i,"641100",m=>m[1][0]+m[1].slice(1).toLowerCase(),0,"Salaire net"],[/URSSAF/i,"645100","URSSAF",0,"Cotisations URSSAF"],[/ALPRO/i,"645500","ALPRO",0,"Prévoyance / retraite"],
+  [/ALAN/i,"645200","ALAN ASSURANCE",0,"Mutuelle"],[/MULTI ENTREPRISE/i,"616200","ACM",0,"Assurance local"],[/PRIMEO/i,"606110","PRIMEO ENERGIE",.2,"Électricité"],[/EXPRESSO/i,"613510","EXPRESSO SERVICE",.2,"Location machine à café"],
+  [/KEYYO/i,"626300","KEYYO",.2,"Internet"],[/BOUYGUES/i,"626200","BOUYGUES",.2,"Téléphone"],[/SOFR|TELESURVEILLANCE/i,"613540","SOFRATEL",.2,"Télésurveillance"],[/QWEEKLE/i,"627100","QWEEKLE",.2,"Commissions Qweekle"],
+  [/^FACT SGT|INTERETS\/FRAIS|COMMISSION/i,"627800","FRAIS BANCAIRES",.2,"Frais de banque"],[/NPN/i,"607100","NPN DISTRIBUTION",.055,"Snacking"],[/METRO/i,"607100","METRO",.055,"Snacking"],[/CHALEUR TOURNANTE/i,"607100","Chaleur tournante",.1,"Snacking"],
+  [/CAFES? RICHARD/i,"607100","CAFES RICHARD",.055,"Snacking"],[/MTAM/i,"615210","MTAM",.2,"Ménage"],[/PANSARD/i,"622600","Pansard",.2,"Comptabilité"],[/FEEDIZ/i,"623120","FEEDIZ",.2,"ADS"],[/ALISON/i,"623120","ALISON ROUZIER",.2,"CM"],
+  [/PALO FRANCHISE/i,"651000","PALO FRANCHISE",.2,"Redevances franchise"],[/ANIMAT|STAFFEUR|RANGEUR/i,"621600","ANIMATEURS",0,"Animation"],[/FACEBK|META/i,"623110","META",0,"META ADS"],[/GOOGLE/i,"623110","GOOGLE",0,"Google Ads"],
+  [/ANTHROPIC|SPOTIFY|OVH|DIGITALEO|NETLIFY|GITHUB/i,"615660",m=>m[0].toUpperCase(),.2,"Abonnement logiciel"],[/AMAZON|ACTION|LIDL|MATCH|CARREFOUR|CRF |LECLERC|BRICO|BM VILL|NATURE DECOU|LILMA|NORMAL/i,"606410",m=>m[0].toUpperCase(),.2,"Fournitures parc"],
+  [/SANEF/i,"625002","SANEF",.2,"Autoroute"],[/TOTAL/i,"606140","TOTALENERGIES",.2,"Carburant"],[/FLUNC|ALFREDO|AUTOGRILL|TABLE D|RESTAU|MC ?DO/i,"625010",m=>m[0].toUpperCase(),.1,"Repas"],[/FRAPA|AVOCAT/i,"622610","FRAPA",.2,"Honoraires avocat"],
+  [/VISTAPRINT|SIGNELA|PRINT/i,"623000",m=>m[0].toUpperCase(),.2,"Impressions"],[/NHOOD|LOYER/i,"613100","NHOOD",.2,"Loyer"]];
+function cptRule(lib){for(const[re,c,f,t,l]of BQ_RULES){const m=lib.match(re);if(m)return{compte:c,fournisseur:typeof f==="function"?f(m):f,taux:t,libelle:l}}
+  const u=lib.toUpperCase(),hit=[...new Set(CPT.E.map(e=>e.fournisseur))].filter(x=>x&&x.length>=4).find(x=>u.includes(x.toUpperCase()));
+  if(hit){const s=cptSuggest(hit);if(s)return{compte:s.compte,fournisseur:hit,taux:s.taux,libelle:""}}return null}
+function cptBank(){   // classement de chaque ligne (calculé, rien n'est écrit sans action)
+  const used=new Set(CPT.B.filter(b=>b.ecriture_id).map(b=>b.ecriture_id)),out=[];
+  const cand=CPT.E.filter(e=>e.sens==="D"&&!used.has(e.id));
+  const byId=new Map(CPT.E.map(e=>[e.id,e]));
+  for(const b of CPT.B.slice().sort((x,y)=>x.date.localeCompare(y.date))){const m=+b.montant,x={b,st:"todo",lab:"",e:null,rule:null};
+    if(b.ignore){x.st="ign";x.lab=b.note||"Ignorée"}
+    else if(b.ecriture_id&&byId.has(b.ecriture_id)){x.st="ok";x.e=byId.get(b.ecriture_id)}
+    else if(m>0&&BQ_IN.test(b.libelle)){x.st="in";x.lab="Encaissement clients (déjà dans le CA)"}
+    else if(BQ_OUT.some(([re])=>re.test(b.libelle))){x.st="hors";x.lab=BQ_OUT.find(([re])=>re.test(b.libelle))[1]}
+    else if(m<0){const t=-m,d=Date.parse(b.date);let best=null,bd=1e9;
+      const U=b.libelle.toUpperCase();
+      for(const e of cand){if(used.has(e.id))continue;if(Math.abs(cptTTC(e)-t)>0.05&&Math.abs(+e.ht-t)>0.05)continue;const dd=(d-Date.parse(e.date))/864e5;if(dd<-20||dd>75)continue;
+        const nom=String(e.fournisseur).toUpperCase().split(/[^A-ZÀ-Ü0-9]+/).some(w=>w.length>=4&&U.includes(w)),sc=Math.abs(dd)-(nom?100:0);if(sc<bd){bd=sc;best=e}}
+      if(best){used.add(best.id);x.st="match";x.e=best}else x.rule=cptRule(b.libelle)}
+    else{x.st="in";x.lab="Entrée d'argent"}
+    out.push(x)}
+  return out}
+function cptBq(v){
+  const k=CPT.mois,all=cptBank(),L=all.filter(x=>x.b.date.startsWith(k));
+  const S={ok:["","Rapprochée"],match:["","Justifiée"],in:["in","Encaissement"],hors:["hors","Hors résultat"],ign:["hors","Ignorée"],todo:["warn","À classer"]};
+  const inS=L.filter(x=>+x.b.montant>0).reduce((a,x)=>a+ +x.b.montant,0),outS=L.filter(x=>+x.b.montant<0).reduce((a,x)=>a+ +x.b.montant,0);
+  const last=cptLastSolde(k);
+  const nTodo=L.filter(x=>x.st==="todo").length;
+  v.innerHTML=`<div class="grid g4">
+      <div class="card kpi"><div class="lab"><span>Entrées — ${cptMois(k)}</span></div><div class="val">${cptE0(inS)}</div><div class="meta"><span>compte courant + carte</span></div></div>
+      <div class="card kpi"><div class="lab"><span>Sorties</span></div><div class="val">${cptE0(-outS)}</div><div class="meta"><span>dont carte : ${cptE0(-L.filter(x=>x.b.compte==="cb").reduce((a,x)=>a+ +x.b.montant,0))}</span></div></div>
+      <div class="card kpi"><div class="lab"><span>Solde fin de mois (CIC)</span></div><div class="val">${last?cptE0(+last.solde):"—"}</div><div class="meta"><span>${last?"au "+cptD(last.date):"importez le relevé du mois"}</span></div></div>
+      <div class="card kpi"><div class="lab"><span>À classer</span></div><div class="val">${nTodo}</div><div class="meta"><span>${nTodo?"dépenses sans écriture : un clic pour les créer":"✓ tout est rapproché"}</span></div></div></div>
+    <div class="card" style="margin-top:14px"><div class="cpt-head"><h3 style="margin:0">Relevé CIC — ${cptMois(k)}</h3><div class="controls"><label class="btn cpt-pri" style="cursor:pointer">⬆ Importer un export CIC (.xlsx)<input type="file" id="cptBqF" accept=".xlsx,.xls" multiple hidden></label></div></div>
+      <p class="hint">Sur cic.fr : Comptes › Télécharger › format Excel, pour le compte courant <b>et</b> pour la carte. Les lignes déjà importées ne sont pas doublées. Chaque dépense est reliée automatiquement à son écriture (même montant TTC, date proche) ; sinon une écriture vous est proposée.</p>
+      <div class="tablewrap"><table class="cpt-tab"><thead><tr><th>Date</th><th>Libellé</th><th>Montant</th><th>État</th><th></th></tr></thead><tbody>
+      ${L.map(x=>`<tr><td>${cptD(x.b.date)}${x.b.compte==="cb"?" <small class='muted'>CB</small>":""}</td><td class="cpt-wrap">${esc(x.b.libelle)}${x.e?`<br><small class="muted">↔ ${esc(x.e.fournisseur)} · ${esc(x.e.libelle)} · ${cptD(x.e.date)} · ${cptE(cptTTC(x.e))} TTC</small>`:x.lab?`<br><small class="muted">${esc(x.lab)}</small>`:x.rule?`<br><small class="muted">Proposé : ${esc(x.rule.compte)} ${esc((CPT.PLAN[x.rule.compte]||{}).libelle||"")} · ${esc(x.rule.fournisseur)}</small>`:""}</td>
+        <td class="${+x.b.montant>0?"cpt-up":""}">${cptE(+x.b.montant)}</td><td><span class="cpt-st ${S[x.st][0]}">${S[x.st][1]}</span></td>
+        <td style="white-space:nowrap">${x.st==="todo"?`<button class="btn cpt-pri" data-mk="${esc(x.b.cle)}">Créer l'écriture</button> <button class="btn" data-ig="${esc(x.b.cle)}" title="Ne pas comptabiliser (virement interne, remboursement…)">Ignorer</button>`:x.st==="ign"?`<button class="btn" data-ug="${esc(x.b.cle)}">Rétablir</button>`:""}</td></tr>`).join("")||`<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Aucune ligne pour ce mois : importez l'export CIC.</td></tr>`}
+      </tbody></table></div></div>`;
+  $("cptBqF").onchange=e=>cptImportBank([...e.target.files]);
+  v.querySelectorAll("[data-mk]").forEach(btn=>btn.onclick=()=>{const x=all.find(y=>y.b.cle===btn.dataset.mk),r=x.rule||{},t=-x.b.montant,rt=r.taux??.2;
+    const isPay=/SALAIRE|URSSAF|ALPRO/i.test(x.b.libelle),dt=isPay&&+x.b.date.slice(8)<=20?cptEnd(new Date(Date.UTC(+x.b.date.slice(0,4),+x.b.date.slice(5,7)-2,1)).toISOString().slice(0,7)):x.b.date;
+    cptEdit({date:dt,sens:"D",compte:r.compte||"",fournisseur:r.fournisseur||"",libelle:r.libelle||"",taux:rt,ht:cptRnd(t/(1+rt)),tva:cptRnd(t-t/(1+rt)),statut:rt>0&&!/FACT SGT/.test(x.b.libelle)?"a_verifier":"ok",
+      commentaire:`${x.b.compte==="cb"?"Carte":"Relevé CIC"} ${cptD(x.b.date)} : ${x.b.libelle.slice(0,80)} (${cptE(t)} TTC)${rt>0?" - TVA à confirmer avec la facture":""}`,source:x.b.compte==="cb"?"carte":"banque",banque_cle:x.b.cle})});
+  const setIg=async(cle,ig)=>{const{error}=await CPT.sb.from("compta_banque").update({ignore:ig,note:ig?"Ignorée":""}).eq("cle",cle);if(error)return cptFail(error);const b=CPT.B.find(y=>y.cle===cle);b.ignore=ig;b.note=ig?"Ignorée":"";cptRender()};
+  v.querySelectorAll("[data-ig]").forEach(x=>x.onclick=()=>setIg(x.dataset.ig,true));v.querySelectorAll("[data-ug]").forEach(x=>x.onclick=()=>setIg(x.dataset.ug,false));
+}
+const cptXdate=v=>{if(typeof v==="number"&&v>20000&&v<80000)return new Date(Math.round((v-25569)*864e5)).toISOString().slice(0,10);   // date Excel (n° de série)
+  const m=String(v??"").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);return m?`${m[3]}-${m[2]}-${m[1]}`:null};
+async function cptXLSX(){await cptLib("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",()=>window.XLSX)}
+function cptParseCIC(wb){   // exports Excel du site CIC : feuilles « Cpt … » (compte) et « CB … » (carte)
+  const rows=[];
+  for(const name of wb.SheetNames){const A=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,raw:true,defval:null});
+    if(/^Cpt /.test(name)){const L=[];let fin=null;
+      for(const r of A){const d=cptXdate(r[0]);if(d&&r[2]&&(r[3]!=null||r[4]!=null))L.push({date:d,libelle:String(r[2]).trim(),montant:cptRnd((+r[3]||0)+(+r[4]||0))});
+        if(r[3]&&/Solde au/i.test(String(r[3]))&&typeof r[5]==="number")fin=r[5]}
+      let s=fin;for(let i=L.length-1;i>=0;i--){L[i].solde=s!=null?cptRnd(s):null;if(s!=null)s-=L[i].montant}
+      L.forEach((x,i)=>rows.push({...x,compte:"cic",ordre:i}))}
+    else if(/^CB /.test(name)){for(const r of A){const d=cptXdate(r[0]);if(d&&r[1]&&typeof r[2]==="number")rows.push({date:d,libelle:String(r[1]).trim(),montant:r[2],compte:"cb",solde:null,ordre:0})}}}
+  const n={};return rows.map(x=>{const b=`${x.compte}|${x.date}|${x.montant}|${x.libelle}`;n[b]=(n[b]||0)+1;return{...x,cle:b+"|"+n[b]}})}
+async function cptImportBank(files){
+  try{await cptXLSX();let all=[];for(const f of files){const wb=XLSX.read(await f.arrayBuffer());all=all.concat(cptParseCIC(wb))}
+    if(!all.length)return cptToast("Aucune opération trouvée : utilisez l'export Excel du site CIC");
+    const known=new Set(CPT.B.map(b=>b.cle)),neu=all.filter(x=>!known.has(x.cle)),upd=all.filter(x=>known.has(x.cle)&&x.solde!=null);
+    for(let i=0;i<neu.length;i+=500){const{error}=await CPT.sb.from("compta_banque").insert(neu.slice(i,i+500));if(error)throw error}
+    for(const x of upd){const b=CPT.B.find(y=>y.cle===x.cle);if(b&&b.solde==null){await CPT.sb.from("compta_banque").update({solde:x.solde}).eq("cle",x.cle);b.solde=x.solde}}
+    CPT.B=CPT.B.concat(neu);
+    cptToast(`${neu.length} opération${neu.length>1?"s":""} importée${neu.length>1?"s":""}${all.length-neu.length?` (${all.length-neu.length} déjà présentes)`:""}`);cptRender()}
+  catch(e){cptFail(e)}}
+
+/* ── Trésorerie ── */
+function cptLastSolde(k){return CPT.B.filter(b=>b.compte==="cic"&&b.date.startsWith(k)&&b.solde!=null).sort((a,b)=>a.date.localeCompare(b.date)||(+a.ordre||0)-(+b.ordre||0)).pop()}
+function cptTr(v){
+  const months=[...Array(12)].map((_,i)=>CPT.yr+"-"+String(i+1).padStart(2,"0")),t=cptToday().slice(0,7);
+  const fin=k=>{const l=cptLastSolde(k);return l?+l.solde:(CPT.BP[k]?.SOLDE_REEL??null)};
+  const flux=(k,s)=>CPT.B.filter(b=>b.date.startsWith(k)&&(s>0?+b.montant>0:+b.montant<0)).reduce((a,b)=>a+ +b.montant,0);
+  const ap=CPT.FF.filter(f=>f.statut==="a_payer"),apS=ap.reduce((a,f)=>a+(+f.montant_ttc||0),0);
+  const rows=months.map(k=>{const r=fin(k),p=CPT.BP[k]?.TRESO_FIN??null;return`<tr class="${k===CPT.mois?"cpt-cur":""}"><td>${cptMois(k)}</td><td>${cptE0(flux(k,1))}</td><td>${cptE0(-flux(k,-1))}</td>
+    <td><b>${r!=null?cptE0(r):"—"}</b>${r!=null&&!CPT.B.some(b=>b.compte==="cic"&&b.date.startsWith(k)&&b.solde!=null)?" <small class='muted'>saisi</small>":""}</td><td>${cptE0(p)}</td><td class="${r!=null&&p!=null?(r>=p?"cpt-up":"cpt-dn"):""}">${r!=null&&p!=null?sgn(r-p,cptE0):"—"}</td>
+    <td>${k<=t?`<button class="btn" data-sr="${k}" title="Saisir le solde bancaire de fin de mois">✎</button>`:""}</td></tr>`}).join("");
+  const last=months.filter(k=>fin(k)!=null).pop();
+  v.innerHTML=`<div class="grid g4">
+      <div class="card kpi"><div class="lab"><span>Trésorerie réelle</span></div><div class="val">${last?cptE0(fin(last)):"—"}</div><div class="meta"><span>${last?"fin "+cptMois(last):"aucun relevé"}</span></div></div>
+      <div class="card kpi"><div class="lab"><span>Prévision BP (même mois)</span></div><div class="val">${last?cptE0(CPT.BP[last]?.TRESO_FIN):"—"}</div><div class="meta"><span>onglet Trésorerie 2026 du BP</span></div></div>
+      <div class="card kpi"><div class="lab"><span>Factures à payer (équipe)</span></div><div class="val">${cptE0(apS)}</div><div class="meta"><span>${ap.length} facture${ap.length>1?"s":""} déposée${ap.length>1?"s":""} non payée${ap.length>1?"s":""}</span></div></div>
+      <div class="card kpi"><div class="lab"><span>Trésorerie disponible estimée</span></div><div class="val">${last?cptE0(fin(last)-apS):"—"}</div><div class="meta"><span>réelle − factures à payer</span></div></div></div>
+    <div class="card" style="margin-top:14px"><h3>Trésorerie ${CPT.yr} — réel vs Business Plan</h3><p class="hint">Solde réel = dernier solde du relevé CIC importé (ou saisi à la main ✎). Le résultat suit la date des factures ; la trésorerie suit la date des paiements : une facture de septembre payée en octobre sort de la trésorerie en octobre.</p>
+      <div class="tablewrap"><table class="cpt-tab"><thead><tr><th>Mois</th><th>Entrées</th><th>Sorties</th><th>Solde fin de mois</th><th>Prévu BP</th><th>Écart</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></div>
+    ${ap.length?`<div class="card" style="margin-top:14px"><h3>Factures déposées à payer</h3><div class="tablewrap"><table class="cpt-tab"><tbody>${ap.map(f=>`<tr><td>${esc(f.fournisseur)}${f.numero?" · n° "+esc(f.numero):""}</td><td>${cptD(f.date_facture)}</td><td>${cptE(+f.montant_ttc)}</td></tr>`).join("")}</tbody></table></div></div>`:""}`;
+  v.querySelectorAll("[data-sr]").forEach(x=>x.onclick=async()=>{const k=x.dataset.sr,cur=CPT.BP[k]?.SOLDE_REEL;const s=prompt(`Solde du compte CIC au ${cptD(cptEnd(k))} (€) :`,cur??"");if(s===null)return;
+    const val=s.trim()===""?null:+s.replace(/\s/g,"").replace(",",".");if(s.trim()!==""&&!isFinite(val))return cptToast("Montant invalide");
+    const{error}=val==null?await CPT.sb.from("compta_bp").delete().eq("mois",k).eq("ligne","SOLDE_REEL"):await CPT.sb.from("compta_bp").upsert({mois:k,ligne:"SOLDE_REEL",montant:val});if(error)return cptFail(error);
+    (CPT.BP[k]=CPT.BP[k]||{});if(val==null)delete CPT.BP[k].SOLDE_REEL;else CPT.BP[k].SOLDE_REEL=val;cptRender()});
+}
+
+/* ── Export & imports ── */
+function cptExp(v){
+  const k=CPT.mois,n=CPT.E.filter(e=>e.date.startsWith(k)).length,ff=CPT.FF.filter(f=>f.fichier_path&&f.statut!=="refusee"&&(f.periode===k||(!f.periode&&(f.date_facture||"").startsWith(k))));
+  v.innerHTML=`<div class="grid g2">
+    <div class="card"><h3>Pour l'expert-comptable — ${cptMois(k)}</h3><p class="hint">L'Excel reprend exactement les colonnes de l'onglet GRAND LIVRE du fichier LPP (on peut le coller à la suite), plus le relevé bancaire du mois et son rapprochement.</p>
+      <div class="controls"><button class="btn cpt-pri" id="cptXl">⬇ Grand livre ${MOISL[+k.slice(5)-1]} (Excel · ${n} lignes)</button><button class="btn" id="cptXlY">⬇ Grand livre ${CPT.yr} complet</button><button class="btn" id="cptZip">⬇ Factures du mois (ZIP · ${ff.length})</button></div></div>
+    <div class="card"><h3>Reprendre des données existantes</h3><p class="hint"><b>Grand livre LPP</b> : remplace les écritures « grand livre » et le CA de ${CPT.yr} par le contenu de l'onglet GRAND LIVRE du fichier (les écritures créées ici et les factures de l'équipe sont conservées).<br><b>Business Plan</b> : reprend le CA, l'EBE, le résultat, les amortissements et la trésorerie prévus de chaque mois (ouvrir et enregistrer le fichier dans Excel avant, pour que les calculs soient à jour).</p>
+      <div class="controls"><label class="btn" style="cursor:pointer">⬆ Grand livre LPP (.xlsx)<input type="file" id="cptGL" accept=".xlsx" hidden></label><label class="btn" style="cursor:pointer">⬆ Business Plan (.xlsx)<input type="file" id="cptBPF" accept=".xlsx" hidden></label></div></div></div>`;
+  $("cptXl").onclick=()=>cptExportXL(CPT.E.filter(e=>e.date.startsWith(k)),k);
+  $("cptXlY").onclick=()=>cptExportXL(CPT.E,CPT.yr);
+  $("cptZip").onclick=()=>cptZipMonth(ff,k);
+  $("cptGL").onchange=e=>e.target.files[0]&&cptImportGL(e.target.files[0]);
+  $("cptBPF").onchange=e=>e.target.files[0]&&cptImportBP(e.target.files[0]);
+}
+async function cptExportXL(E,label){
+  await cptXLSX();
+  const H=["N° compte général","Libellé compte","Fournisseur","Libellé écriture","Date","Mois","Année","Taux TVA","Débit HT","Crédit HT","Montant HT","TVA","Montant TTC","Commentaire","Type","Rgpmt 1","Rgpmt 2","Rgpmt 3","Rgpmt 4","Catégorie","Statut","Pièce jointe"];
+  const rows=E.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.id-b.id).map(e=>{const p=CPT.PLAN[e.compte]||{},s=e.sens==="C"?-1:1,d=new Date(e.date+"T12:00:00");
+    return[isNaN(+e.compte)?e.compte:+e.compte,p.libelle||"",e.fournisseur,e.libelle,d,d.getMonth()+1,d.getFullYear(),e.taux??"TVA mixte",e.sens==="D"?+e.ht:null,e.sens==="C"?+e.ht:null,s*e.ht,s*e.tva,s*cptTTC(e),e.commentaire,e.sens==="C"?"Encaissement":"Décaissement",p.rgpmt1||"",p.rgpmt2||"",p.rgpmt3||"",p.rgpmt3||"",p.rgpmt1==="BILAN"?String(e.compte):"Exploitation",{ok:"OK",a_verifier:"À vérifier",provisoire:"Provisoire"}[e.statut],e.facture_id?"oui (dashboard)":""]});
+  const ws=XLSX.utils.aoa_to_sheet([H,...rows],{cellDates:true});ws["!cols"]=[10,26,20,34,11,6,7,9,11,11,11,10,11,60,13,16,26,22,22,12,11,14].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"GRAND LIVRE");
+  if(label.length===7){const bank=cptBank().filter(x=>x.b.date.startsWith(label));
+    const S={ok:"Rapprochée",match:"Justifiée",in:"Encaissement clients",hors:"Hors résultat",ign:"Ignorée",todo:"À classer"};
+    const wsb=XLSX.utils.aoa_to_sheet([["Date","Compte","Libellé","Montant","Solde","État","Écriture liée"],...bank.map(x=>[new Date(x.b.date+"T12:00:00"),x.b.compte==="cb"?"Carte":"Compte courant",x.b.libelle,+x.b.montant,x.b.solde,S[x.st],x.e?`${x.e.fournisseur} · ${x.e.libelle} · ${cptE(cptTTC(x.e))}`:x.lab])],{cellDates:true});
+    wsb["!cols"]=[11,14,70,12,12,18,60].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,wsb,"BANQUE")}
+  XLSX.writeFile(wb,`Palomano Lille - grand livre ${label.length===7?cptMois(label):label}.xlsx`,{cellDates:true});cptToast("Excel téléchargé")}
+const CPT_CRC=new Uint32Array(256).map((_,n)=>{let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;return c>>>0});
+async function cptZipMonth(list,k){
+  if(!list.length)return cptToast("Aucune facture déposée pour ce mois");cptToast(`Préparation de ${list.length} facture${list.length>1?"s":""}…`);
+  const enc=new TextEncoder(),parts=[],cd=[],seen=new Set();let off=0;
+  for(const f of list){const{data}=await CPT.sb.storage.from("factures").download(f.fichier_path);if(!data)continue;const b=new Uint8Array(await data.arrayBuffer());
+    const ext=((f.fichier_path.match(/\.[A-Za-z0-9]{2,5}$/)||[".pdf"])[0]).toLowerCase();
+    let nm=`${f.fournisseur}${f.numero&&f.numero.trim()?" - "+f.numero.trim():""}${f.date_facture?" - "+cptD(f.date_facture).replace(/\//g,"-"):""} (${(+f.montant_ttc||0).toFixed(2).replace(".",",")} EUR)`.replace(/[\\/:*?"<>|]+/g,"-")+ext;while(seen.has(nm))nm=nm.replace(/(\.\w+)$/," bis$1");seen.add(nm);
+    let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CPT_CRC[(c^b[i])&255]^(c>>>8);c=(c^0xFFFFFFFF)>>>0;const n=enc.encode(nm);
+    const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint32(14,c,true);h.setUint32(18,b.length,true);h.setUint32(22,b.length,true);h.setUint16(26,n.length,true);parts.push(new Uint8Array(h.buffer),n,b);
+    const d=new DataView(new ArrayBuffer(46));d.setUint32(0,0x02014b50,true);d.setUint16(4,20,true);d.setUint16(6,20,true);d.setUint16(8,0x0800,true);d.setUint32(16,c,true);d.setUint32(20,b.length,true);d.setUint32(24,b.length,true);d.setUint16(28,n.length,true);d.setUint32(42,off,true);cd.push(new Uint8Array(d.buffer),n);off+=30+n.length+b.length}
+  const N=cd.length/2,len=cd.reduce((a,x)=>a+x.length,0),e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,N,true);e.setUint16(10,N,true);e.setUint32(12,len,true);e.setUint32(16,off,true);
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([...parts,...cd,new Uint8Array(e.buffer)],{type:"application/zip"}));a.download=`Factures Palomano ${cptMois(k)}.zip`;document.body.appendChild(a);a.click();a.remove();cptToast(`${N} facture${N>1?"s":""} téléchargée${N>1?"s":""}`)}
+async function cptImportGL(file){
+  try{await cptXLSX();const wb=XLSX.read(await file.arrayBuffer());const ws=wb.Sheets["GRAND LIVRE"];if(!ws)return cptToast("Onglet « GRAND LIVRE » introuvable");
+    const A=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null});let prev=null;const rows=[];
+    const rate=h=>{if(typeof h==="number")return h;const m=String(h||"").replace(",",".").match(/([\d.]+)\s*%/);return m?+m[1]/100:(String(h||"").match(/mixte/i)?null:0)};
+    for(const r of A.slice(4)){if(r[0]==null||r[0]==="")continue;let d=cptXdate(r[4]);if(!d)d=prev;if(!d)continue;prev=d;if(!d.startsWith(CPT.yr))continue;
+      const deb=+r[8]||0,cre=+r[9]||0;if(!deb&&!cre)continue;const t=rate(r[7]),ht=deb||cre,com=String(r[13]||"");
+      const tva=typeof r[11]==="number"?Math.abs(r[11]):cptRnd(ht*(t??0));
+      rows.push({date:d,compte:String(r[0]),fournisseur:String(r[2]||""),libelle:String(r[3]||""),taux:t,sens:cre&&!deb?"C":"D",ht:cptRnd(ht),tva:cptRnd(tva),commentaire:com,
+        statut:/PROVISOIRE/i.test(com)?"provisoire":/estim|a confirmer|à confirmer|a verifier|à vérifier/i.test(com)?"a_verifier":"ok",source:String(r[0]).startsWith("7")?"ca":"grand_livre"})}
+    if(!rows.length)return cptToast("Aucune écriture trouvée");
+    if(!confirm(`${rows.length} écritures ${CPT.yr} trouvées dans le fichier.\nElles remplacent les écritures « grand livre » et le CA déjà repris (${CPT.E.filter(e=>e.source==="grand_livre"||e.source==="ca").length}). Les écritures créées dans le dashboard sont conservées. Continuer ?`))return;
+    const{error:e1}=await CPT.sb.from("compta_ecritures").delete().in("source",["grand_livre","ca"]).gte("date",CPT.yr+"-01-01").lte("date",CPT.yr+"-12-31");if(e1)throw e1;
+    for(let i=0;i<rows.length;i+=500){const{error}=await CPT.sb.from("compta_ecritures").insert(rows.slice(i,i+500));if(error)throw error}
+    CPT.loaded=false;await cptOpen();cptToast(`${rows.length} écritures reprises du grand livre`)}catch(e){cptFail(e)}}
+async function cptImportBP(file){
+  try{await cptXLSX();const wb=XLSX.read(await file.arrayBuffer());const P=wb.Sheets["Projection "+CPT.yr],T=wb.Sheets["Trésorerie "+CPT.yr],S=wb.Sheets["Synthèse"];
+    if(!P)return cptToast("Onglet « Projection "+CPT.yr+" » introuvable");const cell=(ws,a)=>{const c=ws&&ws[a];return c&&typeof c.v==="number"?c.v:null};const up=[];
+    const cols="DEFGHIJKLMNO".split("");cols.forEach((c,i)=>{const k=CPT.yr+"-"+String(i+1).padStart(2,"0");
+      [["CA",cell(P,c+"15")],["EBE",cell(P,c+"89")],["RESULTAT",cell(P,c+"97")],["DAP",cell(P,c+"91")!=null?-cell(P,c+"91"):null]].forEach(([l,v])=>{if(v!=null)up.push({mois:k,ligne:l,montant:cptRnd(v)})})});
+    if(T){const hdr=XLSX.utils.sheet_to_json(T,{header:1,raw:true,defval:null})[8]||[];hdr.forEach((h,i)=>{const m=String(h||"").toLowerCase().match(/(\w+)\s+(\d{4})/);if(!m)return;const mi=MOISL.indexOf(m[1]);if(mi<0)return;
+      const v=cell(T,XLSX.utils.encode_cell({r:44,c:i}));if(v!=null)up.push({mois:`${m[2]}-${String(mi+1).padStart(2,"0")}`,ligne:"TRESO_FIN",montant:cptRnd(v)})})}
+    if(!up.length)return cptToast("Aucune valeur calculée : ouvrez et enregistrez le BP dans Excel, puis réessayez");
+    const{error}=await CPT.sb.from("compta_bp").upsert(up);if(error)throw error;up.forEach(r=>{(CPT.BP[r.mois]=CPT.BP[r.mois]||{})[r.ligne]=r.montant});cptToast(`${up.length} repères du BP repris`);cptRender()}catch(e){cptFail(e)}}
+
 // theme
 const root=document.documentElement;
 try{const t=localStorage.getItem("palo.theme");if(t)root.dataset.theme=t}catch(e){}
@@ -1409,7 +1804,7 @@ matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{if(!ro
 // tabs
 $("tabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("#tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));
   document.querySelectorAll("section.tab").forEach(s=>s.classList.toggle("on",s.id==="t-"+b.dataset.t));try{localStorage.setItem("palo.tab",b.dataset.t)}catch(e){}
-  Object.values(CH).forEach(c=>c.resize());if(b.dataset.t==="clients")drawMap()};
+  Object.values(CH).forEach(c=>c.resize());if(b.dataset.t==="clients")drawMap();if(b.dataset.t==="compta")cptOpen()};
 $("periods").onclick=e=>{const b=e.target.closest(".chip");if(b)setPeriod(b.dataset.p)};
 $("dFrom").onchange=$("dTo").onchange=()=>setPeriod("custom");
 $("dFrom").min=$("dTo").min=FIRST;$("dFrom").max=$("dTo").max=LAST;
@@ -1443,6 +1838,7 @@ if(location.protocol.startsWith("http")){
   const remembered=()=>{try{return Object.keys(localStorage).some(k=>k.startsWith("palo.key."))}catch(e){return false}};
   setInterval(async()=>{
     try{const v=await (await fetch("version.json",{cache:"no-store"})).json();
+      if(document.querySelector('#tabs button[data-t="compta"][aria-selected="true"]')||$("cptDlg").open)return;
       if(v.generatedAt&&v.generatedAt!==DATA.generatedAt&&remembered())location.reload()}catch(e){}
   },60*1000);   // vérifie chaque minute (actualisation déclenchée par Supabase toutes les 15 min et à chaque saisie du jour)
 }
