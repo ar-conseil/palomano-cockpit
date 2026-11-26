@@ -119,7 +119,8 @@ def depuis_supabase(data):
         return None
     try:
         mois = mois_bp()
-        ecr = _get(url, key, f"compta_ecritures?select=date,compte,sens,ht,statut&date=gte.{mois[0]}-01&date=lte.{mois[-1]}-31")
+        apres = mois_bp(mois[-1], 2)[1]      # 1er jour du mois qui suit l'exercice (pas de « 31 avril »)
+        ecr = _get(url, key, f"compta_ecritures?select=date,compte,sens,ht,statut&date=gte.{mois[0]}-01&date=lt.{apres}-01")
         plan = _get(url, key, "compta_plan?select=compte,rgpmt1,rgpmt2")
         bpl = {}
         for x in _get(url, key, "compta_bp?select=mois,ligne,montant&ligne=like.L_*"):
