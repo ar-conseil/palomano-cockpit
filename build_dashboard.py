@@ -276,6 +276,38 @@ def read_colorhisto():
         {"releve": releve, "mois": mois, "dist": dist, "semaines": semaines}
 
 
+def colorhisto_supabase():
+    """Colorhisto saisi dans l'espace équipe (schema_v39.sql) : remplace la feuille « Colorhisto hebdo ».
+    Renvoie None (repli sur l'Excel) si Supabase n'est pas configuré ou pas encore prêt."""
+    import urllib.request
+    url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY")
+    if not url or not key:
+        return None
+    def get(path):
+        req = urllib.request.Request(url.rstrip("/") + "/rest/v1/" + path,
+                                     headers={"apikey": key, "Authorization": f"Bearer {key}"})
+        return json.loads(urllib.request.urlopen(req, timeout=30).read())
+    try:
+        kpis = get("colorhisto_kpi?active=eq.true&select=key,theme,label,unite&order=position")
+        notes = get("colorhisto_notes?select=semaine,kpi,note&note=not.is.null&limit=10000")
+    except Exception as e:
+        print(f"Colorhisto : lecture Supabase impossible ({e}), repli sur l'Excel")
+        return None
+    if not kpis or not notes:
+        return None
+    by = {(n["semaine"], n["kpi"]): n["note"] for n in notes}
+    weeks = sorted({n["semaine"] for n in notes})
+    label = lambda w: f"S{dt.date.fromisoformat(w).isocalendar()[1]} {w[8:10]}/{w[5:7]}"
+    rows = [{"theme": k["theme"], "kpi": k["label"], "unit": k["unite"],
+             "scores": [by.get((w, k["key"])) for w in weeks]} for k in kpis]
+    synth = []
+    for w in weeks:
+        v = [by[(w, k["key"])] for k in kpis if (w, k["key"]) in by]
+        synth.append(round(sum(v) / len(v), 2) if v else None)
+    print(f"Colorhisto : {len(weeks)} semaines lues dans l'espace équipe")
+    return {"weeks": [label(w) for w in weeks], "kpis": rows, "synth": synth}
+
+
 def locate_cp(ventes):
     """Normalise les codes postaux (7700 → Mouscron, 2100 → 02100) et joint leurs coordonnées."""
     geo = json.loads(GEO.read_text(encoding="utf-8"))
@@ -308,6 +340,7 @@ def main():
         print(f"Dashboard : {len(a_valider)} journée(s) provisoire(s) (caisse Qweekle), à valider dans la saisie du jour ({', '.join(a_valider)})")
     yannika = read_yannika()
     color, okr, avis = read_colorhisto()
+    color = colorhisto_supabase() or color   # le Colorhisto vit dans l'espace équipe ; l'Excel garde OKR et avis Google
     f_ventes = find_ventes()
     ventes = None
     if f_ventes:

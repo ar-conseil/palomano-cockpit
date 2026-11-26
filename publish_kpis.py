@@ -257,6 +257,77 @@ def chiffres(d, caisse=None):
             {"key": "annee", "data": block(L.replace(month=1, day=1), f"Année {L.year}", months)}]
 
 
+# ───────────── Colorhisto : notes calculées (barème de la feuille « Légende & méthode ») ─────────────
+COLOR_START = dt.date(2026, 5, 4)       # première semaine du Colorhisto
+COLOR_CUTS = {                          # seuils des notes 2 → 6 (au-delà du dernier seuil : 6)
+    "ca": (70, 80, 90, 100, 110),          # % de l'objectif hebdo
+    "entrees": (60, 75, 85, 100, 115),     # % de l'objectif visiteurs
+    "occupation": (15, 22, 30, 38, 50),    # entrées ÷ capacité, en %
+    "snack": (0.90, 0.95, 1.00, 1.05, 1.10),  # snack HT par visiteur payant du parc
+    "pass": (1, 2, 3, 4, 4),               # Palo-Pass vendus : 0 → 1 … 4 → 5, plus de 4 → 6
+    "anniv": (30, 45, 60, 75, 90),         # anniversaires ÷ créneaux (6 par mercredi, samedi, dimanche), en %
+}
+
+
+def fr(x, n=0):
+    return f"{x:.{n}f}".replace(".", ",")
+
+
+def color_grade(k, v):
+    c = COLOR_CUTS[k]
+    return 1 + sum(v >= x for x in c[:-1]) + (v > c[-1])
+
+
+def colorhisto_auto(d):
+    """Notes automatiques des semaines complètes (lundi → dimanche) depuis le début du Colorhisto.
+    Les notes saisies à la main ou reprises de l'Excel ne sont jamais remplacées (déclencheur côté Supabase)."""
+    days, _ = daily_real(d)
+    journal = {r[0]: r for r in d["daily"]}
+    w = weights(d)
+    last = dt.date.fromisoformat(max(x for x, v in days.items() if v["ca"] > 0))
+    end = last - dt.timedelta(days=(last.weekday() + 1) % 7)   # dernier dimanche complet
+    v = d.get("ventes") or {}
+    pass_days, vmin, vmax = {}, min(v.get("days") or ["9999"]), max(v.get("days") or [""])
+    for di, p, q, _ in v.get("pd") or []:
+        if str(v["products"][p][2]).strip().lower().startswith("palo-pass"):
+            day = v["days"][di]
+            pass_days[day] = pass_days.get(day, 0) + q
+    out, mon = [], COLOR_START
+    while mon + dt.timedelta(days=6) <= end:
+        wk = span(mon.isoformat(), (mon + dt.timedelta(days=6)).isoformat())
+        tot = lambda k: sum(days[x][k] for x in wk if x in days)
+        notes = {}
+        if tot("ca") > 0:
+            ca_t = sum(month_target(d, x[:7]) * w(x) for x in wk if month_target(d, x[:7]))
+            if ca_t:
+                r = tot("ca") / ca_t * 100
+                notes["ca"] = (r, f"{fr(r)} % de l'objectif de la semaine")
+            vis_t = sum((month_visitors(d, x[:7]) or 0) * w(x) for x in wk)
+            if vis_t:
+                r = tot("ent") / vis_t * 100
+                notes["entrees"] = (r, f"{round(tot('ent'))} entrées · {fr(r)} % de l'objectif")
+            cap = sum(journal[x][10] for x in wk if x in journal)
+            if cap:
+                ent = sum(journal[x][9] for x in wk if x in journal)
+                r = ent / cap * 100
+                notes["occupation"] = (r, f"{fr(r)} % de la capacité")
+            if tot("paying"):
+                r = tot("snack_only") / tot("paying")
+                notes["snack"] = (r, f"{fr(r, 2)} € HT de snack par visiteur payant")
+            slots = 6 * sum(1 for x in wk if dt.date.fromisoformat(x).weekday() in (2, 5, 6))
+            if slots:
+                r = tot("anniv_n") / slots * 100
+                notes["anniv"] = (r, f"{round(tot('anniv_n'))} anniversaires pour {slots} créneaux · {fr(r)} %")
+            if vmin <= wk[0] and wk[-1] <= vmax:
+                n = sum(pass_days.get(x, 0) for x in wk)
+                notes["pass"] = (n, f"{fr(n)} Palo-Pass vendu{'s' if n > 1 else ''}")
+        for k, (val, txt) in notes.items():
+            out.append({"semaine": mon.isoformat(), "kpi": k, "note": color_grade(k, val), "valeur": round(val, 2),
+                        "detail": txt, "source": "auto"})
+        mon += dt.timedelta(days=7)
+    return out
+
+
 def main():
     url, key = os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_SERVICE_KEY")
     if not url or not key:
@@ -328,6 +399,20 @@ def main():
         print(f"::warning::Chiffres non publiés (HTTP {e.code} — schema_v25.sql pas encore exécuté ?)")
     except Exception as e:
         print(f"::warning::Chiffres non publiés : {e}")
+    # Colorhisto : notes automatiques des semaines terminées (une note saisie à la main n'est jamais remplacée)
+    try:
+        cn = [dict(r, updated_at=now) for r in colorhisto_auto(d)]
+        if cn:
+            req = urllib.request.Request(
+                url.rstrip("/") + "/rest/v1/colorhisto_notes?on_conflict=semaine,kpi", data=json.dumps(cn).encode(),
+                method="POST", headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json",
+                                        "Prefer": "resolution=merge-duplicates,return=minimal"})
+            urllib.request.urlopen(req, timeout=30)
+            print(f"Espace équipe : Colorhisto, {len(cn)} notes automatiques ({cn[0]['semaine']} → {cn[-1]['semaine']})")
+    except urllib.error.HTTPError as e:
+        print(f"::warning::Colorhisto non publié (HTTP {e.code} — schema_v39.sql pas encore exécuté ?)")
+    except Exception as e:
+        print(f"::warning::Colorhisto non publié : {e}")
     # journal public (dépôt public) : pas de montants, seulement les pourcentages d'atteinte
     print("Espace équipe : " + " · ".join(
         f"{r['key']}={round(r['value'] / r['target'] * 100) if r['value'] is not None and r['target'] else '—'} %"

@@ -696,6 +696,36 @@ dialog .acts{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin
 table{width:100%;border-collapse:collapse;font-size:13px}
 th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left}
 th{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+/* ── Colorhisto ── */
+:root{--n1:#d64545;--n2:#ec835a;--n3:#f2c46d;--n4:#cfe09a;--n5:#7cc576;--n6:#2f9e44}
+.chg-wrap{overflow-x:auto;margin:0 -4px;padding:0 4px}
+table.chg{border-collapse:separate;border-spacing:3px;width:100%;font-size:13px;min-width:720px}
+table.chg th{text-transform:none;letter-spacing:0;border:0;font-size:11.5px;font-weight:700;color:var(--ink-2);text-align:center;padding:4px 2px;white-space:nowrap;line-height:1.25}
+table.chg th.ch-wk{cursor:pointer;border-radius:10px}table.chg th.ch-wk:hover{background:var(--bg)}
+table.chg th.ch-wk.sel{background:var(--ink);color:#fff}
+table.chg td{border:0}
+table.chg td.lab{text-align:left;white-space:nowrap;padding:4px 10px 4px 0;font-weight:600;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+table.chg td.lab small{display:block;font-weight:500;color:var(--muted);font-size:11px}
+table.chg tr.th td{padding:14px 0 4px;font-size:11.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+table.chg td.n{height:30px;min-width:44px;border-radius:9px;text-align:center;font-weight:800;background:var(--bg);color:var(--ink);position:relative;font-variant-numeric:tabular-nums}
+table.chg td.n.ed{cursor:pointer}table.chg td.n.ed:hover{outline:2px solid var(--ink);outline-offset:-2px}
+table.chg td.n.v1{background:var(--n1);color:#fff}table.chg td.n.v2{background:var(--n2);color:#fff}table.chg td.n.v3{background:var(--n3)}
+table.chg td.n.v4{background:var(--n4)}table.chg td.n.v5{background:var(--n5)}table.chg td.n.v6{background:var(--n6);color:#fff}
+table.chg td.n.au::after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.55}
+table.chg td.n.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+table.chg tr.sy td.n{height:34px;font-size:14px}
+.ch-scale{display:flex;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.ch-scale span{display:inline-flex;align-items:center;gap:6px;padding:3px 9px 3px 3px;border-radius:999px;background:var(--bg)}
+.ch-scale b{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px}
+.ch-big{font-size:42px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.ch-themes{display:flex;flex-direction:column;gap:7px;margin-top:12px}
+.ch-themes .r{display:grid;grid-template-columns:minmax(0,1fr) 46px;gap:10px;align-items:center;font-size:13.5px}
+.ch-themes .r b{border-radius:8px;text-align:center;padding:3px 0;font-variant-numeric:tabular-nums}
+.ch-alert{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--bad-c);color:var(--ink);font-size:13.5px;margin-top:12px}
+.ch-pick{display:flex;flex-direction:column;gap:6px}
+.ch-pick label{display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:center;padding:7px 10px;border-radius:12px;background:var(--bg);cursor:pointer;font-size:13.5px;font-weight:500;color:var(--ink)}
+.ch-pick label b{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:800}
+.ch-pick input{display:none}.ch-pick label:has(input:checked){box-shadow:inset 0 0 0 2px var(--ink);background:#fff}
 </style>
 </head>
 <body>
@@ -892,6 +922,7 @@ const ICONS={
   moon:'<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>',
   euro:'<path d="M17.5 6.5A6.5 6.5 0 1 0 17.5 17.5"/><path d="M4.5 10.5h9M4.5 13.5h9"/>',
   dl:'<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 17.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-1.5"/>',
+  palette:'<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.1-1.6-1.1-2.8 0-1 .8-1.7 1.9-1.7h2.1a3.8 3.8 0 0 0 3.8-3.8C20.5 6.6 16.7 3.5 12 3.5z"/><circle cx="7.8" cy="11" r="1.1"/><circle cx="10.5" cy="7.4" r="1.1"/><circle cx="15" cy="7.6" r="1.1"/>',
   file:'<path d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5A1.5 1.5 0 0 1 7.5 3.5z"/><path d="M14 3.5V8h4M9 13h6M9 16.5h4"/>',
   wrench:'<path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3z"/><path d="M14.5 6.5 17 4l3 3-2.5 2.5"/>',
 };
@@ -909,6 +940,8 @@ const worked=l=>(l||[]).filter(s=>!s.absence);
 const PZ=s=>s&&+s.pause_min?` · pause ${+s.pause_min>=60&&s.pause_min%60===0?s.pause_min/60+" h":s.pause_min+" min"}`:"";   // pause prévue
 const isManager=()=>S.me&&["direction","responsable"].includes(S.me.role);
 const isDirection=()=>S.me&&S.me.role==="direction";
+// Colorhisto : la direction remplit d'office ; sinon accès donné dans Réglages (saisie = remplit, lecture = consulte et commente)
+const chRole=()=>!S.me?null:S.me.role==="direction"?"saisie":(S.me.colorhisto||null);
 const canValidate=()=>isDirection()&&S.me.can_validate_planning;
 const realDirection=()=>((S.real&&S.real.me)||S.me)?.role==="direction";
 const person=id=>S.byId.get(id)||(S.ext&&S.ext.get(id))||{full_name:"—",color:"#9a9895"};
@@ -933,7 +966,7 @@ const NAV=[
   {h:"Équipe"},
   {t:"demandes",l:"Demandes",i:"inbox",b:"bDem"},{t:"factu",l:"Facturation",i:"euro",b:"bFac",mgr:true},{t:"heures",l:"Heures",i:"clock",mgr:true},{t:"saisie",l:"Saisie du jour",i:"euro",saisie:true,b:"bSaisie"},{t:"reglages",l:"Réglages",i:"gear",b:"bReg",mgr:true},
   {h:"Objectifs"},
-  {t:"objectifs",l:"Objectifs",i:"target"},{t:"chiffres",l:"Mes chiffres",i:"chart",mgr:true},
+  {t:"objectifs",l:"Objectifs",i:"target"},{t:"colorhisto",l:"Colorhisto",i:"palette",ch:true},{t:"chiffres",l:"Mes chiffres",i:"chart",mgr:true},
 ];
 const BNAV=["today","planning","anniv","stocks"];
 /* Dashboard financier : la direction l'ouvre avec son compte, sans le mot de passe. La clé de déchiffrement
@@ -957,7 +990,7 @@ const evoC=x=>evo(x.curc!=null?x.curc:x.cur,x.prev);
 const evo=(c,p)=>p>0?`<em class="${c>=p?"up":"down"}">${c>=p?"▲ +":"▼ −"}${Math.abs((c/p-1)*100).toLocaleString("fr-FR",{maximumFractionDigits:0})} %</em>`:"";
 function navGroups(items){const out=[];let g=null;items.forEach(n=>{if(n.h){g={h:n.h,items:[]};out.push(g)}else if(g)g.items.push(n)});return out.filter(x=>x.items.length)}
 function renderNav(){
-  const items=NAV.filter(n=>(!n.mgr||isManager())&&(!n.dir||isDirection())&&(!n.saisie||isManager()||S.canSaisie));
+  const items=NAV.filter(n=>(!n.mgr||isManager())&&(!n.dir||isDirection())&&(!n.ch||chRole())&&(!n.saisie||isManager()||S.canSaisie));
   const groups=navGroups(items),cur=groups.find(g=>g.items.some(n=>n.t===S.tab))||groups[0];
   const gs=g=>{const k=GROUPS[g.h]||GROUPS["Au quotidien"];return`--gc:var(${k.c});--gf:${k.f}`};
   $("gTabs").innerHTML=groups.map(g=>{const k=GROUPS[g.h]||GROUPS["Au quotidien"],n=g.items.filter(x=>x.t!=="reglages").reduce((s,x)=>s+(BADGES[x.b]||0),0);
@@ -1035,7 +1068,7 @@ function stopPreview(){
 }
 $("sheet").onclick=e=>{if(e.target.id==="sheet")$("sheet").classList.add("hidden")};
 function go(t){
-  if(!VIEWS[t]||((t==="reglages"||t==="factu")&&!isManager())||(t==="heures"&&!isManager()))t="today";
+  if(!VIEWS[t]||((t==="reglages"||t==="factu")&&!isManager())||(t==="heures"&&!isManager())||(t==="colorhisto"&&!chRole()))t="today";
   S.tab=t;try{sessionStorage.setItem("palo.eq.tab",t)}catch(e){}
   // si le bandeau a déjà défilé, on reste calé sous les onglets au lieu de remonter tout en haut
   const g=$("gTabs"),keep=g&&g.offsetParent?Math.min(window.scrollY,g.offsetTop):0;
@@ -1648,6 +1681,7 @@ VIEWS.today=async m=>{
     ${crewIds.length?`<div class="card crew"><div class="card-head"><h3>${ic("users")} L'équipe aujourd'hui</h3><span class="pill info"><i></i>${H0} h → ${H1} h</span></div>
       <div class="crew-scale">${Array.from({length:H1-H0+1},(_,i)=>`<span style="left:${i/(H1-H0)*100}%">${H0+i}h</span>`).join("")}</div>
       ${crewIds.map(id=>{const p=person(id);return`<div class="crew-row"><div class="crew-who">${avatar(p,32)}<b>${esc(firstName(id))}</b></div><div class="crew-lane">${(shifts||[]).filter(s=>s.user_id===id).map(s=>`<i class="crew-bar" style="left:${pos(s.start_time)}%;width:${pos(s.end_time)-pos(s.start_time)}%;--c:${esc(p.color||"#c1daf3")}">${fTime(s.start_time)} – ${fTime(s.end_time)}${s.teletravail?" 🏠":""}</i>`).join("")}${nowM/60>=H0&&nowM/60<=H1?`<span class="crew-now" style="left:${(nowM/60-H0)/(H1-H0)*100}%"></span>`:""}</div></div>`}).join("")}</div>`:""}
+    ${chRole()?'<div id="chToday" style="margin-top:18px"></div>':""}
     <div class="grid g21" style="margin-top:18px">
       <div class="card"><div class="card-head"><h3>${ic("cal")} Au programme</h3><span class="pill info"><i></i>${prog.length} réservation${prog.length>1?"s":""}</span></div>
         ${prog.length?prog.map(p=>{const[bg,fg,icn]=RESA_COL[p.k];return`<div class="prog-item"><div class="time">${fTime(p.t)}</div><div class="tag" style="background:var(${bg});color:${fg}">${ic(icn)}</div>
@@ -1692,6 +1726,91 @@ VIEWS.today=async m=>{
       <label class="check-row"><input type="checkbox" name="important"> Important (mis en avant en rose)</label>`,{submit:"Publier"});
     if(!r)return;const{error}=await S.sb.from("posts").insert({title:r.data.title,body:r.data.body,day:r.data.day,important:!!r.data.important,author:S.user.id});
     if(error)return fail(error);toast("Consigne publiée");render()};
+  if(chRole())chTodayCard().catch(e=>console.warn(e));
+};
+
+/* ═════════ COLORHISTO (direction, Jean-Baptiste ; Yannika consulte et commente) ═════════
+   Une note de 1 (vraiment nul) à 6 (parfait) par indicateur et par semaine. Les indicateurs chiffrés sont
+   notés automatiquement chaque jour (publish_kpis.py) ; une note saisie à la main remplace le calcul. */
+const CH_SCALE=["Vraiment nul","Pas bien","Moyen moins","Moyen plus","Bien","Parfait"];
+const chTxt=n=>n==1||n==2||n==6?"#fff":"var(--ink)";
+const isoWeek=s=>{const d=parse(s);d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/864e5-3+(w1.getDay()+6)%7)/7)};
+const chAvg=l=>{const v=l.filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+const chF=v=>v==null?"—":v.toLocaleString("fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1});
+const chCls=v=>v==null?"":"v"+Math.min(6,Math.max(1,Math.round(v)));
+async function chLoad(from,to){
+  const[k,n,w]=await Promise.all([S.sb.from("colorhisto_kpi").select("*").eq("active",true).order("position"),
+    S.sb.from("colorhisto_notes").select("*").gte("semaine",from).lte("semaine",to),
+    S.sb.from("colorhisto_semaines").select("*").gte("semaine",from).lte("semaine",to)]);
+  if(k.error)throw k.error;
+  const N=new Map((n.data||[]).map(x=>[x.semaine+"|"+x.kpi,x]));
+  return{K:k.data||[],N,W:new Map((w.data||[]).map(x=>[x.semaine,x]))};
+}
+const chSynth=(K,N,w)=>chAvg(K.map(k=>N.get(w+"|"+k.key)?.note??null));
+async function chTodayCard(){
+  const el=$("chToday");if(!el)return;
+  const last=addDays(monday(TODAY()),-7),first=addDays(last,-21);
+  let D;try{D=await chLoad(first,last)}catch(e){el.remove();return}
+  const{K,N,W}=D,sy=chSynth(K,N,last),cm=W.get(last);
+  const weeks=[0,1,2,3].map(i=>addDays(first,7*i)),avgs=weeks.map(w=>chSynth(K,N,w));
+  const low=K.filter(k=>(N.get(last+"|"+k.key)?.note??9)<=2);
+  const themes=[...new Set(K.map(k=>k.theme))];
+  el.innerHTML=`<div class="card"><div class="card-head"><h3>${ic("palette")} Colorhisto · semaine ${isoWeek(last)} (du ${fShort(last)} au ${fShort(addDays(last,6))})</h3><a class="link" data-t="colorhisto" href="#">Ouvrir le Colorhisto →</a></div>
+    <div class="grid g21"><div><div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap"><div class="ch-big" style="color:${sy!=null&&sy<4?"var(--bad)":"var(--ink)"}">${chF(sy)}<span style="font-size:18px;color:var(--muted)"> / 6</span></div>
+      <div style="display:flex;gap:6px">${weeks.map((w,i)=>`<span title="Semaine ${isoWeek(w)}" style="display:grid;place-items:center;width:40px;height:30px;border-radius:9px;font-weight:800;font-size:12.5px;background:${avgs[i]==null?"var(--bg)":`var(--n${Math.round(avgs[i])})`};color:${avgs[i]==null?"var(--muted)":chTxt(Math.round(avgs[i]))}">${chF(avgs[i])}</span>`).join("")}</div></div>
+      <div class="ch-themes">${themes.map(t=>{const v=chAvg(K.filter(k=>k.theme===t).map(k=>N.get(last+"|"+k.key)?.note??null));return`<div class="r"><span>${esc(t)}</span><b style="background:${v==null?"var(--bg)":`var(--n${Math.round(v)})`};color:${v==null?"var(--muted)":chTxt(Math.round(v))}">${chF(v)}</b></div>`}).join("")}</div>
+      ${low.length?`<div class="ch-alert">${ic("alert")}<div><b>À discuter cette semaine :</b> ${low.map(k=>esc(k.label)).join(", ")}</div></div>`:""}
+      ${avgs.every(v=>v!=null&&v<4)?`<div class="ch-alert">${ic("alert")}<div><b>Un mois sous 4 de moyenne :</b> plan d'action à déclencher.</div></div>`:""}</div>
+    <div><p class="hint" style="margin:0 0 6px">Mon commentaire sur la semaine</p>${cm&&(cm.commentaire||cm.plan_action)?`<div style="font-size:14px;white-space:pre-wrap">${esc(cm.commentaire)}</div>${cm.plan_action?`<p style="margin:8px 0 0;font-size:13.5px"><b>Plan d'action :</b> ${esc(cm.plan_action)}</p>`:""}<p class="hint" style="margin:6px 0 0">${esc(firstName(cm.par))} · ${fStamp(cm.updated_at)}</p>`:'<div class="empty" style="padding:14px 0">Pas encore de commentaire.</div>'}
+      <button class="btn sm soft" id="chTodayCm" style="margin-top:10px">${ic("plus","sm")} ${cm&&cm.commentaire?"Modifier":"Commenter la semaine"}</button></div></div></div>`;
+  $("chTodayCm").onclick=()=>chComment(last,cm);
+}
+async function chComment(w,cm){
+  const r=await modal(`Semaine ${isoWeek(w)} · du ${fShort(w)} au ${fShort(addDays(w,6))}`,`<label class="f">Commentaire<textarea name="commentaire" maxlength="2000">${esc(cm?.commentaire||"")}</textarea></label>
+    <label class="f" style="margin-top:10px">Plan d'action (facultatif)<textarea name="plan_action" maxlength="2000" placeholder="Qui fait quoi, pour quand">${esc(cm?.plan_action||"")}</textarea></label>`);
+  if(!r)return;const{error}=await S.sb.from("colorhisto_semaines").upsert({semaine:w,commentaire:r.data.commentaire.trim(),plan_action:r.data.plan_action.trim(),par:S.user.id,updated_at:new Date().toISOString()});
+  if(error)return fail(error);toast("Commentaire enregistré");render();
+}
+VIEWS.colorhisto=async m=>{
+  const role=chRole(),SPAN=10,lastC=addDays(monday(TODAY()),-7);
+  S.chOff=S.chOff||0;const last=addDays(lastC,-7*SPAN*S.chOff),first=addDays(last,-7*(SPAN-1));
+  const weeks=Array.from({length:SPAN},(_,i)=>addDays(first,7*i));
+  if(!S.chWeek||S.chWeek<first||S.chWeek>last)S.chWeek=last;
+  let D;try{D=await chLoad(first,last)}catch(e){
+    m.innerHTML=topbar("Colorhisto","")+`<div class="card"><div class="empty">Le Colorhisto n'est pas encore installé${isDirection()?" : exécutez schema_v39.sql dans Supabase":""}.</div></div>`;return}
+  const{K,N,W}=D,sel=S.chWeek,cm=W.get(sel),themes=[...new Set(K.map(k=>k.theme))];
+  const cell=(k,w)=>{const x=N.get(w+"|"+k.key),n=x?.note;
+    const tip=[x?`${n} · ${CH_SCALE[n-1]}`:"Pas de note",x&&x.detail,x?.source==="auto"?"Calcul automatique":x?.source==="excel"?"Repris de l'Excel":x?`Saisi par ${firstName(x.saisi_par)}`:""].filter(Boolean).join(" — ");
+    return`<td class="n ${n?"v"+n:""} ${x?.source==="auto"?"au":""} ${role==="saisie"?"ed":""} ${w===sel?"sel":""}" ${role==="saisie"?`data-ck="${k.key}" data-cw="${w}"`:""} title="${esc(tip)}">${n||""}</td>`};
+  const head=`<tr><th></th>${weeks.map(w=>`<th class="ch-wk ${w===sel?"sel":""}" data-sw="${w}">S${isoWeek(w)}<br><span style="font-weight:500">${parse(w).toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"})}</span></th>`).join("")}</tr>`;
+  const body=themes.map(t=>`<tr class="th"><td colspan="${SPAN+1}">${esc(t)}</td></tr>`+K.filter(k=>k.theme===t).map(k=>`<tr><td class="lab" title="${esc(k.label)}">${esc(k.label)}<small>${k.auto?"calculé automatiquement":"à noter"} · ${esc(k.unite)}</small></td>${weeks.map(w=>cell(k,w)).join("")}</tr>`).join("")).join("")
+    +`<tr class="sy"><td class="lab">Synthèse<small>moyenne des notes · sous 4 = vigilance</small></td>${weeks.map(w=>{const v=chSynth(K,N,w);return`<td class="n ${chCls(v)} ${w===sel?"sel":""}" title="${W.get(w)?.commentaire?"Commentée":""}">${v==null?"":chF(v)}${W.get(w)?.commentaire?" ·":""}</td>`}).join("")}</tr>`;
+  const sy=chSynth(K,N,sel),todo=K.filter(k=>!k.auto&&!N.get(sel+"|"+k.key)),low=K.filter(k=>(N.get(sel+"|"+k.key)?.note??9)<=2);
+  m.innerHTML=topbar("Colorhisto",`Une note de 1 à 6 par indicateur et par semaine · ${role==="saisie"?"cliquez sur une case pour la noter":"vous consultez et commentez chaque semaine"}`,
+      `<div class="seg"><button id="chPrev" aria-label="Semaines précédentes">‹ Avant</button><button id="chNext" ${S.chOff?"":"disabled"} aria-label="Semaines suivantes">Après ›</button></div>`)+
+    `<div class="grid g21" style="margin-bottom:18px"><div class="card"><div class="card-head"><h3>Semaine ${isoWeek(sel)} · du ${fShort(sel)} au ${fShort(addDays(sel,6))}</h3><span class="pill ${sy==null?"":sy>=4?"ok":sy>=3?"warn":"bad"}"><i></i>Synthèse ${chF(sy)} / 6</span></div>
+        ${low.length?`<div class="ch-alert" style="margin-top:0">${ic("alert")}<div><b>Note de 1 ou 2 :</b> ${low.map(k=>esc(k.label)).join(", ")} — discussion à l'entretien hebdo, action sous 7 jours.</div></div>`:""}
+        ${role==="saisie"&&todo.length?`<p style="margin:12px 0 0;font-size:13.5px"><b>${todo.length} indicateur${todo.length>1?"s":""} à noter :</b> ${todo.map(k=>esc(k.label)).join(", ")}</p>`:""}
+        <div class="ch-scale" style="margin-top:14px">${CH_SCALE.map((l,i)=>`<span><b style="background:var(--n${i+1});color:${chTxt(i+1)}">${i+1}</b>${l}</span>`).join("")}</div></div>
+      <div class="card"><div class="card-head"><h3>${ic("megaphone")} Commentaire de la semaine</h3><button class="btn sm soft" id="chCm">${cm&&(cm.commentaire||cm.plan_action)?"Modifier":ic("plus","sm")+" Commenter"}</button></div>
+        ${cm&&(cm.commentaire||cm.plan_action)?`<div style="white-space:pre-wrap;font-size:14px">${esc(cm.commentaire)}</div>${cm.plan_action?`<p style="margin:10px 0 0;font-size:13.5px"><b>Plan d'action :</b> ${esc(cm.plan_action)}</p>`:""}<p class="hint" style="margin:8px 0 0">${esc(firstName(cm.par))} · ${fStamp(cm.updated_at)}</p>`:'<div class="empty" style="padding:14px 0">Pas encore de commentaire pour cette semaine.</div>'}</div></div>
+    <div class="card"><div class="chg-wrap"><table class="chg">${head}${body}</table></div>
+      <p class="hint" style="margin:12px 0 0">Point dans la case = note calculée automatiquement chaque jour à partir des chiffres (une note saisie la remplace). Cliquez sur une semaine pour la commenter.</p></div>`;
+  $("chPrev").onclick=()=>{S.chOff++;S.chWeek=null;render()};
+  $("chNext").onclick=()=>{if(S.chOff){S.chOff--;S.chWeek=null;render()}};
+  $("chCm").onclick=()=>chComment(sel,cm);
+  m.querySelectorAll("[data-sw]").forEach(th=>th.onclick=()=>{S.chWeek=th.dataset.sw;render()});
+  m.querySelectorAll("[data-ck]").forEach(td=>td.onclick=async()=>{
+    const k=K.find(x=>x.key===td.dataset.ck),w=td.dataset.cw,x=N.get(w+"|"+k.key),bar=Array.isArray(k.bareme)&&k.bareme.length===6?k.bareme:CH_SCALE;
+    const r=await modal(`${k.label} · semaine ${isoWeek(w)}`,`${x?.source==="auto"?`<p class="hint" style="margin:0 0 10px">Calculé automatiquement : <b>${esc(x.detail||"")}</b> → ${x.note}. Une note choisie ici remplace le calcul.</p>`:""}
+      <div class="ch-pick">${bar.map((l,i)=>`<label><input type="radio" name="note" value="${i+1}" ${x?.note===i+1?"checked":""} required><b style="background:var(--n${i+1});color:${chTxt(i+1)}">${i+1}</b><span>${esc(String(l))}</span></label>`).join("")}</div>
+      <label class="f" style="margin-top:12px">Précision (facultatif)<input name="detail" maxlength="200" value="${esc(x&&x.source!=="auto"?x.detail||"":"")}" placeholder="Ce qui justifie la note"></label>`,
+      {danger:x&&x.source!=="auto"?(k.auto?"Revenir au calcul automatique":"Effacer la note"):null});
+    if(!r)return;
+    const q=r.action==="danger"?S.sb.from("colorhisto_notes").delete().eq("semaine",w).eq("kpi",k.key)
+      :S.sb.from("colorhisto_notes").upsert({semaine:w,kpi:k.key,note:+r.data.note,detail:r.data.detail.trim(),valeur:null,source:"saisie",saisi_par:S.user.id,updated_at:new Date().toISOString()});
+    const{error}=await q;if(error)return fail(error);
+    toast(r.action==="danger"?(k.auto?"La note sera recalculée à la prochaine actualisation":"Note effacée"):"Note enregistrée");render()});
 };
 
 /* ═════════ PLANNING (vue semaine par salarié + frise horaire du jour) ═════════ */
@@ -2861,10 +2980,12 @@ VIEWS.reglages=async m=>{
       <label class="check-row full"><input type="checkbox" name="apprenti" ${p.apprenti?"checked":""}> Contrat d'apprentissage (heures de cours comptées)</label>
       <label class="check-row full"><input type="checkbox" name="mineur" ${p.mineur?"checked":""}> Salarié·e mineur·e (8 h/jour, 35 h/semaine maximum)</label>
       <label class="check-row full"><input type="checkbox" name="modulation" ${p.modulation?"checked":""}> Contrat avec modulation du temps de travail</label>
-      <label class="check-row full"><input type="checkbox" name="can_validate_planning" ${p.can_validate_planning?"checked":""}> Valide le planning (Alex) — réservé à la direction</label></div>`,
+      <label class="check-row full"><input type="checkbox" name="can_validate_planning" ${p.can_validate_planning?"checked":""}> Valide le planning (Alex) — réservé à la direction</label>
+      ${"colorhisto" in p?`<label class="f full">Colorhisto<select name="colorhisto">${opt({"":"Pas d'accès",saisie:"Remplit la grille",lecture:"Consulte et commente (directrice)"},p.colorhisto||"")}</select><small style="font-weight:500;color:var(--muted)">La direction remplit toujours la grille.</small></label>`:""}</div>`,
       {danger:p.id===S.user.id?null:(p.active?"Désactiver l'accès":"Réactiver")});
     if(!r)return;
     const upd=r.action==="danger"?{active:!p.active}:{role:r.data.role,poste:r.data.poste,color:r.data.color,contrat_h:r.data.contrat_h===""?null:+r.data.contrat_h,apprenti:!!r.data.apprenti,mineur:!!r.data.mineur,modulation:!!r.data.modulation,can_validate_planning:!!r.data.can_validate_planning&&r.data.role==="direction"};
+    if(r.action!=="danger"&&"colorhisto" in p)upd.colorhisto=r.data.colorhisto||null;
     const{error}=await S.sb.from("profiles").update(upd).eq("id",p.id);if(error)return fail(error);toast("Enregistré");render();refreshBadges()});
   const ni=$("invNew");if(ni)ni.onclick=async()=>{const r=await modal("Pré-autoriser une adresse",`<div class="fgrid"><label class="f full">E-mail professionnel<input type="email" name="email" required placeholder="prenom.nom@palomano.com"></label>
       <label class="f">Rôle<select name="role">${opt({equipe:"Équipe",responsable:"Responsable",direction:"Direction"},"equipe")}</select></label>
