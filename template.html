@@ -280,6 +280,7 @@ header.mast.stuck .subbar{box-shadow:0 12px 22px -20px rgba(74,74,73,.55)}
 @media (prefers-reduced-motion:reduce){nav.tabs.gtabs button,nav.tabs.gtabs .gi,.gtabs.intro-in button{animation:none!important;transition:none!important}.ripple{display:none}}
 
 /* ── Comptabilité ── */
+.cpt-agent{margin:2px 0 8px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,var(--s1) 8%,transparent);font-size:12.5px;line-height:1.45}.cpt-agent.bad{background:color-mix(in srgb,var(--warn) 18%,transparent)}
 .cpt-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
 .cpt-months{display:flex;gap:4px;flex-wrap:wrap;flex:1}.cpt-months .chip{padding:4px 10px;font-size:12.5px}
 .cpt-n{display:inline-block;min-width:16px;padding:0 5px;border-radius:999px;background:var(--crit);color:#fff;font-size:10.5px;font-weight:700;line-height:16px;text-align:center}
@@ -1439,7 +1440,7 @@ function renderFresh(){
    · Trésorerie   : solde réel fin de mois vs prévision du BP, reste à payer
    · Export       : Excel au format du grand livre pour l'expert-comptable + ZIP des factures du mois
    Le CA vient de la saisie du jour (DATA.daily) : enregistré automatiquement en écritures pour chaque mois terminé. */
-const CPT={sb:null,tab:"res",mois:null,yr:"2026",E:[],B:[],BP:{},PLAN:{},FF:[],loaded:false,filt:"",q:""};
+const CPT={sb:null,tab:"res",mois:null,yr:"2026",E:[],B:[],BP:{},PLAN:{},FF:[],PC:{},AG:null,loaded:false,filt:"",q:""};
 const CPT_ORDER=["01. CA","02. COGS","03. Frais PaloMano","04. Frais Généraux","05. Masse Salariale"];
 const CPT_GLAB={"01. CA":"Chiffre d'affaires","02. COGS":"Achats consommés","03. Frais PaloMano":"Frais Palomano (franchiseur)","04. Frais Généraux":"Frais généraux","05. Masse Salariale":"Masse salariale","Résultat Financier":"Charges financières"};
 const CPT_TAUX=[["0","0 %"],["0.055","5,5 %"],["0.1","10 %"],["0.2","20 %"],["","Mixte"]];
@@ -1483,6 +1484,8 @@ async function cptLoad(){
     cptAll(()=>sb.from("compta_bp").select("*")),
     cptAll(()=>sb.from("factures_fournisseurs").select("id,fournisseur,numero,date_facture,periode,montant_ht,montant_ttc,statut,fichier_path,paye_le,categorie"))]);
   CPT.PLAN={};plan.forEach(p=>CPT.PLAN[p.compte]=p);
+  try{const[pc,ag]=await Promise.all([cptAll(()=>sb.from("compta_pieces").select("id,fichier_path,fournisseur,numero,statut,note,recu_le,expediteur,nom_fichier").gte("recu_le",(+y-1)+"-12-01")),
+      sb.from("sync_state").select("*").eq("key","agent_factures").maybeSingle()]);CPT.PC={};pc.forEach(p=>CPT.PC[p.id]=p);CPT.AG=ag.data}catch(e){CPT.PC={};CPT.AG=null}   // agent factures (schema_v38)
   CPT.E=E;CPT.B=B;CPT.FF=FF;CPT.BP={};BP.forEach(r=>{(CPT.BP[r.mois]=CPT.BP[r.mois]||{})[r.ligne]=+r.montant});
   if(!CPT.mois){const t=cptToday().slice(0,7);CPT.mois=t.startsWith(y)?t:y+"-12"}
 }
@@ -1560,6 +1563,7 @@ function cptRes(v){
       ${card("Résultat (après amortissements)",cptE0(o.res),[cmp(o.res,bp.RESULTAT),`Cumul : ${cptE0(ytd.res)}`])}
       ${card("TVA du mois (collectée − déductible)",cptE0(o.tva),[o.tva>=0?"à payer le mois suivant":"crédit de TVA",nv?`⚠ ${nv} écriture${nv>1?"s":""} à vérifier ou provisoire${nv>1?"s":""}`:"✓ toutes les écritures sont validées"])}
     </div>
+    ${CPT.AG?`<div style="margin-top:14px">${cptAgentLine()}</div>`:""}
     <div class="card" style="margin-top:14px"><h3>Compte de résultat ${CPT.yr} (HT)</h3>
       <p class="hint">Même structure que le P&L du fichier LPP. Cliquez ▸ pour le détail. CA des mois terminés : écritures enregistrées ; mois en cours : saisie du jour en direct (en italique). Amortissements : plan du BP.</p>
       <div class="tablewrap"><table class="cpt-pl"><thead><tr><th></th>${months.map(m=>`<th class="${m===k?"cpt-cur":""}">${MOIS[+m.slice(5)-1]}</th>`).join("")}<th>Total</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
@@ -1576,20 +1580,23 @@ function cptEcr(v){
   v.innerHTML=`<div class="card"><div class="cpt-head"><h3 style="margin:0">Écritures — ${cptMois(k)}</h3>
       <div class="controls"><select id="cptF"><option value="">Toutes (${CPT.E.filter(e=>e.date.startsWith(k)).length})</option><option value="nok" ${f==="nok"?"selected":""}>À vérifier / provisoires</option><option value="ca" ${f==="ca"?"selected":""}>Chiffre d'affaires</option><option value="nopiece" ${f==="nopiece"?"selected":""}>Charges sans facture jointe</option><option value="facture" ${f==="facture"?"selected":""}>Factures déposées par l'équipe</option></select>
       <input id="cptQ" placeholder="Rechercher…" value="${esc(CPT.q)}"><button class="btn cpt-pri" id="cptAdd">+ Ajouter une écriture</button></div></div>
+    ${cptAgentLine()}
     <p class="hint">${L.length} ligne${L.length>1?"s":""} · produits ${cptE(sum(L.filter(e=>e.sens==="C")))} · charges ${cptE(-sum(L.filter(e=>e.sens==="D")))}. Cliquez une ligne pour la modifier. Les factures déposées par l'équipe arrivent ici toutes seules.</p>
     <div class="tablewrap"><table class="cpt-tab"><thead><tr><th>Date</th><th>Compte</th><th>Fournisseur / libellé</th><th>HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th></th></tr></thead><tbody>
     ${L.map(e=>`<tr data-id="${e.id}" class="cpt-click"><td>${cptD(e.date)}</td><td title="${esc((CPT.PLAN[e.compte]||{}).libelle||"")}">${esc(e.compte)}<br><small class="muted">${esc(cptG2(e))}</small></td>
       <td class="cpt-wrap"><b>${esc(e.fournisseur)}</b> · ${esc(e.libelle)}${e.commentaire?`<br><small class="muted">${esc(e.commentaire)}</small>`:""}</td>
       <td class="${e.sens==="C"?"cpt-up":""}">${e.sens==="C"?"+":""}${cptE(+e.ht)}</td><td>${cptE(+e.tva)}</td><td>${cptE(cptTTC(e))}</td>
-      <td><span class="cpt-st ${ST[e.statut][0]}">${ST[e.statut][1]}</span></td><td>${e.facture_id?`<button class="btn cpt-pj" data-ff="${e.facture_id}" title="Voir la facture">📎</button>`:""}</td></tr>`).join("")||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Aucune écriture.</td></tr>`}
+      <td><span class="cpt-st ${ST[e.statut][0]}">${ST[e.statut][1]}</span></td><td>${e.facture_id?`<button class="btn cpt-pj" data-ff="${e.facture_id}" title="Voir la facture">📎</button>`:e.piece_id&&CPT.PC[e.piece_id]?`<button class="btn cpt-pj" data-pc="${e.piece_id}" title="Voir la facture reçue par e-mail">📎</button>`:""}</td></tr>`).join("")||`<tr><td colspan="8" class="muted" style="text-align:center;padding:20px">Aucune écriture.</td></tr>`}
     </tbody></table></div></div>`;
   $("cptF").onchange=e=>{CPT.filt=e.target.value;cptRender()};
   $("cptQ").oninput=e=>{CPT.q=e.target.value;clearTimeout(cptEcr.t);cptEcr.t=setTimeout(()=>{cptRender();const i=$("cptQ");i.focus();i.setSelectionRange(i.value.length,i.value.length)},350)};
   $("cptAdd").onclick=()=>cptEdit({date:k<cptToday().slice(0,7)?cptEnd(k):cptToday(),sens:"D",taux:.2,statut:"ok"});
   v.querySelectorAll("tr[data-id]").forEach(tr=>tr.onclick=e=>{if(e.target.closest(".cpt-pj"))return;cptEdit(CPT.E.find(x=>x.id===+tr.dataset.id))});
-  v.querySelectorAll(".cpt-pj").forEach(x=>x.onclick=()=>cptPiece(+x.dataset.ff));
+  v.querySelectorAll(".cpt-pj").forEach(x=>x.onclick=()=>x.dataset.pc?cptPiece(0,CPT.PC[+x.dataset.pc]):cptPiece(+x.dataset.ff));
 }
-async function cptPiece(id){const f=CPT.FF.find(x=>x.id===id);if(!f||!f.fichier_path)return cptToast("Pas de fichier");
+function cptAgentLine(){const a=CPT.AG;if(!a)return"";const pend=Object.values(CPT.PC).filter(p=>p.statut==="erreur").length;
+  return`<div class="cpt-agent ${a.ok?"":"bad"}">🤖 <b>Agent factures</b> · ${esc(a.message||"")} <span class="muted">· ${a.synced_at?new Date(a.synced_at).toLocaleString("fr-FR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}</span>${pend?` · ⚠ ${pend} pièce${pend>1?"s":""} illisible${pend>1?"s":""}`:""}</div>`}
+async function cptPiece(id,pc){const f=pc||CPT.FF.find(x=>x.id===id);if(!f||!f.fichier_path)return cptToast("Pas de fichier");
   const w=window.open("","_blank");const{data,error}=await CPT.sb.storage.from("factures").createSignedUrl(f.fichier_path,900);if(error){w&&w.close();return cptFail(error)}if(w)w.location=data.signedUrl}
 function cptSuggest(four){const l=(four||"").trim().toLowerCase();if(!l)return null;const c={};CPT.E.filter(e=>e.fournisseur.toLowerCase()===l&&!String(e.compte).startsWith("7")).forEach(e=>{const x=e.compte+"|"+(e.taux??"");c[x]=(c[x]||0)+1});
   const best=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];if(!best)return null;const[cp,t]=best[0].split("|");return{compte:cp,taux:t===""?null:+t}}

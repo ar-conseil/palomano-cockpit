@@ -34,7 +34,7 @@ jobs:
           python-version: "3.12"
 
       - name: Dépendances
-        run: pip install openpyxl==3.1.5 cryptography==44.0.2
+        run: pip install openpyxl==3.1.5 cryptography==44.0.2 anthropic
 
       # Jeton de session Microsoft renouvelé à chaque passage (chiffré)
       - name: Récupérer la session Microsoft
@@ -81,6 +81,16 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           PALOMANO_SUIVI_DIR: ${{ runner.temp }}/sources
         run: python import_qweekle.py || echo "::warning::Import Qweekle en échec"
+
+      - name: Agent factures (lit les factures reçues par e-mail et les passe en comptabilité)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
+          MS_TOKEN_DIR: .ms_token
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python agent_factures.py || echo "::warning::Agent factures en échec"
 
       - name: Lire les commandes Qweekle des anniversaires (options, total, acompte, reste à payer)
         env:
