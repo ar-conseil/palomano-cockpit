@@ -891,6 +891,7 @@ const ICONS={
   sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/>',
   moon:'<path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"/>',
   euro:'<path d="M17.5 6.5A6.5 6.5 0 1 0 17.5 17.5"/><path d="M4.5 10.5h9M4.5 13.5h9"/>',
+  dl:'<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 17.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-1.5"/>',
   file:'<path d="M7 3.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 19V5A1.5 1.5 0 0 1 7.5 3.5z"/><path d="M14 3.5V8h4M9 13h6M9 16.5h4"/>',
   wrench:'<path d="M14.5 6.5a4 4 0 0 0 5 5L12 19a2.1 2.1 0 0 1-3-3z"/><path d="M14.5 6.5 17 4l3 3-2.5 2.5"/>',
 };
@@ -2662,6 +2663,30 @@ VIEWS.heures=async m=>{
 /* ═════════ FACTURATION ═════════ */
 const ST_FG={"Payé":"ok","À relancer":"bad","Annulée":"","":"warn"};
 const CAT_FF={animation:"Animateurs",staffing:"Staffing",jouets:"Jouets & boutique",autre:"Autre"};
+/* ── Téléchargement des factures déposées (un fichier ou un ZIP rangé par mois, comme le dossier FACTURES du Drive) ── */
+const MOIS_FR=["JANVIER","FEVRIER","MARS","AVRIL","MAI","JUIN","JUILLET","AOUT","SEPTEMBRE","OCTOBRE","NOVEMBRE","DECEMBRE"];
+const ffName=f=>{const ext=((f.fichier_path||"").match(/\.[A-Za-z0-9]{2,5}$/)||[".pdf"])[0].toLowerCase();
+  return `${f.fournisseur||"Facture"}${f.numero&&f.numero.trim()?" - "+f.numero.trim():""}${f.date_facture?" - "+fDate(f.date_facture).replace(/\//g,"-"):""} (${fNum(+f.montant_ttc||0,2).replace(/[\s\u202f]/g,"")} EUR)`.replace(/[\\/:*?"<>|]+/g,"-").replace(/\s+/g," ").trim()+ext};
+const ffFolder=f=>{const p=f.periode||(f.date_facture||"").slice(0,7);return p?`${MOIS_FR[+p.slice(5,7)-1]} ${p.slice(0,4)}`:"SANS MOIS"};
+const saveBlob=(blob,name)=>{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),60000)};
+async function ffDownload(f){const{data,error}=await S.sb.storage.from("factures").download(f.fichier_path);if(error||!data)return fail(error||"Fichier introuvable");saveBlob(data,ffName(f))}
+const CRC_T=new Uint32Array(256).map((_,n)=>{let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;return c>>>0});
+function zipBlob(files){   // ZIP sans compression (les PDF et photos sont déjà compressés)
+  const enc=new TextEncoder(),parts=[],cd=[];let off=0;
+  for(const{name,data}of files){let c=0xFFFFFFFF;for(let i=0;i<data.length;i++)c=CRC_T[(c^data[i])&255]^(c>>>8);c=(c^0xFFFFFFFF)>>>0;
+    const nm=enc.encode(name),h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint32(14,c,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(h.buffer),nm,data);
+    const d=new DataView(new ArrayBuffer(46));d.setUint32(0,0x02014b50,true);d.setUint16(4,20,true);d.setUint16(6,20,true);d.setUint16(8,0x0800,true);d.setUint32(16,c,true);d.setUint32(20,data.length,true);d.setUint32(24,data.length,true);d.setUint16(28,nm.length,true);d.setUint32(42,off,true);
+    cd.push(new Uint8Array(d.buffer),nm);off+=30+nm.length+data.length}
+  const n=cd.length/2,len=cd.reduce((t,x)=>t+x.length,0),e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,n,true);e.setUint16(10,n,true);e.setUint32(12,len,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cd,new Uint8Array(e.buffer)],{type:"application/zip"})}
+async function ffZip(list,label){
+  list=list.filter(f=>f.fichier_path&&f.statut!=="refusee");if(!list.length)return toast("Aucune facture à télécharger");
+  toast(`Préparation de ${list.length} facture${list.length>1?"s":""}…`);const files=[],seen=new Set();
+  for(const f of list){const{data}=await S.sb.storage.from("factures").download(f.fichier_path);if(!data)continue;
+    let nm=`${ffFolder(f)}/${ffName(f)}`;while(seen.has(nm))nm=nm.replace(/(\.\w+)$/," bis$1");seen.add(nm);files.push({name:nm,data:new Uint8Array(await data.arrayBuffer())})}
+  saveBlob(zipBlob(files),`Factures Palomano ${label}.zip`);toast(`${files.length} facture${files.length>1?"s":""} téléchargée${files.length>1?"s":""}`)}
+
 VIEWS.factu=async m=>{
   const t=S.facTab||"groupes";
   shellOnce(m,"fac:"+t,topbar("Facturation",t==="groupes"?"Écoles & centres · synchronisé avec l'Excel « Suivi facturation » sur SharePoint":"Animateurs & prestataires · factures des animateurs, staffeurs, jouets…",
@@ -2732,14 +2757,19 @@ VIEWS.factu=async m=>{
     const sum=x=>x.reduce((t,f)=>t+(+f.montant_ttc||0),0);
     const line=f=>`<div class="row click wrap" data-ff="${f.id}"><div class="tile-ic" style="width:40px;height:40px;background:var(${f.categorie==="jouets"?"--bleu-c":f.categorie==="staffing"?"--jaune-c":"--rouge-c"})">${ic("file","sm")}</div>
       <div class="tx"><b>${esc(f.fournisseur)}${f.numero?` · n° ${esc(f.numero)}`:""}</b><small>${CAT_FF[f.categorie]} · ${f.periode?capital(parse(f.periode+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})):""}${f.date_facture?" · facture du "+fDate(f.date_facture):""}${f.echeance?" · échéance "+fDate(f.echeance):""} · déposée par ${esc(firstName(f.created_by))}${f.fichier_path?" · 📎 PDF":""}</small></div>
-      <span class="pill ${f.statut==="paye"?"ok":f.statut==="refusee"?"bad":"warn"}"><i></i>${f.statut==="paye"?"Payée"+(f.paye_le?" le "+fDate(f.paye_le):""):f.statut==="refusee"?"Refusée":"À payer"}</span><b style="min-width:86px;text-align:right">${fEur(f.montant_ttc)}</b></div>`;
+      ${f.fichier_path?`<button class="btn icon sm ghost" data-ffdl="${f.id}" title="Télécharger la facture" aria-label="Télécharger la facture">${ic("dl","sm")}</button>`:""}<span class="pill ${f.statut==="paye"?"ok":f.statut==="refusee"?"bad":"warn"}"><i></i>${f.statut==="paye"?"Payée"+(f.paye_le?" le "+fDate(f.paye_le):""):f.statut==="refusee"?"Refusée":"À payer"}</span><b style="min-width:86px;text-align:right">${fEur(f.montant_ttc)}</b></div>`;
     body.innerHTML=`<div class="grid g4" style="margin-bottom:18px">
         <div class="stat"><div class="tile-ic" style="background:var(--rouge-c);color:var(--rouge-f)">${ic("clock")}</div><div><b>${fEur(sum(todo))}</b><span>à payer · ${todo.length} facture${todo.length>1?"s":""}</span></div></div>
         ${["animation","staffing","jouets"].map(c=>`<div class="stat"><div class="tile-ic" style="background:var(--bg)">${ic("file")}</div><div><b>${fEur(sum(ff.filter(f=>f.categorie===c&&f.periode===iso(new Date()).slice(0,7))))}</b><span>${CAT_FF[c]} ce mois-ci</span></div></div>`).join("")}</div>
-      <div class="card"><div class="card-head"><h3>${ic("clock")} À payer</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><select id="ffCat" style="width:auto"><option value="">Toutes catégories</option>${opt(CAT_FF,cat)}</select><button class="btn pri sm" id="ffNew">${ic("plus","sm")} Déposer une facture</button></div></div>
+      <div class="card"><div class="card-head"><h3>${ic("clock")} À payer</h3><div style="display:flex;gap:8px;flex-wrap:wrap"><select id="ffCat" style="width:auto"><option value="">Toutes catégories</option>${opt(CAT_FF,cat)}</select>${isDirection()?`<button class="btn sm" id="ffZip">${ic("dl","sm")} Tout télécharger</button>`:""}<button class="btn pri sm" id="ffNew">${ic("plus","sm")} Déposer une facture</button></div></div>
         <div class="list">${todo.map(line).join("")||'<div class="empty">✓ Aucune facture en attente.</div>'}</div></div>
       <div class="card" style="margin-top:18px"><h3 style="margin-bottom:10px">${ic("check")} Traitées</h3><div class="list">${done.slice(0,40).map(line).join("")||'<div class="empty">Rien pour l\'instant.</div>'}</div></div>`;
     $("ffCat").onchange=e=>{S.ffCat=e.target.value;render()};
+    body.querySelectorAll("[data-ffdl]").forEach(b=>b.onclick=e=>{e.stopPropagation();ffDownload(ff.find(x=>x.id===+b.dataset.ffdl))});
+    if($("ffZip"))$("ffZip").onclick=async()=>{const per=[...new Set(ff.filter(f=>f.fichier_path&&f.statut!=="refusee").map(f=>f.periode).filter(Boolean))].sort().reverse();
+      const r=await modal("Télécharger les factures",`<p class="hint" style="margin-top:0">Un fichier ZIP, rangé par mois comme le dossier FACTURES du Drive (« OCTOBRE 2026 »…). Les factures refusées ne sont pas incluses.</p>
+        <label class="f">Mois<select name="p"><option value="">Tous les mois (${ff.filter(f=>f.fichier_path&&f.statut!=="refusee").length} factures)</option>${per.map(p=>`<option value="${p}">${capital(parse(p+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"}))} (${ff.filter(f=>f.periode===p&&f.fichier_path&&f.statut!=="refusee").length})</option>`).join("")}</select></label>`,{submit:"Télécharger"});
+      if(!r)return;const p=r.data.p;ffZip(p?ff.filter(f=>f.periode===p):ff,p?ffFolder({periode:p}).toLowerCase():"toutes")};
     $("ffNew").onclick=async()=>{const r=await modal("Déposer une facture (animateur ou prestataire)",`<div class="fgrid">
         <label class="f">Catégorie<select name="categorie">${opt(CAT_FF,"animation")}</select></label>
         <label class="f">Mois concerné<input type="month" name="periode" value="${iso(new Date()).slice(0,7)}" required></label>
@@ -2756,11 +2786,13 @@ VIEWS.factu=async m=>{
         montant_ht:r.data.montant_ht===""?null:+r.data.montant_ht,montant_ttc:+r.data.montant_ttc,echeance:r.data.echeance||null,notes:r.data.notes,fichier_path:path});
       if(error)return fail(error);toast("Facture envoyée à la direction");render();refreshBadges()};
     body.querySelectorAll("[data-ff]").forEach(el=>el.onclick=async()=>{const f=ff.find(x=>x.id===+el.dataset.ff);
-      let link="";if(f.fichier_path){const{data}=await S.sb.storage.from("factures").createSignedUrl(f.fichier_path,900);if(data)link=`<a class="btn soft" href="${esc(data.signedUrl)}" target="_blank" rel="noopener">${ic("file","sm")} Ouvrir la facture</a>`}
+      let link="";if(f.fichier_path){const{data}=await S.sb.storage.from("factures").createSignedUrl(f.fichier_path,900);if(data)link=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><a class="btn soft" href="${esc(data.signedUrl)}" target="_blank" rel="noopener">${ic("file","sm")} Ouvrir la facture</a><button type="button" class="btn soft" id="ffDl1">${ic("dl","sm")} Télécharger</button></div>`}
       const dir=isDirection()&&f.statut==="a_payer";
-      const r=await modal(`${f.fournisseur} · ${fEur(f.montant_ttc)}`,`${link}<div class="list">${[["Catégorie",CAT_FF[f.categorie]],["Mois",f.periode],["N°",f.numero],["Date",f.date_facture&&fDate(f.date_facture)],["Montant HT",f.montant_ht!=null&&fEur(f.montant_ht)],["Montant TTC",fEur(f.montant_ttc)],["Échéance",f.echeance&&fDate(f.echeance)],["Déposée par",person(f.created_by).full_name+" le "+fStamp(f.created_at)],["Note",f.notes],["Décision",f.decision_note]].filter(([,v])=>v).map(([k,v])=>`<div class="row"><div class="tx"><small>${k}</small><b>${esc(v)}</b></div></div>`).join("")}</div>
+      const pr=modal(`${f.fournisseur} · ${fEur(f.montant_ttc)}`,`${link}<div class="list">${[["Catégorie",CAT_FF[f.categorie]],["Mois",f.periode],["N°",f.numero],["Date",f.date_facture&&fDate(f.date_facture)],["Montant HT",f.montant_ht!=null&&fEur(f.montant_ht)],["Montant TTC",fEur(f.montant_ttc)],["Échéance",f.echeance&&fDate(f.echeance)],["Déposée par",person(f.created_by).full_name+" le "+fStamp(f.created_at)],["Note",f.notes],["Décision",f.decision_note]].filter(([,v])=>v).map(([k,v])=>`<div class="row"><div class="tx"><small>${k}</small><b>${esc(v)}</b></div></div>`).join("")}</div>
         ${dir?`<div class="fgrid"><label class="f">Payée le<input type="date" name="paye_le" value="${TODAY()}"></label><label class="f">Commentaire<input name="decision_note"></label></div>`:""}`,
         dir?{submit:"✓ Marquer comme payée",danger:"Refuser"}:{readonly:true,danger:isDirection()?"Supprimer":null});
+      if($("ffDl1"))$("ffDl1").onclick=()=>ffDownload(f);
+      const r=await pr;
       if(!r)return;
       if(r.action==="danger"&&!dir){if(!confirm("Supprimer cette facture ?"))return;const{error}=await S.sb.from("factures_fournisseurs").delete().eq("id",f.id);if(error)return fail(error);return render()}
       const upd=r.action==="danger"?{statut:"refusee",decision_note:r.data.decision_note||""}:{statut:"paye",paye_le:r.data.paye_le||TODAY(),decision_note:r.data.decision_note||""};
