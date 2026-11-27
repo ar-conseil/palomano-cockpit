@@ -356,7 +356,8 @@ def main():
                     pj = [a for a in atts if a.get("@odata.type") == "#microsoft.graph.fileAttachment" and not a.get("isInline")
                           and (a.get("contentType") in EXT_OK or a.get("name", "").lower().endswith(".pdf"))
                           and (a.get("size") or 0) < 15e6 and not (a.get("contentType", "").startswith("image/") and (a.get("size") or 0) < 25e3)]
-                    pertinent = MOTS.search(sujet + " " + (m.get("bodyPreview") or "") + " " + " ".join(a.get("name", "") for a in pj))
+                    # une pièce envoyée par la direction elle-même (réponse au rappel des factures manquantes) est toujours lue
+                    pertinent = exp.lower().endswith("@palomano.com") or MOTS.search(sujet + " " + (m.get("bodyPreview") or "") + " " + " ".join(a.get("name", "") for a in pj))
                     for a in (pj if pertinent else []):
                         full = graph(f"/me/messages/{m['id']}/attachments/{a['id']}", tok)
                         ctype = a.get("contentType") if a.get("contentType") in EXT_OK else "application/pdf"

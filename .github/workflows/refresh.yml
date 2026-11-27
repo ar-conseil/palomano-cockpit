@@ -117,6 +117,15 @@ jobs:
         run: python sync_yavin.py || echo "::warning::Yavin en échec"
 
 
+      - name: Rappel mensuel des factures manquantes (e-mail à la direction, une fois par mois)
+        env:
+          DASH_PASSWORD: ${{ secrets.DASH_PASSWORD }}
+          MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
+          MS_TOKEN_DIR: .ms_token
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python rappel_factures.py || echo "::warning::Rappel des factures manquantes en échec"
+
       - name: Conserver la session Microsoft
         if: always() && hashFiles('.ms_token/refresh_token.enc') != ''
         uses: actions/cache/save@v4
